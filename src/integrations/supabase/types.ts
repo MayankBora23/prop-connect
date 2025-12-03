@@ -14,16 +14,375 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      follow_ups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          follow_up_date: string
+          follow_up_time: string
+          id: string
+          lead_id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["follow_up_status"]
+          type: Database["public"]["Enums"]["follow_up_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          follow_up_date: string
+          follow_up_time: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["follow_up_status"]
+          type: Database["public"]["Enums"]["follow_up_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          follow_up_date?: string
+          follow_up_time?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["follow_up_status"]
+          type?: Database["public"]["Enums"]["follow_up_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          budget: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          last_contact: string
+          location: string | null
+          name: string
+          notes: string[] | null
+          phone: string
+          property_type: string | null
+          source: string | null
+          stage: Database["public"]["Enums"]["lead_stage"]
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          budget?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_contact?: string
+          location?: string | null
+          name: string
+          notes?: string[] | null
+          phone: string
+          property_type?: string | null
+          source?: string | null
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          budget?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_contact?: string
+          location?: string | null
+          name?: string
+          notes?: string[] | null
+          phone?: string
+          property_type?: string | null
+          source?: string | null
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          id: string
+          lead_id: string
+          message_type: Database["public"]["Enums"]["message_type"]
+          status: Database["public"]["Enums"]["message_status"]
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          id?: string
+          lead_id: string
+          message_type?: Database["public"]["Enums"]["message_type"]
+          status?: Database["public"]["Enums"]["message_status"]
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["message_direction"]
+          id?: string
+          lead_id?: string
+          message_type?: Database["public"]["Enums"]["message_type"]
+          status?: Database["public"]["Enums"]["message_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          area: string
+          bhk: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          images: string[] | null
+          location: string
+          price: string
+          status: Database["public"]["Enums"]["property_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          area: string
+          bhk: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          location: string
+          price: string
+          status?: Database["public"]["Enums"]["property_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          bhk?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          location?: string
+          price?: string
+          status?: Database["public"]["Enums"]["property_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_visits: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          feedback: string | null
+          id: string
+          lead_id: string
+          property_id: string
+          status: Database["public"]["Enums"]["site_visit_status"]
+          updated_at: string
+          visit_date: string
+          visit_time: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          feedback?: string | null
+          id?: string
+          lead_id: string
+          property_id: string
+          status?: Database["public"]["Enums"]["site_visit_status"]
+          updated_at?: string
+          visit_date: string
+          visit_time: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          feedback?: string | null
+          id?: string
+          lead_id?: string
+          property_id?: string
+          status?: Database["public"]["Enums"]["site_visit_status"]
+          updated_at?: string
+          visit_date?: string
+          visit_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_visits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_visits_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workflows: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_run: string | null
+          name: string
+          runs_count: number
+          status: Database["public"]["Enums"]["workflow_status"]
+          trigger_event: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_run?: string | null
+          name: string
+          runs_count?: number
+          status?: Database["public"]["Enums"]["workflow_status"]
+          trigger_event: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_run?: string | null
+          name?: string
+          runs_count?: number
+          status?: Database["public"]["Enums"]["workflow_status"]
+          trigger_event?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "manager" | "agent" | "telecaller"
+      follow_up_status: "pending" | "completed" | "missed"
+      follow_up_type: "call" | "whatsapp" | "meeting" | "email"
+      lead_stage:
+        | "new"
+        | "contacted"
+        | "follow-up"
+        | "site-visit"
+        | "negotiation"
+        | "closed-won"
+        | "closed-lost"
+      message_direction: "incoming" | "outgoing"
+      message_status: "sent" | "delivered" | "read"
+      message_type: "text" | "image" | "document"
+      property_status: "available" | "sold" | "upcoming"
+      site_visit_status: "scheduled" | "completed" | "cancelled"
+      workflow_status: "active" | "inactive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +509,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "manager", "agent", "telecaller"],
+      follow_up_status: ["pending", "completed", "missed"],
+      follow_up_type: ["call", "whatsapp", "meeting", "email"],
+      lead_stage: [
+        "new",
+        "contacted",
+        "follow-up",
+        "site-visit",
+        "negotiation",
+        "closed-won",
+        "closed-lost",
+      ],
+      message_direction: ["incoming", "outgoing"],
+      message_status: ["sent", "delivered", "read"],
+      message_type: ["text", "image", "document"],
+      property_status: ["available", "sold", "upcoming"],
+      site_visit_status: ["scheduled", "completed", "cancelled"],
+      workflow_status: ["active", "inactive"],
+    },
   },
 } as const
