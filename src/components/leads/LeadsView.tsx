@@ -1,32 +1,12 @@
 import { useState } from 'react';
 import { LeadPipeline } from './LeadPipeline';
-import { useLeads } from '@/hooks/useLeads';
-import { LayoutGrid, List, Filter, Download, Plus } from 'lucide-react';
+import { mockLeads } from '@/data/mockData';
+import { LayoutGrid, List, Filter, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { AddLeadDialog } from './AddLeadDialog';
 
 export function LeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const { leads, loading, createLead, updateLeadStage } = useLeads();
-
-  if (loading) {
-    return (
-      <div className="space-y-4 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="flex gap-4 overflow-hidden">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-64 w-72 flex-shrink-0" />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -57,19 +37,19 @@ export function LeadsView() {
             Filters
           </Button>
           <Button variant="outline" size="sm">
+            <Upload className="w-4 h-4 mr-2" />
+            Import CSV
+          </Button>
+          <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
             Export
-          </Button>
-          <Button size="sm" className="gradient-primary border-0" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Lead
           </Button>
         </div>
       </div>
 
       {/* Content */}
       {viewMode === 'pipeline' ? (
-        <LeadPipeline leads={leads} onStageChange={updateLeadStage} />
+        <LeadPipeline />
       ) : (
         <div className="card-elevated overflow-hidden">
           <table className="w-full">
@@ -80,11 +60,11 @@ export function LeadsView() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Property</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stage</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Source</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {leads.length > 0 ? leads.map((lead) => (
+              {mockLeads.map((lead) => (
                 <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -93,20 +73,20 @@ export function LeadsView() {
                       </div>
                       <div>
                         <p className="font-medium text-foreground text-sm">{lead.name}</p>
-                        <p className="text-xs text-muted-foreground">{lead.source || 'No source'}</p>
+                        <p className="text-xs text-muted-foreground">{lead.source}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-sm text-foreground">{lead.phone}</p>
-                    <p className="text-xs text-muted-foreground">{lead.email || 'No email'}</p>
+                    <p className="text-xs text-muted-foreground">{lead.email}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-sm text-foreground">{lead.property_type || 'N/A'}</p>
-                    <p className="text-xs text-muted-foreground">{lead.location || 'N/A'}</p>
+                    <p className="text-sm text-foreground">{lead.propertyType}</p>
+                    <p className="text-xs text-muted-foreground">{lead.location}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-primary">{lead.budget || 'N/A'}</p>
+                    <p className="text-sm font-medium text-primary">{lead.budget}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn(
@@ -122,25 +102,13 @@ export function LeadsView() {
                       {lead.stage.replace('-', ' ')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-foreground">{lead.source || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{lead.assignedTo}</td>
                 </tr>
-              )) : (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                    No leads yet. Click "Add Lead" to create your first lead.
-                  </td>
-                </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       )}
-
-      <AddLeadDialog 
-        open={addDialogOpen} 
-        onOpenChange={setAddDialogOpen}
-        onSubmit={createLead}
-      />
     </div>
   );
 }
