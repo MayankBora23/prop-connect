@@ -1,34 +1,94 @@
 import { useState } from 'react';
-import { mockMessages, Message } from '@/data/mockData';
+import { useMessages, MessageWithLead, useCreateMessage } from '@/hooks/useMessages';
+import { useLeads } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
 import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 export function WhatsAppInbox() {
-  const [selectedChat, setSelectedChat] = useState<string | null>('1');
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const { data: messages, isLoading: messagesLoading } = useMessages();
+  const { data: leads } = useLeads();
+  const createMessage = useCreateMessage();
+  const { toast } = useToast();
 
   // Group messages by lead
-  const conversations = mockMessages.reduce((acc, msg) => {
-    if (!acc[msg.leadId]) {
-      acc[msg.leadId] = {
-        leadId: msg.leadId,
-        leadName: msg.leadName,
-        phone: msg.phone,
+  const conversations = (messages || []).reduce((acc, msg) => {
+    if (!acc[msg.lead_id]) {
+      acc[msg.lead_id] = {
+        leadId: msg.lead_id,
+        leadName: msg.leads?.name || 'Unknown',
+        phone: msg.leads?.phone || '',
         messages: [],
         lastMessage: msg,
       };
     }
-    acc[msg.leadId].messages.push(msg);
-    if (new Date(msg.timestamp) > new Date(acc[msg.leadId].lastMessage.timestamp)) {
-      acc[msg.leadId].lastMessage = msg;
+    acc[msg.lead_id].messages.push(msg);
+    if (new Date(msg.created_at) > new Date(acc[msg.lead_id].lastMessage.created_at)) {
+      acc[msg.lead_id].lastMessage = msg;
     }
     return acc;
-  }, {} as Record<string, { leadId: string; leadName: string; phone: string; messages: Message[]; lastMessage: Message }>);
+  }, {} as Record<string, { 
+    leadId: string; 
+    leadName: string; 
+    phone: string; 
+    messages: MessageWithLead[]; 
+    lastMessage: MessageWithLead 
+  }>);
 
-  const conversationList = Object.values(conversations);
-  const activeConversation = selectedChat ? conversations[selectedChat] : null;
+  const conversationList = Object.values(conversations).filter(conv => 
+    conv.leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.phone.includes(searchTerm)
+  );
+
+  const activeConversation = selectedLeadId ? conversations[selectedLeadId] : null;
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedLeadId) return;
+
+    try {
+      await createMessage.mutateAsync({
+        lead_id: selectedLeadId,
+        content: newMessage,
+        direction: 'outgoing',
+        message_type: 'text',
+      });
+      setNewMessage('');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to send message',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (messagesLoading) {
+    return (
+      <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
+        <div className="w-80 border-r border-border flex flex-col">
+          <div className="p-4 border-b border-border">
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="flex-1 p-2 space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Skeleton className="h-20 w-60" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
@@ -37,44 +97,55 @@ export function WhatsAppInbox() {
         <div className="p-4 border-b border-border">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search conversations..." className="pl-9" />
+            <Input 
+              placeholder="Search conversations..." 
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {conversationList.map((conv) => (
-            <button
-              key={conv.leadId}
-              onClick={() => setSelectedChat(conv.leadId)}
-              className={cn(
-                'w-full p-4 flex items-start gap-3 hover:bg-secondary transition-colors text-left',
-                selectedChat === conv.leadId && 'bg-secondary'
-              )}
-            >
-              <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
-                {conv.leadName.split(' ').map(n => n[0]).join('')}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-foreground text-sm truncate">{conv.leadName}</span>
-                  <span className="text-xs text-muted-foreground flex-shrink-0">
-                    {conv.lastMessage.timestamp.split(' ')[1]} {conv.lastMessage.timestamp.split(' ')[2]}
-                  </span>
+          {conversationList.length > 0 ? (
+            conversationList.map((conv) => (
+              <button
+                key={conv.leadId}
+                onClick={() => setSelectedLeadId(conv.leadId)}
+                className={cn(
+                  'w-full p-4 flex items-start gap-3 hover:bg-secondary transition-colors text-left',
+                  selectedLeadId === conv.leadId && 'bg-secondary'
+                )}
+              >
+                <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
+                  {conv.leadName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {conv.lastMessage.direction === 'outgoing' && (
-                    <span className="inline-flex mr-1">
-                      {conv.lastMessage.status === 'read' ? (
-                        <CheckCheck className="w-3 h-3 text-info" />
-                      ) : (
-                        <Check className="w-3 h-3" />
-                      )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-foreground text-sm truncate">{conv.leadName}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {format(new Date(conv.lastMessage.created_at), 'h:mm a')}
                     </span>
-                  )}
-                  {conv.lastMessage.content}
-                </p>
-              </div>
-            </button>
-          ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {conv.lastMessage.direction === 'outgoing' && (
+                      <span className="inline-flex mr-1">
+                        {conv.lastMessage.status === 'read' ? (
+                          <CheckCheck className="w-3 h-3 text-info" />
+                        ) : (
+                          <Check className="w-3 h-3" />
+                        )}
+                      </span>
+                    )}
+                    {conv.lastMessage.content}
+                  </p>
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="p-4 text-center text-muted-foreground text-sm">
+              No conversations yet
+            </div>
+          )}
         </div>
       </div>
 
@@ -84,7 +155,7 @@ export function WhatsAppInbox() {
           {/* Chat Header */}
           <div className="h-16 px-4 flex items-center gap-3 border-b border-border bg-card">
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-              {activeConversation.leadName.split(' ').map(n => n[0]).join('')}
+              {activeConversation.leadName.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
             <div>
               <h3 className="font-medium text-foreground">{activeConversation.leadName}</h3>
@@ -119,7 +190,7 @@ export function WhatsAppInbox() {
                       'text-xs',
                       msg.direction === 'outgoing' ? 'text-primary-foreground/70' : 'text-muted-foreground'
                     )}>
-                      {msg.timestamp.split(' ')[1]} {msg.timestamp.split(' ')[2]}
+                      {format(new Date(msg.created_at), 'h:mm a')}
                     </span>
                     {msg.direction === 'outgoing' && (
                       msg.status === 'read' ? (
@@ -153,8 +224,14 @@ export function WhatsAppInbox() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 className="flex-1"
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               />
-              <Button size="icon" className="gradient-primary border-0 rounded-full">
+              <Button 
+                size="icon" 
+                className="gradient-primary border-0 rounded-full"
+                onClick={handleSendMessage}
+                disabled={createMessage.isPending || !newMessage.trim()}
+              >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
