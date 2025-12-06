@@ -1,6 +1,7 @@
-import { Lead } from '@/data/mockData';
 import { Phone, Mail, MapPin, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Lead } from '@/hooks/useLeads';
+import { format } from 'date-fns';
 
 interface LeadCardProps {
   lead: Lead;
@@ -20,7 +21,7 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
           </div>
           <div>
             <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
-            <p className="text-xs text-muted-foreground">{lead.source}</p>
+            <p className="text-xs text-muted-foreground">{lead.source || 'Unknown'}</p>
           </div>
         </div>
       </div>
@@ -30,24 +31,26 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
           <Phone className="w-3.5 h-3.5" />
           <span>{lead.phone}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <MapPin className="w-3.5 h-3.5" />
-          <span className="truncate">{lead.location}</span>
-        </div>
+        {lead.location && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5" />
+            <span className="truncate">{lead.location}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Calendar className="w-3.5 h-3.5" />
-          <span>{lead.lastContact}</span>
+          <span>{format(new Date(lead.last_contact), 'MMM d, yyyy')}</span>
         </div>
       </div>
 
       <div className="mt-3 pt-3 border-t border-border">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-foreground">{lead.propertyType}</span>
-          <span className="text-xs font-semibold text-primary">{lead.budget}</span>
+          <span className="text-xs font-medium text-foreground">{lead.property_type || 'Not specified'}</span>
+          <span className="text-xs font-semibold text-primary">{lead.budget || 'No budget'}</span>
         </div>
       </div>
 
-      {lead.tags.length > 0 && (
+      {lead.tags && lead.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3">
           {lead.tags.map((tag) => (
             <span
@@ -66,9 +69,11 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
         </div>
       )}
 
-      <div className="mt-3 text-xs text-muted-foreground">
-        Assigned to: <span className="font-medium text-foreground">{lead.assignedTo}</span>
-      </div>
+      {lead.assigned_to && (
+        <div className="mt-3 text-xs text-muted-foreground">
+          Assigned to: <span className="font-medium text-foreground">{lead.assigned_to}</span>
+        </div>
+      )}
     </div>
   );
 }

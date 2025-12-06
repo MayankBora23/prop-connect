@@ -1,7 +1,7 @@
-import { Property } from '@/data/mockData';
 import { MapPin, Maximize, IndianRupee, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { Property } from '@/hooks/useProperties';
 
 interface PropertyCardProps {
   property: Property;
@@ -40,7 +40,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
         </div>
         
         <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-          {property.description}
+          {property.description || 'No description available'}
         </p>
         
         <div className="flex items-center gap-4 text-sm text-foreground mb-4">
