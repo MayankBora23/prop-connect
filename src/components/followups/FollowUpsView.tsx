@@ -1,14 +1,24 @@
-import { mockFollowUps, FollowUp } from '@/data/mockData';
+import { useFollowUps, FollowUpWithLead, useUpdateFollowUp } from '@/hooks/useFollowUps';
 import { Phone, MessageSquare, Calendar, Mail, Clock, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import type { Enums } from '@/integrations/supabase/types';
+
+type FollowUpType = Enums<'follow_up_type'>;
 
 export function FollowUpsView() {
-  const pendingFollowUps = mockFollowUps.filter(f => f.status === 'pending');
-  const missedFollowUps = mockFollowUps.filter(f => f.status === 'missed');
-  const completedFollowUps = mockFollowUps.filter(f => f.status === 'completed');
+  const { data: followUps, isLoading } = useFollowUps();
+  const updateFollowUp = useUpdateFollowUp();
+  const { toast } = useToast();
 
-  const getTypeIcon = (type: FollowUp['type']) => {
+  const pendingFollowUps = (followUps || []).filter(f => f.status === 'pending');
+  const missedFollowUps = (followUps || []).filter(f => f.status === 'missed');
+  const completedFollowUps = (followUps || []).filter(f => f.status === 'completed');
+
+  const getTypeIcon = (type: FollowUpType) => {
     switch (type) {
       case 'call': return Phone;
       case 'whatsapp': return MessageSquare;
@@ -17,7 +27,23 @@ export function FollowUpsView() {
     }
   };
 
-  const FollowUpCard = ({ followUp }: { followUp: FollowUp }) => {
+  const handleMarkComplete = async (id: string) => {
+    try {
+      await updateFollowUp.mutateAsync({ id, status: 'completed' });
+      toast({
+        title: 'Follow-up Completed',
+        description: 'Follow-up marked as completed',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update follow-up',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const FollowUpCard = ({ followUp }: { followUp: FollowUpWithLead }) => {
     const TypeIcon = getTypeIcon(followUp.type);
 
     return (
@@ -34,7 +60,7 @@ export function FollowUpsView() {
               <TypeIcon className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground text-sm">{followUp.leadName}</h4>
+              <h4 className="font-semibold text-foreground text-sm">{followUp.leads?.name || 'Unknown Lead'}</h4>
               <p className="text-xs text-muted-foreground capitalize">{followUp.type}</p>
             </div>
           </div>
@@ -48,22 +74,29 @@ export function FollowUpsView() {
           </span>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-3">{followUp.notes}</p>
+        {followUp.notes && (
+          <p className="text-sm text-muted-foreground mb-3">{followUp.notes}</p>
+        )}
 
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Calendar className="w-4 h-4" />
-            <span>{followUp.date}</span>
+            <span>{format(new Date(followUp.follow_up_date), 'MMM d, yyyy')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            <span>{followUp.time}</span>
+            <span>{followUp.follow_up_time}</span>
           </div>
         </div>
 
         {followUp.status === 'pending' && (
           <div className="flex items-center gap-2 mt-4">
-            <Button size="sm" className="flex-1 gradient-primary border-0">
+            <Button 
+              size="sm" 
+              className="flex-1 gradient-primary border-0"
+              onClick={() => handleMarkComplete(followUp.id)}
+              disabled={updateFollowUp.isPending}
+            >
               <Check className="w-4 h-4 mr-2" />
               Mark Complete
             </Button>
@@ -75,6 +108,23 @@ export function FollowUpsView() {
       </div>
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -130,11 +180,15 @@ export function FollowUpsView() {
           <Clock className="w-5 h-5 text-warning" />
           Today's Follow-ups
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pendingFollowUps.map((followUp) => (
-            <FollowUpCard key={followUp.id} followUp={followUp} />
-          ))}
-        </div>
+        {pendingFollowUps.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingFollowUps.map((followUp) => (
+              <FollowUpCard key={followUp.id} followUp={followUp} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">No pending follow-ups</p>
+        )}
       </div>
 
       {/* Completed Follow-ups */}
@@ -143,11 +197,15 @@ export function FollowUpsView() {
           <Check className="w-5 h-5 text-success" />
           Completed
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {completedFollowUps.map((followUp) => (
-            <FollowUpCard key={followUp.id} followUp={followUp} />
-          ))}
-        </div>
+        {completedFollowUps.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {completedFollowUps.map((followUp) => (
+              <FollowUpCard key={followUp.id} followUp={followUp} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">No completed follow-ups</p>
+        )}
       </div>
     </div>
   );
