@@ -1,12 +1,19 @@
-import { mockSiteVisits, SiteVisit } from '@/data/mockData';
-import { Calendar, Clock, MapPin, User, MessageSquare, Check, X } from 'lucide-react';
+import { SiteVisit } from '@/data/mockData';
+import { Calendar, Clock, User, MessageSquare, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useSiteVisits } from '@/hooks/useData';
 
 export function SiteVisitsView() {
-  const scheduledVisits = mockSiteVisits.filter(v => v.status === 'scheduled');
-  const completedVisits = mockSiteVisits.filter(v => v.status === 'completed');
-  const cancelledVisits = mockSiteVisits.filter(v => v.status === 'cancelled');
+  const { data: siteVisits = [], isLoading } = useSiteVisits();
+
+  if (isLoading) {
+    return <div className="p-4 text-muted-foreground">Loading site visits...</div>;
+  }
+
+  const scheduledVisits = siteVisits.filter(v => v.status === 'scheduled');
+  const completedVisits = siteVisits.filter(v => v.status === 'completed');
+  const cancelledVisits = siteVisits.filter(v => v.status === 'cancelled');
 
   const VisitCard = ({ visit }: { visit: SiteVisit }) => (
     <div className="card-elevated p-4 animate-scale-in">

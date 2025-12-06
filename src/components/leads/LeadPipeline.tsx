@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Lead, LeadStage, mockLeads } from '@/data/mockData';
+import { Lead, LeadStage } from '@/data/mockData';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
+import { useUpdateLead } from '@/hooks/useData';
+import { useToast } from '@/hooks/use-toast';
 
 const stages: { id: LeadStage; label: string; color: string }[] = [
   { id: 'new', label: 'New', color: 'bg-info' },
@@ -13,11 +14,30 @@ const stages: { id: LeadStage; label: string; color: string }[] = [
   { id: 'closed-lost', label: 'Closed Lost', color: 'bg-destructive' },
 ];
 
-export function LeadPipeline() {
-  const [leads] = useState<Lead[]>(mockLeads);
+interface LeadPipelineProps {
+  leads: Lead[];
+  onEditLead?: (lead: Lead) => void;
+}
+
+export function LeadPipeline({ leads, onEditLead }: LeadPipelineProps) {
+  const updateLead = useUpdateLead();
+  const { toast } = useToast();
 
   const getLeadsByStage = (stage: LeadStage) => {
     return leads.filter((lead) => lead.stage === stage);
+  };
+
+  const handleStageChange = async (leadId: string, newStage: LeadStage) => {
+    try {
+      await updateLead.mutateAsync({ id: leadId, data: { stage: newStage } });
+      toast({ title: 'Success', description: 'Lead stage updated' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update lead stage',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -36,7 +56,18 @@ export function LeadPipeline() {
               </div>
               <div className="space-y-3 min-h-[200px] p-2 rounded-xl bg-secondary/50">
                 {stageLeads.map((lead) => (
-                  <LeadCard key={lead.id} lead={lead} />
+                  <LeadCard
+                    key={lead.id}
+                    lead={lead}
+                    onClick={() => {
+                      // Allow moving to next stage on click (simple implementation)
+                      const currentIndex = stages.findIndex(s => s.id === lead.stage);
+                      if (currentIndex < stages.length - 1) {
+                        handleStageChange(lead.id, stages[currentIndex + 1].id);
+                      }
+                    }}
+                    onEdit={onEditLead ? () => onEditLead(lead) : undefined}
+                  />
                 ))}
                 {stageLeads.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground text-sm">

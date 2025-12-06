@@ -1,12 +1,19 @@
-import { mockFollowUps, FollowUp } from '@/data/mockData';
+import { FollowUp } from '@/data/mockData';
 import { Phone, MessageSquare, Calendar, Mail, Clock, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useFollowUps } from '@/hooks/useData';
 
 export function FollowUpsView() {
-  const pendingFollowUps = mockFollowUps.filter(f => f.status === 'pending');
-  const missedFollowUps = mockFollowUps.filter(f => f.status === 'missed');
-  const completedFollowUps = mockFollowUps.filter(f => f.status === 'completed');
+  const { data: followUps = [], isLoading } = useFollowUps();
+
+  if (isLoading) {
+    return <div className="p-4 text-muted-foreground">Loading follow-ups...</div>;
+  }
+
+  const pendingFollowUps = followUps.filter(f => f.status === 'pending');
+  const missedFollowUps = followUps.filter(f => f.status === 'missed');
+  const completedFollowUps = followUps.filter(f => f.status === 'completed');
 
   const getTypeIcon = (type: FollowUp['type']) => {
     switch (type) {

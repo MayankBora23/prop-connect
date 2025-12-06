@@ -1,13 +1,21 @@
 import { Property } from '@/data/mockData';
-import { MapPin, Maximize, IndianRupee, Share2 } from 'lucide-react';
+import { MapPin, Maximize, IndianRupee, Share2, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface PropertyCardProps {
   property: Property;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export function PropertyCard({ property }: PropertyCardProps) {
+export function PropertyCard({ property, onEdit, onDelete }: PropertyCardProps) {
   return (
     <div className="card-elevated overflow-hidden animate-scale-in group">
       <div className="relative h-48 bg-secondary">
@@ -22,13 +30,32 @@ export function PropertyCard({ property }: PropertyCardProps) {
         )}>
           {property.status.charAt(0).toUpperCase() + property.status.slice(1)}
         </div>
-        <Button
-          size="sm"
-          variant="secondary"
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Share2 className="w-4 h-4" />
-        </Button>
+        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button size="sm" variant="secondary">
+            <Share2 className="w-4 h-4" />
+          </Button>
+          {(onEdit || onDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="secondary">⋯</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
       
       <div className="p-4">

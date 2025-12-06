@@ -1,12 +1,22 @@
-import { mockWorkflows, Workflow } from '@/data/mockData';
-import { Zap, Play, Pause, Clock, ArrowRight, MessageSquare, UserPlus, Calendar, Bell } from 'lucide-react';
+import { Workflow } from '@/data/mockData';
+import { Zap, Play, Clock, ArrowRight, MessageSquare, UserPlus, Calendar, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useWorkflows } from '@/hooks/useData';
 
 export function AutomationView() {
-  const [workflows, setWorkflows] = useState(mockWorkflows);
+  const { data: remoteWorkflows = [], isLoading } = useWorkflows();
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  useEffect(() => {
+    setWorkflows(remoteWorkflows);
+  }, [remoteWorkflows]);
+
+  if (isLoading) {
+    return <div className="p-4 text-muted-foreground">Loading workflows...</div>;
+  }
 
   const toggleWorkflow = (id: string) => {
     setWorkflows(prev => prev.map(w => 

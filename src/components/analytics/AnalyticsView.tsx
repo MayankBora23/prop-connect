@@ -1,6 +1,7 @@
 import { analyticsData } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { TrendingUp, Users, Target, Share2 } from 'lucide-react';
+import { useAnalytics } from '@/hooks/useData';
 
 const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
 
@@ -15,6 +16,12 @@ const weeklyData = [
 ];
 
 export function AnalyticsView() {
+  const { data: analytics = analyticsData, isLoading } = useAnalytics();
+
+  if (isLoading) {
+    return <div className="p-4 text-muted-foreground">Loading analytics...</div>;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top Stats */}
@@ -23,7 +30,7 @@ export function AnalyticsView() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Conversion Rate</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{analyticsData.conversionRate}%</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{analytics.conversionRate}%</p>
               <p className="text-xs text-success mt-2">↑ 2.1% from last month</p>
             </div>
             <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center">
@@ -35,7 +42,7 @@ export function AnalyticsView() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total Leads</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{analyticsData.totalLeads}</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{analytics.totalLeads}</p>
               <p className="text-xs text-success mt-2">↑ 12% from last month</p>
             </div>
             <div className="w-14 h-14 rounded-xl gradient-info flex items-center justify-center">
@@ -47,7 +54,7 @@ export function AnalyticsView() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Deals Closed</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{analyticsData.closedWon}</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{analytics.closedWon}</p>
               <p className="text-xs text-success mt-2">↑ 5 from last month</p>
             </div>
             <div className="w-14 h-14 rounded-xl gradient-success flex items-center justify-center">
@@ -60,7 +67,7 @@ export function AnalyticsView() {
             <div>
               <p className="text-sm text-muted-foreground">Property Shares</p>
               <p className="text-3xl font-bold text-foreground mt-1">
-                {analyticsData.propertyInterest.reduce((sum, p) => sum + p.shares, 0)}
+                {analytics.propertyInterest.reduce((sum, p) => sum + p.shares, 0)}
               </p>
               <p className="text-xs text-success mt-2">↑ 18% from last month</p>
             </div>
@@ -113,7 +120,7 @@ export function AnalyticsView() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={analyticsData.leadsBySource}
+                  data={analytics.leadsBySource}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
@@ -123,7 +130,7 @@ export function AnalyticsView() {
                   label={({ source, percent }) => `${source} (${(percent * 100).toFixed(0)}%)`}
                   labelLine={false}
                 >
-                  {analyticsData.leadsBySource.map((_, index) => (
+                  {analytics.leadsBySource.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -147,7 +154,7 @@ export function AnalyticsView() {
           <h3 className="font-semibold text-foreground mb-4">Agent Performance</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analyticsData.agentPerformance} layout="vertical">
+              <BarChart data={analytics.agentPerformance} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis dataKey="name" type="category" width={100} stroke="hsl(var(--muted-foreground))" fontSize={12} />
@@ -169,7 +176,7 @@ export function AnalyticsView() {
         <div className="card-elevated p-6">
           <h3 className="font-semibold text-foreground mb-4">Property Interest</h3>
           <div className="space-y-4">
-            {analyticsData.propertyInterest.map((property, index) => (
+            {analytics.propertyInterest.map((property, index) => (
               <div key={property.property} className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-foreground">{property.property}</span>

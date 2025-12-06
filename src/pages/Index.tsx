@@ -30,10 +30,8 @@ const Index = () => {
   const { toast } = useToast();
 
   const handleAddNew = () => {
-    toast({
-      title: 'Coming Soon',
-      description: `Add ${tabConfig[activeTab].addLabel} feature will be available soon.`,
-    });
+    // The individual views now handle their own add actions
+    // This is kept for backward compatibility but views implement their own handlers
   };
 
   const config = tabConfig[activeTab];

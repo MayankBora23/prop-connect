@@ -5,9 +5,10 @@ import { cn } from '@/lib/utils';
 interface LeadCardProps {
   lead: Lead;
   onClick?: () => void;
+  onEdit?: () => void;
 }
 
-export function LeadCard({ lead, onClick }: LeadCardProps) {
+export function LeadCard({ lead, onClick, onEdit }: LeadCardProps) {
   return (
     <div
       onClick={onClick}

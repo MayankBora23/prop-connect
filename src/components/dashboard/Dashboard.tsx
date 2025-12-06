@@ -1,13 +1,23 @@
 import { Users, TrendingUp, Calendar, CheckCircle2, XCircle, Flame } from 'lucide-react';
 import { StatCard } from './StatCard';
-import { analyticsData, mockLeads, mockFollowUps, mockSiteVisits } from '@/data/mockData';
+import { analyticsData } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useAnalytics, useFollowUps, useLeads, useSiteVisits } from '@/hooks/useData';
 
 const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
 
 export function Dashboard() {
-  const todayFollowUps = mockFollowUps.filter(f => f.status === 'pending').length;
-  const todayVisits = mockSiteVisits.filter(v => v.status === 'scheduled').length;
+  const { data: leads = [], isLoading: leadsLoading } = useLeads();
+  const { data: followUps = [], isLoading: followUpsLoading } = useFollowUps();
+  const { data: siteVisits = [], isLoading: visitsLoading } = useSiteVisits();
+  const { data: analytics = analyticsData, isLoading: analyticsLoading } = useAnalytics();
+
+  const todayFollowUps = followUps.filter(f => f.status === 'pending').length;
+  const todayVisits = siteVisits.filter(v => v.status === 'scheduled').length;
+
+  if (leadsLoading || followUpsLoading || visitsLoading || analyticsLoading) {
+    return <div className="p-4 text-muted-foreground">Loading dashboard...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -15,14 +25,14 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard
           title="Total Leads"
-          value={analyticsData.totalLeads}
+          value={analytics.totalLeads}
           change="+12% from last month"
           changeType="positive"
           icon={Users}
         />
         <StatCard
           title="New Today"
-          value={analyticsData.newLeadsToday}
+          value={analytics.newLeadsToday}
           change="+3 from yesterday"
           changeType="positive"
           icon={TrendingUp}
@@ -30,21 +40,21 @@ export function Dashboard() {
         />
         <StatCard
           title="Hot Leads"
-          value={analyticsData.hotLeads}
+          value={analytics.hotLeads}
           icon={Flame}
           iconBg="gradient-warning"
         />
         <StatCard
           title="Closed Won"
-          value={analyticsData.closedWon}
-          change={`${analyticsData.conversionRate}% conversion`}
+          value={analytics.closedWon}
+          change={`${analytics.conversionRate}% conversion`}
           changeType="positive"
           icon={CheckCircle2}
           iconBg="gradient-success"
         />
         <StatCard
           title="Closed Lost"
-          value={analyticsData.closedLost}
+          value={analytics.closedLost}
           icon={XCircle}
           iconBg="bg-destructive"
         />
@@ -64,7 +74,7 @@ export function Dashboard() {
           <h3 className="font-semibold text-foreground mb-4">Leads by Source</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analyticsData.leadsBySource} layout="vertical">
+              <BarChart data={analytics.leadsBySource} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis dataKey="source" type="category" width={100} stroke="hsl(var(--muted-foreground))" fontSize={12} />
@@ -88,7 +98,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={analyticsData.leadsByStage}
+                  data={analytics.leadsByStage}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -97,7 +107,7 @@ export function Dashboard() {
                   dataKey="count"
                   nameKey="stage"
                 >
-                  {analyticsData.leadsByStage.map((_, index) => (
+                  {analytics.leadsByStage.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -112,7 +122,7 @@ export function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div className="flex flex-wrap gap-3 mt-4 justify-center">
-            {analyticsData.leadsByStage.map((item, index) => (
+            {analytics.leadsByStage.map((item, index) => (
               <div key={item.stage} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                 <span className="text-xs text-muted-foreground">{item.stage}</span>
@@ -128,7 +138,7 @@ export function Dashboard() {
         <div className="card-elevated p-6">
           <h3 className="font-semibold text-foreground mb-4">Agent Performance</h3>
           <div className="space-y-4">
-            {analyticsData.agentPerformance.map((agent) => (
+            {analytics.agentPerformance.map((agent) => (
               <div key={agent.name} className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
                   {agent.name.split(' ').map(n => n[0]).join('')}
@@ -150,7 +160,7 @@ export function Dashboard() {
         <div className="card-elevated p-6">
           <h3 className="font-semibold text-foreground mb-4">Recent Leads</h3>
           <div className="space-y-3">
-            {mockLeads.slice(0, 5).map((lead) => (
+            {leads.slice(0, 5).map((lead) => (
               <div key={lead.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-secondary transition-colors">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold text-sm">
                   {lead.name.split(' ').map(n => n[0]).join('')}

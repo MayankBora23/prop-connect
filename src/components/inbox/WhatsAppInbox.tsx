@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { mockMessages, Message } from '@/data/mockData';
+import { Message } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useMessages } from '@/hooks/useData';
 
 export function WhatsAppInbox() {
   const [selectedChat, setSelectedChat] = useState<string | null>('1');
   const [newMessage, setNewMessage] = useState('');
+  const { data: messages = [], isLoading } = useMessages();
+
+  if (isLoading) {
+    return <div className="p-4 text-muted-foreground">Loading inbox...</div>;
+  }
 
   // Group messages by lead
-  const conversations = mockMessages.reduce((acc, msg) => {
+  const conversations = messages.reduce((acc, msg) => {
     if (!acc[msg.leadId]) {
       acc[msg.leadId] = {
         leadId: msg.leadId,

@@ -1,9 +1,16 @@
-import { mockUsers, User } from '@/data/mockData';
+import { User } from '@/data/mockData';
 import { Mail, Phone, Shield, Users, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useUsers } from '@/hooks/useData';
 
 export function TeamView() {
+  const { data: users = [], isLoading } = useUsers();
+
+  if (isLoading) {
+    return <div className="p-4 text-muted-foreground">Loading team...</div>;
+  }
+
   const getRoleBadge = (role: User['role']) => {
     switch (role) {
       case 'admin':
@@ -26,7 +33,7 @@ export function TeamView() {
             <Users className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">{mockUsers.length}</p>
+            <p className="text-2xl font-bold text-foreground">{users.length}</p>
             <p className="text-sm text-muted-foreground">Total Members</p>
           </div>
         </div>
@@ -36,7 +43,7 @@ export function TeamView() {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {mockUsers.reduce((sum, u) => sum + u.dealsClosed, 0)}
+              {users.reduce((sum, u) => sum + u.dealsClosed, 0)}
             </p>
             <p className="text-sm text-muted-foreground">Total Deals</p>
           </div>
@@ -47,7 +54,7 @@ export function TeamView() {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {mockUsers.reduce((sum, u) => sum + u.leadsAssigned, 0)}
+              {users.reduce((sum, u) => sum + u.leadsAssigned, 0)}
             </p>
             <p className="text-sm text-muted-foreground">Total Leads</p>
           </div>
@@ -58,7 +65,7 @@ export function TeamView() {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {mockUsers.filter(u => u.role === 'admin' || u.role === 'manager').length}
+              {users.filter(u => u.role === 'admin' || u.role === 'manager').length}
             </p>
             <p className="text-sm text-muted-foreground">Admins/Managers</p>
           </div>
@@ -67,7 +74,7 @@ export function TeamView() {
 
       {/* Team Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockUsers.map((user) => {
+        {users.map((user) => {
           const roleBadge = getRoleBadge(user.role);
           return (
             <div key={user.id} className="card-elevated p-6 animate-scale-in">
