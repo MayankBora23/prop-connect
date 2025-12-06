@@ -10,6 +10,7 @@ import { FollowUpsView } from '@/components/followups/FollowUpsView';
 import { TeamView } from '@/components/team/TeamView';
 import { AutomationView } from '@/components/automation/AutomationView';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
+import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,13 +28,18 @@ const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: s
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
   const { toast } = useToast();
 
   const handleAddNew = () => {
-    toast({
-      title: 'Coming Soon',
-      description: `Add ${tabConfig[activeTab].addLabel} feature will be available soon.`,
-    });
+    if (activeTab === 'leads') {
+      setAddLeadOpen(true);
+    } else {
+      toast({
+        title: 'Coming Soon',
+        description: `Add ${tabConfig[activeTab].addLabel} feature will be available soon.`,
+      });
+    }
   };
 
   const config = tabConfig[activeTab];
@@ -79,6 +85,8 @@ const Index = () => {
           {renderContent()}
         </div>
       </main>
+
+      <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
     </div>
   );
 };
