@@ -11,17 +11,19 @@ import { TeamView } from '@/components/team/TeamView';
 import { AutomationView } from '@/components/automation/AutomationView';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
+import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
+import { AddFollowUpDialog } from '@/components/followups/AddFollowUpDialog';
+import { AddWorkflowDialog } from '@/components/automation/AddWorkflowDialog';
 
 const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Welcome back, Priya!' },
+  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
   leads: { title: 'Lead Management', subtitle: 'Manage your sales pipeline', addLabel: 'Add Lead' },
   properties: { title: 'Properties', subtitle: 'Your property inventory', addLabel: 'Add Property' },
   inbox: { title: 'WhatsApp Inbox', subtitle: 'Customer conversations' },
   visits: { title: 'Site Visits', subtitle: 'Scheduled property visits', addLabel: 'Schedule Visit' },
-  followups: { title: 'Follow-ups', subtitle: 'Track your tasks' },
-  team: { title: 'Team Management', subtitle: 'Your team members', addLabel: 'Add Member' },
+  followups: { title: 'Follow-ups', subtitle: 'Track your tasks', addLabel: 'Add Follow-up' },
+  team: { title: 'Team Management', subtitle: 'Your team members' },
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
 };
@@ -29,16 +31,28 @@ const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: s
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [addLeadOpen, setAddLeadOpen] = useState(false);
-  const { toast } = useToast();
+  const [addPropertyOpen, setAddPropertyOpen] = useState(false);
+  const [addVisitOpen, setAddVisitOpen] = useState(false);
+  const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
+  const [addWorkflowOpen, setAddWorkflowOpen] = useState(false);
 
   const handleAddNew = () => {
-    if (activeTab === 'leads') {
-      setAddLeadOpen(true);
-    } else {
-      toast({
-        title: 'Coming Soon',
-        description: `Add ${tabConfig[activeTab].addLabel} feature will be available soon.`,
-      });
+    switch (activeTab) {
+      case 'leads':
+        setAddLeadOpen(true);
+        break;
+      case 'properties':
+        setAddPropertyOpen(true);
+        break;
+      case 'visits':
+        setAddVisitOpen(true);
+        break;
+      case 'followups':
+        setAddFollowUpOpen(true);
+        break;
+      case 'automation':
+        setAddWorkflowOpen(true);
+        break;
     }
   };
 
@@ -87,6 +101,10 @@ const Index = () => {
       </main>
 
       <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
+      <AddPropertyDialog open={addPropertyOpen} onOpenChange={setAddPropertyOpen} />
+      <AddSiteVisitDialog open={addVisitOpen} onOpenChange={setAddVisitOpen} />
+      <AddFollowUpDialog open={addFollowUpOpen} onOpenChange={setAddFollowUpOpen} />
+      <AddWorkflowDialog open={addWorkflowOpen} onOpenChange={setAddWorkflowOpen} />
     </div>
   );
 };

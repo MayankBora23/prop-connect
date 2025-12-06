@@ -1,6 +1,16 @@
-import { Bell, Search, Plus } from 'lucide-react';
+import { Bell, Search, Plus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/hooks/useAuth';
+import { useCurrentProfile } from '@/hooks/useProfiles';
+import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
   title: string;
@@ -10,6 +20,15 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: HeaderProps) {
+  const { user, signOut } = useAuth();
+  const { data: profile } = useCurrentProfile();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border">
       <div className="flex items-center justify-between h-16 px-6">
@@ -37,6 +56,27 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: H
               <Plus className="w-4 h-4 mr-2" />
               {addNewLabel}
             </Button>
+          )}
+
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity">
+                  {profile?.name?.charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{profile?.name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive cursor-pointer">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
