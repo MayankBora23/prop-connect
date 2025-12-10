@@ -15,6 +15,7 @@ import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
 import { AddFollowUpDialog } from '@/components/followups/AddFollowUpDialog';
 import { AddWorkflowDialog } from '@/components/automation/AddWorkflowDialog';
+import { AIChatAssistant } from '@/components/chat/AIChatAssistant';
 
 const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -105,6 +106,8 @@ const Index = () => {
       <AddSiteVisitDialog open={addVisitOpen} onOpenChange={setAddVisitOpen} />
       <AddFollowUpDialog open={addFollowUpOpen} onOpenChange={setAddFollowUpOpen} />
       <AddWorkflowDialog open={addWorkflowOpen} onOpenChange={setAddWorkflowOpen} />
+      
+      <AIChatAssistant />
     </div>
   );
 };
