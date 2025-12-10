@@ -70,11 +70,14 @@ export type Database = {
           email: string | null
           id: string
           last_contact: string
+          lead_score: number | null
           location: string | null
           name: string
           notes: string[] | null
           phone: string
           property_type: string | null
+          score_reasoning: string | null
+          scored_at: string | null
           source: string | null
           stage: Database["public"]["Enums"]["lead_stage"]
           tags: string[] | null
@@ -88,11 +91,14 @@ export type Database = {
           email?: string | null
           id?: string
           last_contact?: string
+          lead_score?: number | null
           location?: string | null
           name: string
           notes?: string[] | null
           phone: string
           property_type?: string | null
+          score_reasoning?: string | null
+          scored_at?: string | null
           source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
           tags?: string[] | null
@@ -106,11 +112,14 @@ export type Database = {
           email?: string | null
           id?: string
           last_contact?: string
+          lead_score?: number | null
           location?: string | null
           name?: string
           notes?: string[] | null
           phone?: string
           property_type?: string | null
+          score_reasoning?: string | null
+          scored_at?: string | null
           source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
           tags?: string[] | null

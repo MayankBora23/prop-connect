@@ -1,14 +1,44 @@
-import { Phone, Mail, MapPin, Calendar } from 'lucide-react';
+import { Phone, Mail, MapPin, Calendar, Zap, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Lead } from '@/hooks/useLeads';
+import { useScoreLead } from '@/hooks/useLeads';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 
 interface LeadCardProps {
   lead: Lead;
   onClick?: () => void;
 }
 
+function getScoreColor(score: number) {
+  if (score >= 80) return 'text-success bg-success/10';
+  if (score >= 60) return 'text-primary bg-primary/10';
+  if (score >= 40) return 'text-warning bg-warning/10';
+  return 'text-muted-foreground bg-muted';
+}
+
+function getScoreLabel(score: number) {
+  if (score >= 80) return 'Hot';
+  if (score >= 60) return 'Warm';
+  if (score >= 40) return 'Cool';
+  return 'Cold';
+}
+
 export function LeadCard({ lead, onClick }: LeadCardProps) {
+  const scoreLead = useScoreLead();
+
+  const handleScore = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await scoreLead.mutateAsync(lead.id);
+      toast.success('Lead scored successfully');
+    } catch (error) {
+      toast.error('Failed to score lead');
+    }
+  };
+
   return (
     <div
       onClick={onClick}
@@ -23,6 +53,48 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
             <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
             <p className="text-xs text-muted-foreground">{lead.source || 'Unknown'}</p>
           </div>
+        </div>
+        
+        {/* Lead Score Badge */}
+        <div className="flex items-center gap-2">
+          {lead.lead_score !== null ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1",
+                    getScoreColor(lead.lead_score)
+                  )}>
+                    <Zap className="w-3 h-3" />
+                    {lead.lead_score}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="font-semibold">{getScoreLabel(lead.lead_score)} Lead</p>
+                  {lead.score_reasoning && (
+                    <p className="text-xs mt-1">{lead.score_reasoning}</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={handleScore}
+              disabled={scoreLead.isPending}
+            >
+              {scoreLead.isPending ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <>
+                  <Zap className="w-3 h-3 mr-1" />
+                  Score
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
