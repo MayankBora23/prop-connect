@@ -96,3 +96,32 @@ export function useDeleteLead() {
     },
   });
 }
+
+export function useScoreLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (leadId: string) => {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/score-lead`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ leadId }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to score lead');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
