@@ -28,14 +28,24 @@ export function useFollowUps() {
   });
 }
 
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
+  return data?.company_id || null;
+}
+
 export function useCreateFollowUp() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (followUp: FollowUpInsert) => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+      
       const { data, error } = await supabase
         .from('follow_ups')
-        .insert(followUp)
+        .insert({ ...followUp, company_id })
         .select()
         .single();
       

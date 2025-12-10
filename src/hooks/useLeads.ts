@@ -3,8 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 export type Lead = Tables<'leads'>;
-export type LeadInsert = TablesInsert<'leads'>;
+export type LeadInsert = Omit<TablesInsert<'leads'>, 'company_id'>;
 export type LeadUpdate = TablesUpdate<'leads'>;
+
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
+  return data?.company_id || null;
+}
 
 export function useLeads() {
   return useQuery({
@@ -43,9 +50,12 @@ export function useCreateLead() {
 
   return useMutation({
     mutationFn: async (lead: LeadInsert) => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+      
       const { data, error } = await supabase
         .from('leads')
-        .insert(lead)
+        .insert({ ...lead, company_id })
         .select()
         .single();
       
