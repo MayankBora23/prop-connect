@@ -3,8 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 export type Property = Tables<'properties'>;
-export type PropertyInsert = TablesInsert<'properties'>;
+export type PropertyInsert = Omit<TablesInsert<'properties'>, 'company_id'>;
 export type PropertyUpdate = TablesUpdate<'properties'>;
+
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
+  return data?.company_id || null;
+}
 
 export function useProperties() {
   return useQuery({
@@ -43,9 +50,12 @@ export function useCreateProperty() {
 
   return useMutation({
     mutationFn: async (property: PropertyInsert) => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+      
       const { data, error } = await supabase
         .from('properties')
-        .insert(property)
+        .insert({ ...property, company_id })
         .select()
         .single();
       

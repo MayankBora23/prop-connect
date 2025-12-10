@@ -14,8 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string
+          id: string
+          logo_url: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       follow_ups: {
         Row: {
+          company_id: string | null
           created_at: string
           created_by: string | null
           follow_up_date: string
@@ -28,6 +62,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           follow_up_date: string
@@ -40,6 +75,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           follow_up_date?: string
@@ -53,6 +89,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "follow_ups_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
@@ -65,6 +108,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           budget: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           email: string | null
@@ -86,6 +130,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           budget?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -107,6 +152,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           budget?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -125,10 +171,19 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
+          company_id: string | null
           content: string
           created_at: string
           direction: Database["public"]["Enums"]["message_direction"]
@@ -138,6 +193,7 @@ export type Database = {
           status: Database["public"]["Enums"]["message_status"]
         }
         Insert: {
+          company_id?: string | null
           content: string
           created_at?: string
           direction: Database["public"]["Enums"]["message_direction"]
@@ -147,6 +203,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["message_status"]
         }
         Update: {
+          company_id?: string | null
           content?: string
           created_at?: string
           direction?: Database["public"]["Enums"]["message_direction"]
@@ -156,6 +213,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["message_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_lead_id_fkey"
             columns: ["lead_id"]
@@ -168,6 +232,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          company_id: string | null
           created_at: string
           email: string
           id: string
@@ -178,6 +243,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          company_id?: string | null
           created_at?: string
           email: string
           id?: string
@@ -188,6 +254,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          company_id?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -196,12 +263,21 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       properties: {
         Row: {
           area: string
           bhk: string
+          company_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -216,6 +292,7 @@ export type Database = {
         Insert: {
           area: string
           bhk: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -230,6 +307,7 @@ export type Database = {
         Update: {
           area?: string
           bhk?: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -241,11 +319,20 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "properties_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_visits: {
         Row: {
           assigned_to: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           feedback: string | null
@@ -259,6 +346,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           feedback?: string | null
@@ -272,6 +360,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           feedback?: string | null
@@ -284,6 +373,13 @@ export type Database = {
           visit_time?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "site_visits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "site_visits_lead_id_fkey"
             columns: ["lead_id"]
@@ -302,25 +398,40 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          company_id: string
+          created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          company_id: string
+          created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          company_id?: string
+          created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflows: {
         Row: {
           action: string
+          company_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -333,6 +444,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -345,6 +457,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -355,13 +468,22 @@ export type Database = {
           trigger_event?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workflows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -373,9 +495,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_role_level: {
+        Args: {
+          _min_role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "admin" | "manager" | "agent" | "telecaller"
+      app_role: "super_admin" | "admin" | "manager" | "sales"
       follow_up_status: "pending" | "completed" | "missed"
       follow_up_type: "call" | "whatsapp" | "meeting" | "email"
       lead_stage:
@@ -519,7 +648,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "manager", "agent", "telecaller"],
+      app_role: ["super_admin", "admin", "manager", "sales"],
       follow_up_status: ["pending", "completed", "missed"],
       follow_up_type: ["call", "whatsapp", "meeting", "email"],
       lead_stage: [

@@ -21,14 +21,24 @@ export function useWorkflows() {
   });
 }
 
+async function getUserCompanyId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
+  return data?.company_id || null;
+}
+
 export function useCreateWorkflow() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (workflow: WorkflowInsert) => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+      
       const { data, error } = await supabase
         .from('workflows')
-        .insert(workflow)
+        .insert({ ...workflow, company_id })
         .select()
         .single();
       

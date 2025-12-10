@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
+import type { AppRole } from './useCompany';
 
 export type Profile = Tables<'profiles'>;
 export type ProfileUpdate = TablesUpdate<'profiles'>;
 
 export type ProfileWithRole = Profile & {
-  role: 'admin' | 'manager' | 'agent' | 'telecaller' | null;
+  role: AppRole | null;
 };
 
 export function useProfiles() {
