@@ -59,16 +59,8 @@ export function useCreateCompanyWithUser() {
       userEmail: string;
       password: string;
     }) => {
-      // 1. Create the company first
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({ name: companyName, email: companyEmail })
-        .select()
-        .single();
-
-      if (companyError) throw companyError;
-
-      // 2. Sign up the user with company_id in metadata
+      // Sign up the user with company info in metadata
+      // The handle_new_user trigger will create the company
       const redirectUrl = `${window.location.origin}/`;
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: userEmail,
@@ -77,19 +69,16 @@ export function useCreateCompanyWithUser() {
           emailRedirectTo: redirectUrl,
           data: {
             name: userName,
-            company_id: company.id,
+            company_name: companyName,
+            company_email: companyEmail,
             role: 'super_admin',
           },
         },
       });
 
-      if (signUpError) {
-        // Rollback company creation if signup fails
-        await supabase.from('companies').delete().eq('id', company.id);
-        throw signUpError;
-      }
+      if (signUpError) throw signUpError;
 
-      return { company, user: authData.user };
+      return { user: authData.user };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
