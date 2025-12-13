@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Settings,
 } from 'lucide-react';
+import { useCurrentProfile } from '@/hooks/useProfiles';
 
 interface SidebarProps {
   activeTab: string;
@@ -30,10 +32,17 @@ const menuItems = [
   { id: 'team', label: 'Team', icon: UserCog },
   { id: 'automation', label: 'Automation', icon: Zap },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const { data: profile } = useCurrentProfile();
+  const isSuperAdmin = profile?.role === 'super_admin';
+
+  const visibleMenuItems = menuItems.filter(item => 
+    !item.superAdminOnly || isSuperAdmin
+  );
 
   return (
     <aside
@@ -62,7 +71,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
 

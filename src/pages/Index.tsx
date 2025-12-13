@@ -10,6 +10,7 @@ import { FollowUpsView } from '@/components/followups/FollowUpsView';
 import { TeamView } from '@/components/team/TeamView';
 import { AutomationView } from '@/components/automation/AutomationView';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
+import { CompanySettingsView } from '@/components/settings/CompanySettingsView';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
@@ -27,6 +28,7 @@ const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: s
   team: { title: 'Team Management', subtitle: 'Your team members' },
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
 const Index = () => {
@@ -79,6 +81,8 @@ const Index = () => {
         return <AutomationView />;
       case 'analytics':
         return <AnalyticsView />;
+      case 'company-settings':
+        return <CompanySettingsView />;
       default:
         return <Dashboard />;
     }
