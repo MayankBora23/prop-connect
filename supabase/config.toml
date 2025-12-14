@@ -1,0 +1,7 @@
+project_id = "ancmczbrypztwccaensy"
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.score-lead]
+verify_jwt = false
