@@ -36,6 +36,24 @@ CREATE TYPE public.site_visit_status AS ENUM ('scheduled','completed','cancelled
 DROP TYPE IF EXISTS public.workflow_status CASCADE;
 CREATE TYPE public.workflow_status AS ENUM ('active','inactive');
 
+DROP TYPE IF EXISTS public.industry_type CASCADE;
+CREATE TYPE public.industry_type AS ENUM ('real_estate', 'education');
+
+DROP TYPE IF EXISTS public.enrollment_status CASCADE;
+CREATE TYPE public.enrollment_status AS ENUM ('active', 'completed', 'cancelled', 'on_hold');
+
+DROP TYPE IF EXISTS public.attendance_status CASCADE;
+CREATE TYPE public.attendance_status AS ENUM ('present', 'absent', 'late', 'excused');
+
+DROP TYPE IF EXISTS public.assignment_status CASCADE;
+CREATE TYPE public.assignment_status AS ENUM ('pending', 'submitted', 'graded', 'overdue');
+
+DROP TYPE IF EXISTS public.exam_status CASCADE;
+CREATE TYPE public.exam_status AS ENUM ('scheduled', 'completed', 'cancelled');
+
+DROP TYPE IF EXISTS public.fee_status CASCADE;
+CREATE TYPE public.fee_status AS ENUM ('pending', 'paid', 'overdue', 'partial');
+
 -- 3) Common utility trigger to update updated_at
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -53,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
   phone TEXT,
   address TEXT,
   logo_url TEXT,
+  industry industry_type NOT NULL DEFAULT 'real_estate',
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -110,6 +129,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
   location TEXT,
   property_type TEXT,
   budget TEXT,
+  source TEXT,
   notes TEXT[] DEFAULT ARRAY[]::text[],
   tags TEXT[] DEFAULT ARRAY[]::text[],
   stage lead_stage NOT NULL DEFAULT 'new',
@@ -241,7 +261,230 @@ BEFORE UPDATE ON public.workflows
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
--- 13) Helper functions (company/role lookups)
+-- 13) Education: Students table
+CREATE TABLE IF NOT EXISTS public.students (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT NOT NULL,
+  date_of_birth DATE,
+  address TEXT,
+  parent_name TEXT,
+  parent_phone TEXT,
+  parent_email TEXT,
+  notes TEXT[] DEFAULT ARRAY[]::text[],
+  tags TEXT[] DEFAULT ARRAY[]::text[],
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_students_updated_at ON public.students;
+CREATE TRIGGER update_students_updated_at
+BEFORE UPDATE ON public.students
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 14) Education: Courses table
+CREATE TABLE IF NOT EXISTS public.courses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  duration_months INTEGER,
+  price TEXT,
+  instructor_id UUID,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_courses_updated_at ON public.courses;
+CREATE TRIGGER update_courses_updated_at
+BEFORE UPDATE ON public.courses
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 15) Education: Batches table
+CREATE TABLE IF NOT EXISTS public.batches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE,
+  schedule TEXT,
+  max_students INTEGER,
+  instructor_id UUID,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.batches ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_batches_updated_at ON public.batches;
+CREATE TRIGGER update_batches_updated_at
+BEFORE UPDATE ON public.batches
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 16) Education: Enrollments table
+CREATE TABLE IF NOT EXISTS public.enrollments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  batch_id UUID NOT NULL REFERENCES public.batches(id) ON DELETE CASCADE,
+  enrollment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  status enrollment_status NOT NULL DEFAULT 'active',
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_enrollments_updated_at ON public.enrollments;
+CREATE TRIGGER update_enrollments_updated_at
+BEFORE UPDATE ON public.enrollments
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 17) Education: Attendance table
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id UUID NOT NULL REFERENCES public.enrollments(id) ON DELETE CASCADE,
+  attendance_date DATE NOT NULL,
+  status attendance_status NOT NULL DEFAULT 'present',
+  notes TEXT,
+  marked_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_attendance_updated_at ON public.attendance;
+CREATE TRIGGER update_attendance_updated_at
+BEFORE UPDATE ON public.attendance
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 18) Education: Assignments table
+CREATE TABLE IF NOT EXISTS public.assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  batch_id UUID NOT NULL REFERENCES public.batches(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  due_date DATE NOT NULL,
+  max_marks INTEGER,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.assignments ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_assignments_updated_at ON public.assignments;
+CREATE TRIGGER update_assignments_updated_at
+BEFORE UPDATE ON public.assignments
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 19) Education: Assignment Submissions table
+CREATE TABLE IF NOT EXISTS public.assignment_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  assignment_id UUID NOT NULL REFERENCES public.assignments(id) ON DELETE CASCADE,
+  enrollment_id UUID NOT NULL REFERENCES public.enrollments(id) ON DELETE CASCADE,
+  submission_date DATE,
+  status assignment_status NOT NULL DEFAULT 'pending',
+  marks_obtained INTEGER,
+  feedback TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.assignment_submissions ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_assignment_submissions_updated_at ON public.assignment_submissions;
+CREATE TRIGGER update_assignment_submissions_updated_at
+BEFORE UPDATE ON public.assignment_submissions
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 20) Education: Exams table
+CREATE TABLE IF NOT EXISTS public.exams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  batch_id UUID NOT NULL REFERENCES public.batches(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  exam_date DATE NOT NULL,
+  exam_time TIME,
+  duration_minutes INTEGER,
+  max_marks INTEGER,
+  instructions TEXT,
+  status exam_status NOT NULL DEFAULT 'scheduled',
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_exams_updated_at ON public.exams;
+CREATE TRIGGER update_exams_updated_at
+BEFORE UPDATE ON public.exams
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 21) Education: Exam Results table
+CREATE TABLE IF NOT EXISTS public.exam_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_id UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+  enrollment_id UUID NOT NULL REFERENCES public.enrollments(id) ON DELETE CASCADE,
+  marks_obtained INTEGER,
+  percentage DECIMAL(5,2),
+  grade TEXT,
+  remarks TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.exam_results ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_exam_results_updated_at ON public.exam_results;
+CREATE TRIGGER update_exam_results_updated_at
+BEFORE UPDATE ON public.exam_results
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 22) Education: Fees table
+CREATE TABLE IF NOT EXISTS public.fees (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id UUID NOT NULL REFERENCES public.enrollments(id) ON DELETE CASCADE,
+  fee_type TEXT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  due_date DATE NOT NULL,
+  paid_date DATE,
+  status fee_status NOT NULL DEFAULT 'pending',
+  payment_method TEXT,
+  transaction_id TEXT,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.fees ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_fees_updated_at ON public.fees;
+CREATE TRIGGER update_fees_updated_at
+BEFORE UPDATE ON public.fees
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 23) Helper functions (company/role lookups)
 CREATE OR REPLACE FUNCTION public.get_user_company_id(_user_id UUID)
 RETURNS UUID
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
@@ -299,22 +542,25 @@ DECLARE
   _company_id UUID;
   _company_name TEXT;
   _company_email TEXT;
+  _industry industry_type;
 BEGIN
   -- Attempt to read company metadata from NEW.raw_user_meta_data (supabase auth metadata)
   BEGIN
     _company_name := NEW.raw_user_meta_data ->> 'company_name';
     _company_email := NEW.raw_user_meta_data ->> 'company_email';
     _company_id := (NEW.raw_user_meta_data ->> 'company_id')::UUID;
+    _industry := COALESCE((NEW.raw_user_meta_data ->> 'industry')::industry_type, 'real_estate'::industry_type);
   EXCEPTION WHEN others THEN
     _company_name := NULL;
     _company_email := NULL;
     _company_id := NULL;
+    _industry := 'real_estate'::industry_type;
   END;
 
   -- If registering a new company (company_name provided but no company_id), create it
   IF _company_name IS NOT NULL AND _company_id IS NULL THEN
-    INSERT INTO public.companies (name, email)
-    VALUES (_company_name, COALESCE(_company_email, NEW.email))
+    INSERT INTO public.companies (name, email, industry)
+    VALUES (_company_name, COALESCE(_company_email, NEW.email), _industry)
     RETURNING id INTO _company_id;
   END IF;
 
@@ -523,6 +769,209 @@ USING (company_id = public.get_user_company_id(auth.uid()));
 
 CREATE POLICY "Admins can manage workflows"
 ON public.workflows FOR ALL
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Students
+CREATE POLICY "Users can view students in their company"
+ON public.students FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create students in their company"
+ON public.students FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update students"
+ON public.students FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete students"
+ON public.students FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Courses
+CREATE POLICY "Users can view courses in their company"
+ON public.courses FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create courses in their company"
+ON public.courses FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Managers can update courses"
+ON public.courses FOR UPDATE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'manager')
+);
+
+CREATE POLICY "Admins can delete courses"
+ON public.courses FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Batches
+CREATE POLICY "Users can view batches in their company"
+ON public.batches FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create batches in their company"
+ON public.batches FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update batches"
+ON public.batches FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete batches"
+ON public.batches FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Enrollments
+CREATE POLICY "Users can view enrollments in their company"
+ON public.enrollments FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create enrollments in their company"
+ON public.enrollments FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update enrollments"
+ON public.enrollments FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete enrollments"
+ON public.enrollments FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Attendance
+CREATE POLICY "Users can view attendance in their company"
+ON public.attendance FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create attendance in their company"
+ON public.attendance FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update attendance"
+ON public.attendance FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete attendance"
+ON public.attendance FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Assignments
+CREATE POLICY "Users can view assignments in their company"
+ON public.assignments FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create assignments in their company"
+ON public.assignments FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update assignments"
+ON public.assignments FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete assignments"
+ON public.assignments FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Assignment Submissions
+CREATE POLICY "Users can view assignment submissions in their company"
+ON public.assignment_submissions FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create assignment submissions in their company"
+ON public.assignment_submissions FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update assignment submissions"
+ON public.assignment_submissions FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete assignment submissions"
+ON public.assignment_submissions FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Exams
+CREATE POLICY "Users can view exams in their company"
+ON public.exams FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create exams in their company"
+ON public.exams FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update exams"
+ON public.exams FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete exams"
+ON public.exams FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Exam Results
+CREATE POLICY "Users can view exam results in their company"
+ON public.exam_results FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create exam results in their company"
+ON public.exam_results FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update exam results"
+ON public.exam_results FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete exam results"
+ON public.exam_results FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Fees
+CREATE POLICY "Users can view fees in their company"
+ON public.fees FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create fees in their company"
+ON public.fees FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update fees"
+ON public.fees FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete fees"
+ON public.fees FOR DELETE
 USING (
   company_id = public.get_user_company_id(auth.uid())
   AND public.has_role_level(auth.uid(), 'admin')

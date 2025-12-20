@@ -9,6 +9,7 @@ export type Company = {
   phone: string | null;
   address: string | null;
   logo_url: string | null;
+  industry: 'real_estate' | 'education';
   created_at: string;
   updated_at: string;
 };
@@ -52,13 +53,15 @@ export function useCreateCompanyWithUser() {
       companyEmail,
       userName, 
       userEmail, 
-      password 
+      password,
+      industry
     }: { 
       companyName: string;
       companyEmail: string;
       userName: string;
       userEmail: string;
       password: string;
+      industry: 'real_estate' | 'education';
     }) => {
       // Sign up the user with company info in metadata
       // The handle_new_user trigger will create the company
@@ -73,6 +76,7 @@ export function useCreateCompanyWithUser() {
             company_name: companyName,
             company_email: companyEmail,
             role: 'super_admin',
+            industry: industry,
           },
         },
       });

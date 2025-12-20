@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Mail, Lock, User, Briefcase } from 'lucide-react';
+import { Building2, Mail, Lock, User, Briefcase, GraduationCap, Home } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email address');
@@ -30,6 +31,7 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
+  const [industry, setIndustry] = useState<'real_estate' | 'education'>('real_estate');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   
@@ -120,6 +122,7 @@ export default function Auth() {
           userName: name,
           userEmail: email,
           password,
+          industry,
         });
         
         toast({
@@ -156,8 +159,8 @@ export default function Auth() {
             <Building2 className="w-7 h-7 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">PropCRM</h1>
-            <p className="text-xs text-muted-foreground">Real Estate CRM</p>
+            <h1 className="text-2xl font-bold text-foreground">RealCRM</h1>
+            <p className="text-xs text-muted-foreground">Multi-Industry CRM</p>
           </div>
         </div>
 
@@ -213,6 +216,29 @@ export default function Auth() {
                       <p className="text-xs text-destructive">{errors.companyEmail}</p>
                     )}
                     <p className="text-xs text-muted-foreground">Leave empty to use your personal email</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="industry">Industry Type *</Label>
+                    <Select value={industry} onValueChange={(value: 'real_estate' | 'education') => setIndustry(value)}>
+                      <SelectTrigger id="industry">
+                        <SelectValue placeholder="Select industry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="real_estate">
+                          <div className="flex items-center gap-2">
+                            <Home className="w-4 h-4" />
+                            <span>Real Estate</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="education">
+                          <div className="flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4" />
+                            <span>Coaching / Education</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="border-t border-border my-4 pt-4">

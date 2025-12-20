@@ -17,8 +17,14 @@ import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
 import { AddFollowUpDialog } from '@/components/followups/AddFollowUpDialog';
 import { AddWorkflowDialog } from '@/components/automation/AddWorkflowDialog';
 import { AIChatAssistant } from '@/components/chat/AIChatAssistant';
+import { useIndustry } from '@/hooks/useIndustry';
+import { EducationDashboard } from '@/components/education/EducationDashboard';
+import { StudentsView } from '@/components/education/StudentsView';
+import { CoursesView } from '@/components/education/CoursesView';
+import { BatchesView } from '@/components/education/BatchesView';
+import { AddStudentDialog } from '@/components/education/AddStudentDialog';
 
-const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
+const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
   leads: { title: 'Lead Management', subtitle: 'Manage your sales pipeline', addLabel: 'Add Lead' },
   properties: { title: 'Properties', subtitle: 'Your property inventory', addLabel: 'Add Property' },
@@ -31,6 +37,19 @@ const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: s
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
+const educationTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
+  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
+  students: { title: 'Students', subtitle: 'Manage your students', addLabel: 'Add Student' },
+  courses: { title: 'Courses', subtitle: 'Course catalog', addLabel: 'Add Course' },
+  batches: { title: 'Batches', subtitle: 'Manage batches', addLabel: 'Add Batch' },
+  enrollments: { title: 'Enrollments', subtitle: 'Student enrollments' },
+  attendance: { title: 'Attendance', subtitle: 'Track attendance' },
+  fees: { title: 'Fees', subtitle: 'Fee management' },
+  team: { title: 'Team Management', subtitle: 'Your team members' },
+  analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+};
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [addLeadOpen, setAddLeadOpen] = useState(false);
@@ -38,6 +57,18 @@ const Index = () => {
   const [addVisitOpen, setAddVisitOpen] = useState(false);
   const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
   const [addWorkflowOpen, setAddWorkflowOpen] = useState(false);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  
+const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
+if (industryLoading || !isLoaded) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full border-4 border-muted w-16 h-16 border-t-primary" />
+    </div>
+  );
+}
+const isEducation = industry === 'education';
+const tabConfig = isEducation ? educationTabConfig : realEstateTabConfig;
 
   const handleAddNew = () => {
     switch (activeTab) {
@@ -56,35 +87,65 @@ const Index = () => {
       case 'automation':
         setAddWorkflowOpen(true);
         break;
+      case 'students':
+        setAddStudentOpen(true);
+        break;
     }
   };
 
-  const config = tabConfig[activeTab];
+  const config = tabConfig[activeTab] || tabConfig.dashboard;
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'leads':
-        return <LeadsView />;
-      case 'properties':
-        return <PropertiesView />;
-      case 'inbox':
-        return <WhatsAppInbox />;
-      case 'visits':
-        return <SiteVisitsView />;
-      case 'followups':
-        return <FollowUpsView />;
-      case 'team':
-        return <TeamView />;
-      case 'automation':
-        return <AutomationView />;
-      case 'analytics':
-        return <AnalyticsView />;
-      case 'company-settings':
-        return <CompanySettingsView />;
-      default:
-        return <Dashboard />;
+    if (isEducation) {
+      switch (activeTab) {
+        case 'dashboard':
+          return <EducationDashboard />;
+        case 'students':
+          return <StudentsView />;
+        case 'courses':
+          return <CoursesView />;
+        case 'batches':
+          return <BatchesView />;
+        case 'enrollments':
+          return <div className="card-elevated p-6"><p className="text-muted-foreground">Enrollments view coming soon</p></div>;
+        case 'attendance':
+          return <div className="card-elevated p-6"><p className="text-muted-foreground">Attendance view coming soon</p></div>;
+        case 'fees':
+          return <div className="card-elevated p-6"><p className="text-muted-foreground">Fees view coming soon</p></div>;
+        case 'team':
+          return <TeamView />;
+        case 'analytics':
+          return <AnalyticsView />;
+        case 'company-settings':
+          return <CompanySettingsView />;
+        default:
+          return <EducationDashboard />;
+      }
+    } else {
+      switch (activeTab) {
+        case 'dashboard':
+          return <Dashboard />;
+        case 'leads':
+          return <LeadsView />;
+        case 'properties':
+          return <PropertiesView />;
+        case 'inbox':
+          return <WhatsAppInbox />;
+        case 'visits':
+          return <SiteVisitsView />;
+        case 'followups':
+          return <FollowUpsView />;
+        case 'team':
+          return <TeamView />;
+        case 'automation':
+          return <AutomationView />;
+        case 'analytics':
+          return <AnalyticsView />;
+        case 'company-settings':
+          return <CompanySettingsView />;
+        default:
+          return <Dashboard />;
+      }
     }
   };
 
@@ -110,8 +171,9 @@ const Index = () => {
       <AddSiteVisitDialog open={addVisitOpen} onOpenChange={setAddVisitOpen} />
       <AddFollowUpDialog open={addFollowUpOpen} onOpenChange={setAddFollowUpOpen} />
       <AddWorkflowDialog open={addWorkflowOpen} onOpenChange={setAddWorkflowOpen} />
+      <AddStudentDialog open={addStudentOpen} onOpenChange={setAddStudentOpen} />
       
-      <AIChatAssistant />
+      {!isEducation && <AIChatAssistant />}
     </div>
   );
 };

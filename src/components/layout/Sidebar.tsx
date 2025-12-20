@@ -16,13 +16,15 @@ import {
   Settings,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
+import { useIndustry } from '@/hooks/useIndustry';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
-const menuItems = [
+const realEstateMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'leads', label: 'Leads', icon: Users },
   { id: 'properties', label: 'Properties', icon: Building2 },
@@ -35,11 +37,34 @@ const menuItems = [
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true },
 ];
 
+const educationMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'students', label: 'Students', icon: Users2 },
+  { id: 'courses', label: 'Courses', icon: BookOpen },
+  { id: 'batches', label: 'Batches', icon: CalendarCheck },
+  { id: 'enrollments', label: 'Enrollments', icon: Users },
+  { id: 'attendance', label: 'Attendance', icon: Calendar },
+  { id: 'fees', label: 'Fees', icon: DollarSign },
+  { id: 'team', label: 'Team', icon: UserCog },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true },
+];
+
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { data: profile } = useCurrentProfile();
+  const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
+  if (industryLoading || !isLoaded) {
+    return (
+      <aside className="w-64 h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full border-4 border-muted w-10 h-10 border-t-primary" />
+      </aside>
+    );
+  }
   const isSuperAdmin = profile?.role === 'super_admin';
 
+  const menuItems = industry === 'education' ? educationMenuItems : realEstateMenuItems;
+  
   const visibleMenuItems = menuItems.filter(item => 
     !item.superAdminOnly || isSuperAdmin
   );
