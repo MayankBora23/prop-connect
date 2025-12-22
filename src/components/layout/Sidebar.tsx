@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
-import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign } from 'lucide-react';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Briefcase, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -25,29 +25,71 @@ interface SidebarProps {
 }
 
 const realEstateMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'leads', label: 'Leads', icon: Users },
-  { id: 'properties', label: 'Properties', icon: Building2 },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
+  { id: 'leads', label: 'Leads', icon: Users, badge: undefined },
+  { id: 'properties', label: 'Properties', icon: Building2, badge: undefined },
   { id: 'inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: 3 },
-  { id: 'visits', label: 'Site Visits', icon: Calendar },
+  { id: 'visits', label: 'Site Visits', icon: Calendar, badge: undefined },
   { id: 'followups', label: 'Follow-ups', icon: Clock, badge: 5 },
-  { id: 'team', label: 'Team', icon: UserCog },
-  { id: 'automation', label: 'Automation', icon: Zap },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true },
+  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
+  { id: 'automation', label: 'Automation', icon: Zap, badge: undefined },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
 const educationMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'students', label: 'Students', icon: Users2 },
-  { id: 'courses', label: 'Courses', icon: BookOpen },
-  { id: 'batches', label: 'Batches', icon: CalendarCheck },
-  { id: 'enrollments', label: 'Enrollments', icon: Users },
-  { id: 'attendance', label: 'Attendance', icon: Calendar },
-  { id: 'fees', label: 'Fees', icon: DollarSign },
-  { id: 'team', label: 'Team', icon: UserCog },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
+  { id: 'students', label: 'Students', icon: Users2, badge: undefined },
+  { id: 'courses', label: 'Courses', icon: BookOpen, badge: undefined },
+  { id: 'batches', label: 'Batches', icon: CalendarCheck, badge: undefined },
+  { id: 'enrollments', label: 'Enrollments', icon: Users, badge: undefined },
+  { id: 'attendance', label: 'Attendance', icon: Calendar, badge: undefined },
+  { id: 'fees', label: 'Fees', icon: DollarSign, badge: undefined },
+  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
+];
+
+const healthcareMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
+  { id: 'patients', label: 'Patients', icon: User, badge: undefined },
+  { id: 'appointments', label: 'Appointments', icon: Calendar, badge: undefined },
+  { id: 'medical-records', label: 'Medical Records', icon: File, badge: undefined },
+  { id: 'prescriptions', label: 'Prescriptions', icon: Pill, badge: undefined },
+  { id: 'billing', label: 'Billing', icon: CreditCard, badge: undefined },
+  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
+];
+
+const automobileMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
+  { id: 'vehicles', label: 'Vehicles', icon: Car, badge: undefined },
+  { id: 'leads', label: 'Leads', icon: Users, badge: undefined },
+  { id: 'test-drives', label: 'Test Drives', icon: Calendar, badge: undefined },
+  { id: 'quotes', label: 'Quotes', icon: FileCheck, badge: undefined },
+  { id: 'deals', label: 'Deals', icon: Briefcase, badge: undefined },
+  { id: 'finance', label: 'Finance', icon: Banknote, badge: undefined },
+  { id: 'insurance', label: 'Insurance', icon: Shield, badge: undefined },
+  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
+];
+
+const onlineBusinessMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
+  { id: 'products', label: 'Products', icon: Package, badge: undefined },
+  { id: 'inventory', label: 'Inventory', icon: Archive, badge: undefined },
+  { id: 'orders', label: 'Orders', icon: ClipboardList, badge: undefined },
+  { id: 'customers', label: 'Customers', icon: Users, badge: undefined },
+  { id: 'payments', label: 'Payments', icon: Receipt, badge: undefined },
+  { id: 'returns', label: 'Returns', icon: RotateCcw, badge: undefined },
+  { id: 'discounts', label: 'Discounts', icon: Tag, badge: undefined },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck, badge: undefined },
+  { id: 'barcode-generator', label: 'Barcode Generator', icon: QrCode, badge: undefined },
+  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
@@ -63,7 +105,11 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   }
   const isSuperAdmin = profile?.role === 'super_admin';
 
-  const menuItems = industry === 'education' ? educationMenuItems : realEstateMenuItems;
+  const menuItems = industry === 'education' ? educationMenuItems :
+    industry === 'healthcare' ? healthcareMenuItems :
+    industry === 'automobile_dealers' ? automobileMenuItems :
+    industry === 'online_business' ? onlineBusinessMenuItems :
+    realEstateMenuItems;
   
   const visibleMenuItems = menuItems.filter(item => 
     !item.superAdminOnly || isSuperAdmin

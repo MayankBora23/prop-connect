@@ -37,7 +37,7 @@ DROP TYPE IF EXISTS public.workflow_status CASCADE;
 CREATE TYPE public.workflow_status AS ENUM ('active','inactive');
 
 DROP TYPE IF EXISTS public.industry_type CASCADE;
-CREATE TYPE public.industry_type AS ENUM ('real_estate', 'education');
+CREATE TYPE public.industry_type AS ENUM ('real_estate', 'education', 'healthcare', 'automobile_dealers', 'online_business');
 
 DROP TYPE IF EXISTS public.enrollment_status CASCADE;
 CREATE TYPE public.enrollment_status AS ENUM ('active', 'completed', 'cancelled', 'on_hold');
@@ -53,6 +53,63 @@ CREATE TYPE public.exam_status AS ENUM ('scheduled', 'completed', 'cancelled');
 
 DROP TYPE IF EXISTS public.fee_status CASCADE;
 CREATE TYPE public.fee_status AS ENUM ('pending', 'paid', 'overdue', 'partial');
+
+DROP TYPE IF EXISTS public.appointment_status CASCADE;
+CREATE TYPE public.appointment_status AS ENUM ('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show');
+
+DROP TYPE IF EXISTS public.billing_status CASCADE;
+CREATE TYPE public.billing_status AS ENUM ('pending', 'paid', 'overdue', 'cancelled', 'refunded');
+
+DROP TYPE IF EXISTS public.insurance_status CASCADE;
+CREATE TYPE public.insurance_status AS ENUM ('active', 'expired', 'cancelled');
+
+DROP TYPE IF EXISTS public.vehicle_type CASCADE;
+CREATE TYPE public.vehicle_type AS ENUM ('car', 'bike');
+
+DROP TYPE IF EXISTS public.fuel_type CASCADE;
+CREATE TYPE public.fuel_type AS ENUM ('petrol', 'diesel', 'electric', 'hybrid', 'cng');
+
+DROP TYPE IF EXISTS public.transmission_type CASCADE;
+CREATE TYPE public.transmission_type AS ENUM ('manual', 'automatic', 'cvt', 'dct');
+
+DROP TYPE IF EXISTS public.vehicle_status CASCADE;
+CREATE TYPE public.vehicle_status AS ENUM ('available', 'sold', 'reserved', 'maintenance');
+
+DROP TYPE IF EXISTS public.test_drive_status CASCADE;
+CREATE TYPE public.test_drive_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
+
+DROP TYPE IF EXISTS public.quote_status CASCADE;
+CREATE TYPE public.quote_status AS ENUM ('draft', 'sent', 'accepted', 'rejected', 'expired');
+
+DROP TYPE IF EXISTS public.deal_status CASCADE;
+CREATE TYPE public.deal_status AS ENUM ('pending', 'approved', 'completed', 'cancelled');
+
+DROP TYPE IF EXISTS public.finance_status CASCADE;
+CREATE TYPE public.finance_status AS ENUM ('applied', 'approved', 'rejected', 'disbursed');
+
+DROP TYPE IF EXISTS public.insurance_sale_status CASCADE;
+CREATE TYPE public.insurance_sale_status AS ENUM ('quoted', 'sold', 'cancelled');
+
+DROP TYPE IF EXISTS public.barcode_type CASCADE;
+CREATE TYPE public.barcode_type AS ENUM ('EAN', 'UPC', 'CODE128', 'QR');
+
+DROP TYPE IF EXISTS public.order_status CASCADE;
+CREATE TYPE public.order_status AS ENUM ('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled');
+
+DROP TYPE IF EXISTS public.payment_status CASCADE;
+CREATE TYPE public.payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
+
+DROP TYPE IF EXISTS public.payment_method CASCADE;
+CREATE TYPE public.payment_method AS ENUM ('cash', 'card', 'upi', 'net_banking', 'wallet', 'cod');
+
+DROP TYPE IF EXISTS public.return_status CASCADE;
+CREATE TYPE public.return_status AS ENUM ('requested', 'approved', 'received', 'refunded', 'rejected');
+
+DROP TYPE IF EXISTS public.discount_type CASCADE;
+CREATE TYPE public.discount_type AS ENUM ('percentage', 'fixed_amount');
+
+DROP TYPE IF EXISTS public.product_status CASCADE;
+CREATE TYPE public.product_status AS ENUM ('active', 'inactive', 'discontinued');
 
 -- 3) Common utility trigger to update updated_at
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -483,6 +540,703 @@ CREATE TRIGGER update_fees_updated_at
 BEFORE UPDATE ON public.fees
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 23) Healthcare: Patients table
+CREATE TABLE IF NOT EXISTS public.patients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT NOT NULL,
+  date_of_birth DATE,
+  address TEXT,
+  medical_id TEXT UNIQUE,
+  emergency_contact_name TEXT,
+  emergency_contact_phone TEXT,
+  blood_type TEXT,
+  allergies TEXT[] DEFAULT ARRAY[]::text[],
+  medical_conditions TEXT[] DEFAULT ARRAY[]::text[],
+  notes TEXT,
+  tags TEXT[] DEFAULT ARRAY[]::text[],
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.patients ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_patients_updated_at ON public.patients;
+CREATE TRIGGER update_patients_updated_at
+BEFORE UPDATE ON public.patients
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 24) Healthcare: Appointments table
+CREATE TABLE IF NOT EXISTS public.appointments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
+  doctor_name TEXT NOT NULL,
+  appointment_date DATE NOT NULL,
+  appointment_time TIME NOT NULL,
+  duration_minutes INTEGER DEFAULT 30,
+  appointment_type TEXT NOT NULL,
+  status appointment_status NOT NULL DEFAULT 'scheduled',
+  symptoms TEXT,
+  diagnosis TEXT,
+  treatment TEXT,
+  notes TEXT,
+  follow_up_required BOOLEAN DEFAULT false,
+  follow_up_date DATE,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_appointments_updated_at ON public.appointments;
+CREATE TRIGGER update_appointments_updated_at
+BEFORE UPDATE ON public.appointments
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 25) Healthcare: Medical Records table
+CREATE TABLE IF NOT EXISTS public.medical_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  record_date DATE NOT NULL,
+  record_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  diagnosis TEXT,
+  symptoms TEXT,
+  treatment TEXT,
+  medications_prescribed TEXT[],
+  test_results TEXT,
+  attachments TEXT[] DEFAULT ARRAY[]::text[],
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.medical_records ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_medical_records_updated_at ON public.medical_records;
+CREATE TRIGGER update_medical_records_updated_at
+BEFORE UPDATE ON public.medical_records
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 26) Healthcare: Prescriptions table
+CREATE TABLE IF NOT EXISTS public.prescriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  medication_name TEXT NOT NULL,
+  dosage TEXT NOT NULL,
+  frequency TEXT NOT NULL,
+  duration_days INTEGER,
+  instructions TEXT,
+  prescribed_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  end_date DATE,
+  refills_allowed INTEGER DEFAULT 0,
+  refills_used INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active',
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.prescriptions ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_prescriptions_updated_at ON public.prescriptions;
+CREATE TRIGGER update_prescriptions_updated_at
+BEFORE UPDATE ON public.prescriptions
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 27) Healthcare: Billing table
+CREATE TABLE IF NOT EXISTS public.billing (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  invoice_number TEXT UNIQUE,
+  service_description TEXT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  tax_amount DECIMAL(10,2) DEFAULT 0,
+  discount_amount DECIMAL(10,2) DEFAULT 0,
+  total_amount DECIMAL(10,2) NOT NULL,
+  status billing_status NOT NULL DEFAULT 'pending',
+  due_date DATE,
+  payment_date DATE,
+  payment_method TEXT,
+  insurance_claimed BOOLEAN DEFAULT false,
+  insurance_amount DECIMAL(10,2) DEFAULT 0,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.billing ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_billing_updated_at ON public.billing;
+CREATE TRIGGER update_billing_updated_at
+BEFORE UPDATE ON public.billing
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 28) Healthcare: Insurance Details table
+CREATE TABLE IF NOT EXISTS public.insurance_details (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
+  provider_name TEXT NOT NULL,
+  policy_number TEXT NOT NULL,
+  coverage_type TEXT NOT NULL,
+  valid_from DATE NOT NULL,
+  valid_until DATE NOT NULL,
+  status insurance_status NOT NULL DEFAULT 'active',
+  coverage_percentage INTEGER DEFAULT 100,
+  max_coverage_amount DECIMAL(10,2),
+  deductible_amount DECIMAL(10,2),
+  co_payment_amount DECIMAL(10,2),
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+  UNIQUE(patient_id, policy_number)
+);
+
+ALTER TABLE public.insurance_details ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_insurance_details_updated_at ON public.insurance_details;
+CREATE TRIGGER update_insurance_details_updated_at
+BEFORE UPDATE ON public.insurance_details
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 29) Automobile Dealers: Vehicles table
+CREATE TABLE IF NOT EXISTS public.vehicles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_type vehicle_type NOT NULL,
+  brand TEXT NOT NULL,
+  model TEXT NOT NULL,
+  variant TEXT,
+  year INTEGER NOT NULL,
+  price DECIMAL(12,2) NOT NULL,
+  fuel_type fuel_type NOT NULL,
+  transmission transmission_type NOT NULL,
+  mileage INTEGER,
+  engine_capacity TEXT,
+  seating_capacity INTEGER,
+  color TEXT,
+  vin TEXT UNIQUE,
+  stock_number TEXT,
+  description TEXT,
+  specifications JSONB DEFAULT '{}',
+  status vehicle_status NOT NULL DEFAULT 'available',
+  location TEXT,
+  images TEXT[] DEFAULT ARRAY[]::text[],
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_vehicles_updated_at ON public.vehicles;
+CREATE TRIGGER update_vehicles_updated_at
+BEFORE UPDATE ON public.vehicles
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 30) Automobile Dealers: Vehicle Images table
+CREATE TABLE IF NOT EXISTS public.vehicle_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+  image_url TEXT NOT NULL,
+  image_type TEXT DEFAULT 'exterior',
+  is_primary BOOLEAN DEFAULT false,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.vehicle_images ENABLE ROW LEVEL SECURITY;
+
+-- 31) Automobile Dealers: Leads table
+CREATE TABLE IF NOT EXISTS public.auto_leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT,
+  preferred_vehicle_type vehicle_type,
+  preferred_brand TEXT,
+  preferred_model TEXT,
+  budget_min DECIMAL(12,2),
+  budget_max DECIMAL(12,2),
+  financing_needed BOOLEAN DEFAULT false,
+  insurance_needed BOOLEAN DEFAULT false,
+  test_drive_requested BOOLEAN DEFAULT false,
+  source TEXT,
+  status TEXT DEFAULT 'new',
+  notes TEXT[] DEFAULT ARRAY[]::text[],
+  tags TEXT[] DEFAULT ARRAY[]::text[],
+  assigned_to UUID,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  last_contact TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.auto_leads ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_auto_leads_updated_at ON public.auto_leads;
+CREATE TRIGGER update_auto_leads_updated_at
+BEFORE UPDATE ON public.auto_leads
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 32) Automobile Dealers: Test Drives table
+CREATE TABLE IF NOT EXISTS public.test_drives (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID REFERENCES public.auto_leads(id) ON DELETE SET NULL,
+  vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+  driver_name TEXT NOT NULL,
+  driver_phone TEXT NOT NULL,
+  driver_license TEXT,
+  test_drive_date DATE NOT NULL,
+  test_drive_time TIME NOT NULL,
+  duration_minutes INTEGER DEFAULT 30,
+  status test_drive_status NOT NULL DEFAULT 'scheduled',
+  feedback TEXT,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  assigned_to UUID,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.test_drives ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_test_drives_updated_at ON public.test_drives;
+CREATE TRIGGER update_test_drives_updated_at
+BEFORE UPDATE ON public.test_drives
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 33) Automobile Dealers: Quotes table
+CREATE TABLE IF NOT EXISTS public.quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID REFERENCES public.auto_leads(id) ON DELETE SET NULL,
+  vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+  quote_number TEXT UNIQUE,
+  vehicle_price DECIMAL(12,2) NOT NULL,
+  discount_amount DECIMAL(12,2) DEFAULT 0,
+  accessories_cost DECIMAL(12,2) DEFAULT 0,
+  registration_cost DECIMAL(12,2) DEFAULT 0,
+  insurance_cost DECIMAL(12,2) DEFAULT 0,
+  finance_cost DECIMAL(12,2) DEFAULT 0,
+  total_amount DECIMAL(12,2) NOT NULL,
+  status quote_status NOT NULL DEFAULT 'draft',
+  valid_until DATE,
+  notes TEXT,
+  terms_conditions TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_quotes_updated_at ON public.quotes;
+CREATE TRIGGER update_quotes_updated_at
+BEFORE UPDATE ON public.quotes
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 34) Automobile Dealers: Deals table
+CREATE TABLE IF NOT EXISTS public.deals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES public.auto_leads(id) ON DELETE CASCADE,
+  vehicle_id UUID NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
+  quote_id UUID REFERENCES public.quotes(id) ON DELETE SET NULL,
+  deal_number TEXT UNIQUE,
+  final_price DECIMAL(12,2) NOT NULL,
+  down_payment DECIMAL(12,2) DEFAULT 0,
+  financed_amount DECIMAL(12,2) DEFAULT 0,
+  status deal_status NOT NULL DEFAULT 'pending',
+  delivery_date DATE,
+  payment_terms TEXT,
+  special_conditions TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_deals_updated_at ON public.deals;
+CREATE TRIGGER update_deals_updated_at
+BEFORE UPDATE ON public.deals
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 35) Automobile Dealers: Finance Applications table
+CREATE TABLE IF NOT EXISTS public.finance_applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES public.auto_leads(id) ON DELETE CASCADE,
+  deal_id UUID REFERENCES public.deals(id) ON DELETE SET NULL,
+  application_number TEXT UNIQUE,
+  applicant_name TEXT NOT NULL,
+  applicant_phone TEXT NOT NULL,
+  applicant_email TEXT,
+  monthly_income DECIMAL(12,2),
+  employment_type TEXT,
+  requested_amount DECIMAL(12,2) NOT NULL,
+  tenure_months INTEGER NOT NULL,
+  interest_rate DECIMAL(5,2),
+  emi_amount DECIMAL(10,2),
+  status finance_status NOT NULL DEFAULT 'applied',
+  bank_name TEXT,
+  approval_date DATE,
+  disbursement_date DATE,
+  remarks TEXT,
+  documents_required TEXT[] DEFAULT ARRAY[]::text[],
+  documents_submitted TEXT[] DEFAULT ARRAY[]::text[],
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.finance_applications ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_finance_applications_updated_at ON public.finance_applications;
+CREATE TRIGGER update_finance_applications_updated_at
+BEFORE UPDATE ON public.finance_applications
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 36) Automobile Dealers: Insurance Sales table
+CREATE TABLE IF NOT EXISTS public.insurance_sales (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID REFERENCES public.auto_leads(id) ON DELETE SET NULL,
+  deal_id UUID REFERENCES public.deals(id) ON DELETE SET NULL,
+  policy_number TEXT UNIQUE,
+  insurance_type TEXT NOT NULL,
+  provider_name TEXT NOT NULL,
+  coverage_amount DECIMAL(12,2) NOT NULL,
+  premium_amount DECIMAL(10,2) NOT NULL,
+  policy_term_months INTEGER NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status insurance_sale_status NOT NULL DEFAULT 'quoted',
+  commission_amount DECIMAL(10,2),
+  agent_name TEXT,
+  remarks TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.insurance_sales ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_insurance_sales_updated_at ON public.insurance_sales;
+CREATE TRIGGER update_insurance_sales_updated_at
+BEFORE UPDATE ON public.insurance_sales
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 37) Online Business: Customers table
+CREATE TABLE IF NOT EXISTS public.online_customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT NOT NULL,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  pincode TEXT,
+  date_of_birth DATE,
+  gender TEXT,
+  customer_group TEXT DEFAULT 'regular',
+  total_orders INTEGER DEFAULT 0,
+  total_spent DECIMAL(12,2) DEFAULT 0,
+  last_order_date TIMESTAMP WITH TIME ZONE,
+  notes TEXT,
+  tags TEXT[] DEFAULT ARRAY[]::text[],
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.online_customers ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_online_customers_updated_at ON public.online_customers;
+CREATE TRIGGER update_online_customers_updated_at
+BEFORE UPDATE ON public.online_customers
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 38) Online Business: Suppliers table
+CREATE TABLE IF NOT EXISTS public.suppliers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  contact_person TEXT,
+  email TEXT,
+  phone TEXT NOT NULL,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  pincode TEXT,
+  gst_number TEXT,
+  payment_terms TEXT,
+  credit_limit DECIMAL(12,2),
+  is_active BOOLEAN DEFAULT true,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_suppliers_updated_at ON public.suppliers;
+CREATE TRIGGER update_suppliers_updated_at
+BEFORE UPDATE ON public.suppliers
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 39) Online Business: Products table
+CREATE TABLE IF NOT EXISTS public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  sku TEXT UNIQUE,
+  barcode TEXT,
+  category TEXT,
+  brand TEXT,
+  base_price DECIMAL(10,2) NOT NULL,
+  cost_price DECIMAL(10,2),
+  mrp DECIMAL(10,2),
+  weight DECIMAL(8,3),
+  dimensions TEXT,
+  status product_status NOT NULL DEFAULT 'active',
+  is_featured BOOLEAN DEFAULT false,
+  is_digital BOOLEAN DEFAULT false,
+  stock_quantity INTEGER DEFAULT 0,
+  low_stock_threshold INTEGER DEFAULT 10,
+  images TEXT[] DEFAULT ARRAY[]::text[],
+  tags TEXT[] DEFAULT ARRAY[]::text[],
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_products_updated_at ON public.products;
+CREATE TRIGGER update_products_updated_at
+BEFORE UPDATE ON public.products
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 40) Online Business: Product Variants table
+CREATE TABLE IF NOT EXISTS public.product_variants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_name TEXT NOT NULL,
+  variant_value TEXT NOT NULL,
+  sku TEXT UNIQUE,
+  additional_price DECIMAL(10,2) DEFAULT 0,
+  stock_quantity INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_product_variants_updated_at ON public.product_variants;
+CREATE TRIGGER update_product_variants_updated_at
+BEFORE UPDATE ON public.product_variants
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 41) Online Business: Inventory table
+CREATE TABLE IF NOT EXISTS public.inventory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  warehouse_location TEXT,
+  batch_number TEXT,
+  expiry_date DATE,
+  quantity INTEGER NOT NULL,
+  reserved_quantity INTEGER DEFAULT 0,
+  available_quantity INTEGER GENERATED ALWAYS AS (quantity - reserved_quantity) STORED,
+  supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
+  purchase_price DECIMAL(10,2),
+  purchase_date DATE,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+  CONSTRAINT inventory_quantity_check CHECK (quantity >= 0),
+  CONSTRAINT inventory_reserved_check CHECK (reserved_quantity >= 0)
+);
+
+ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_inventory_updated_at ON public.inventory;
+CREATE TRIGGER update_inventory_updated_at
+BEFORE UPDATE ON public.inventory
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 42) Online Business: Discounts table
+CREATE TABLE IF NOT EXISTS public.discounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  discount_type discount_type NOT NULL,
+  discount_value DECIMAL(10,2) NOT NULL,
+  minimum_purchase DECIMAL(10,2),
+  maximum_discount DECIMAL(10,2),
+  is_active BOOLEAN DEFAULT true,
+  valid_from TIMESTAMP WITH TIME ZONE,
+  valid_until TIMESTAMP WITH TIME ZONE,
+  usage_limit INTEGER,
+  usage_count INTEGER DEFAULT 0,
+  applicable_products UUID[] DEFAULT ARRAY[]::uuid[],
+  applicable_categories TEXT[] DEFAULT ARRAY[]::text[],
+  coupon_code TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.discounts ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_discounts_updated_at ON public.discounts;
+CREATE TRIGGER update_discounts_updated_at
+BEFORE UPDATE ON public.discounts
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 43) Online Business: Sales Orders table
+CREATE TABLE IF NOT EXISTS public.sales_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number TEXT UNIQUE,
+  customer_id UUID REFERENCES public.online_customers(id) ON DELETE SET NULL,
+  order_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  status order_status NOT NULL DEFAULT 'pending',
+  subtotal DECIMAL(12,2) NOT NULL,
+  tax_amount DECIMAL(10,2) DEFAULT 0,
+  discount_amount DECIMAL(10,2) DEFAULT 0,
+  shipping_amount DECIMAL(10,2) DEFAULT 0,
+  total_amount DECIMAL(12,2) NOT NULL,
+  payment_method payment_method,
+  payment_status payment_status DEFAULT 'pending',
+  shipping_address TEXT,
+  billing_address TEXT,
+  notes TEXT,
+  discount_id UUID REFERENCES public.discounts(id) ON DELETE SET NULL,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.sales_orders ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_sales_orders_updated_at ON public.sales_orders;
+CREATE TRIGGER update_sales_orders_updated_at
+BEFORE UPDATE ON public.sales_orders
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 44) Online Business: Order Items table
+CREATE TABLE IF NOT EXISTS public.order_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES public.sales_orders(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
+  quantity INTEGER NOT NULL,
+  unit_price DECIMAL(10,2) NOT NULL,
+  discount_amount DECIMAL(10,2) DEFAULT 0,
+  total_price DECIMAL(12,2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+-- 45) Online Business: Payments table
+CREATE TABLE IF NOT EXISTS public.payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES public.sales_orders(id) ON DELETE CASCADE,
+  amount DECIMAL(12,2) NOT NULL,
+  payment_method payment_method NOT NULL,
+  payment_status payment_status NOT NULL DEFAULT 'pending',
+  transaction_id TEXT,
+  payment_gateway TEXT,
+  payment_date TIMESTAMP WITH TIME ZONE,
+  failure_reason TEXT,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_payments_updated_at ON public.payments;
+CREATE TRIGGER update_payments_updated_at
+BEFORE UPDATE ON public.payments
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 46) Online Business: Returns table
+CREATE TABLE IF NOT EXISTS public.returns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES public.sales_orders(id) ON DELETE CASCADE,
+  return_number TEXT UNIQUE,
+  return_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  status return_status NOT NULL DEFAULT 'requested',
+  return_reason TEXT,
+  refund_amount DECIMAL(12,2),
+  refund_status payment_status DEFAULT 'pending',
+  return_items JSONB DEFAULT '[]',
+  notes TEXT,
+  approved_by UUID,
+  approved_date TIMESTAMP WITH TIME ZONE,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.returns ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_returns_updated_at ON public.returns;
+CREATE TRIGGER update_returns_updated_at
+BEFORE UPDATE ON public.returns
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 47) Online Business: Barcodes table
+CREATE TABLE IF NOT EXISTS public.barcodes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  barcode_value TEXT NOT NULL,
+  barcode_type barcode_type NOT NULL,
+  barcode_image_url TEXT,
+  generated_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+  UNIQUE(product_id, barcode_type)
+);
+
+ALTER TABLE public.barcodes ENABLE ROW LEVEL SECURITY;
 
 -- 23) Helper functions (company/role lookups)
 CREATE OR REPLACE FUNCTION public.get_user_company_id(_user_id UUID)
@@ -972,6 +1726,512 @@ USING (company_id = public.get_user_company_id(auth.uid()));
 
 CREATE POLICY "Admins can delete fees"
 ON public.fees FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Healthcare: Patients
+CREATE POLICY "Users can view patients in their company"
+ON public.patients FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create patients in their company"
+ON public.patients FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update patients"
+ON public.patients FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete patients"
+ON public.patients FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Healthcare: Appointments
+CREATE POLICY "Users can view appointments in their company"
+ON public.appointments FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create appointments in their company"
+ON public.appointments FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update appointments"
+ON public.appointments FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete appointments"
+ON public.appointments FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Healthcare: Medical Records
+CREATE POLICY "Users can view medical records in their company"
+ON public.medical_records FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create medical records in their company"
+ON public.medical_records FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update medical records"
+ON public.medical_records FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete medical records"
+ON public.medical_records FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Healthcare: Prescriptions
+CREATE POLICY "Users can view prescriptions in their company"
+ON public.prescriptions FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create prescriptions in their company"
+ON public.prescriptions FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update prescriptions"
+ON public.prescriptions FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete prescriptions"
+ON public.prescriptions FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Healthcare: Billing
+CREATE POLICY "Users can view billing in their company"
+ON public.billing FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create billing in their company"
+ON public.billing FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update billing"
+ON public.billing FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete billing"
+ON public.billing FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Healthcare: Insurance Details
+CREATE POLICY "Users can view insurance details in their company"
+ON public.insurance_details FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create insurance details in their company"
+ON public.insurance_details FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update insurance details"
+ON public.insurance_details FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete insurance details"
+ON public.insurance_details FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Vehicles
+CREATE POLICY "Users can view vehicles in their company"
+ON public.vehicles FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create vehicles in their company"
+ON public.vehicles FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update vehicles"
+ON public.vehicles FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete vehicles"
+ON public.vehicles FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Vehicle Images
+CREATE POLICY "Users can view vehicle images in their company"
+ON public.vehicle_images FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create vehicle images in their company"
+ON public.vehicle_images FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update vehicle images"
+ON public.vehicle_images FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete vehicle images"
+ON public.vehicle_images FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Auto Leads
+CREATE POLICY "Users can view auto leads in their company"
+ON public.auto_leads FOR SELECT
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND (
+    public.has_role_level(auth.uid(), 'manager')
+    OR assigned_to = auth.uid()
+    OR created_by = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can create auto leads in their company"
+ON public.auto_leads FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update auto leads"
+ON public.auto_leads FOR UPDATE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND (
+    public.has_role_level(auth.uid(), 'manager')
+    OR assigned_to = auth.uid()
+  )
+);
+
+CREATE POLICY "Admins can delete auto leads"
+ON public.auto_leads FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Test Drives
+CREATE POLICY "Users can view test drives in their company"
+ON public.test_drives FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create test drives in their company"
+ON public.test_drives FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update test drives"
+ON public.test_drives FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete test drives"
+ON public.test_drives FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Quotes
+CREATE POLICY "Users can view quotes in their company"
+ON public.quotes FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create quotes in their company"
+ON public.quotes FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update quotes"
+ON public.quotes FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete quotes"
+ON public.quotes FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Deals
+CREATE POLICY "Users can view deals in their company"
+ON public.deals FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create deals in their company"
+ON public.deals FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update deals"
+ON public.deals FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete deals"
+ON public.deals FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Finance Applications
+CREATE POLICY "Users can view finance applications in their company"
+ON public.finance_applications FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create finance applications in their company"
+ON public.finance_applications FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update finance applications"
+ON public.finance_applications FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete finance applications"
+ON public.finance_applications FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Automobile Dealers: Insurance Sales
+CREATE POLICY "Users can view insurance sales in their company"
+ON public.insurance_sales FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create insurance sales in their company"
+ON public.insurance_sales FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update insurance sales"
+ON public.insurance_sales FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete insurance sales"
+ON public.insurance_sales FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Online Customers
+CREATE POLICY "Users can view online customers in their company"
+ON public.online_customers FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create online customers in their company"
+ON public.online_customers FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update online customers"
+ON public.online_customers FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete online customers"
+ON public.online_customers FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Suppliers
+CREATE POLICY "Users can view suppliers in their company"
+ON public.suppliers FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create suppliers in their company"
+ON public.suppliers FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update suppliers"
+ON public.suppliers FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete suppliers"
+ON public.suppliers FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Products
+CREATE POLICY "Users can view products in their company"
+ON public.products FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create products in their company"
+ON public.products FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update products"
+ON public.products FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete products"
+ON public.products FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Product Variants
+CREATE POLICY "Users can view product variants in their company"
+ON public.product_variants FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create product variants in their company"
+ON public.product_variants FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update product variants"
+ON public.product_variants FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete product variants"
+ON public.product_variants FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Inventory
+CREATE POLICY "Users can view inventory in their company"
+ON public.inventory FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create inventory in their company"
+ON public.inventory FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update inventory"
+ON public.inventory FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete inventory"
+ON public.inventory FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Discounts
+CREATE POLICY "Users can view discounts in their company"
+ON public.discounts FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create discounts in their company"
+ON public.discounts FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update discounts"
+ON public.discounts FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete discounts"
+ON public.discounts FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Sales Orders
+CREATE POLICY "Users can view sales orders in their company"
+ON public.sales_orders FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create sales orders in their company"
+ON public.sales_orders FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update sales orders"
+ON public.sales_orders FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete sales orders"
+ON public.sales_orders FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Order Items
+CREATE POLICY "Users can view order items in their company"
+ON public.order_items FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create order items in their company"
+ON public.order_items FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update order items"
+ON public.order_items FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+-- Online Business: Payments
+CREATE POLICY "Users can view payments in their company"
+ON public.payments FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create payments in their company"
+ON public.payments FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update payments"
+ON public.payments FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete payments"
+ON public.payments FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Returns
+CREATE POLICY "Users can view returns in their company"
+ON public.returns FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create returns in their company"
+ON public.returns FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update returns"
+ON public.returns FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete returns"
+ON public.returns FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Online Business: Barcodes
+CREATE POLICY "Users can view barcodes in their company"
+ON public.barcodes FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create barcodes in their company"
+ON public.barcodes FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update barcodes"
+ON public.barcodes FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete barcodes"
+ON public.barcodes FOR DELETE
 USING (
   company_id = public.get_user_company_id(auth.uid())
   AND public.has_role_level(auth.uid(), 'admin')

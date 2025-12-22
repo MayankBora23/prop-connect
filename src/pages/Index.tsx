@@ -23,6 +23,30 @@ import { StudentsView } from '@/components/education/StudentsView';
 import { CoursesView } from '@/components/education/CoursesView';
 import { BatchesView } from '@/components/education/BatchesView';
 import { AddStudentDialog } from '@/components/education/AddStudentDialog';
+import { HealthcareDashboard } from '@/components/healthcare/HealthcareDashboard';
+import { PatientsView } from '@/components/healthcare/PatientsView';
+import { AppointmentsView } from '@/components/healthcare/AppointmentsView';
+import { MedicalRecordsView } from '@/components/healthcare/MedicalRecordsView';
+import { PrescriptionsView } from '@/components/healthcare/PrescriptionsView';
+import { BillingView } from '@/components/healthcare/BillingView';
+import { AutomobileDashboard } from '@/components/automobile/AutomobileDashboard';
+import { VehiclesView } from '@/components/automobile/VehiclesView';
+import { AutoLeadsView } from '@/components/automobile/AutoLeadsView';
+import { TestDrivesView } from '@/components/automobile/TestDrivesView';
+import { QuotesView } from '@/components/automobile/QuotesView';
+import { DealsView } from '@/components/automobile/DealsView';
+import { FinanceView } from '@/components/automobile/FinanceView';
+import { InsuranceView } from '@/components/automobile/InsuranceView';
+import { OnlineBusinessDashboard } from '@/components/online-business/OnlineBusinessDashboard';
+import { ProductsView } from '@/components/online-business/ProductsView';
+import { InventoryView } from '@/components/online-business/InventoryView';
+import { OrdersView } from '@/components/online-business/OrdersView';
+import { CustomersView } from '@/components/online-business/CustomersView';
+import { PaymentsView } from '@/components/online-business/PaymentsView';
+import { ReturnsView } from '@/components/online-business/ReturnsView';
+import { DiscountsView } from '@/components/online-business/DiscountsView';
+import { SuppliersView } from '@/components/online-business/SuppliersView';
+import { BarcodeGenerator } from '@/components/online-business/BarcodeGenerator';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -50,6 +74,48 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
+const healthcareTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
+  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
+  patients: { title: 'Patients', subtitle: 'Manage your patients', addLabel: 'Add Patient' },
+  appointments: { title: 'Appointments', subtitle: 'Schedule and manage appointments', addLabel: 'Add Appointment' },
+  'medical-records': { title: 'Medical Records', subtitle: 'Patient medical history', addLabel: 'Add Record' },
+  prescriptions: { title: 'Prescriptions', subtitle: 'Manage prescriptions', addLabel: 'Add Prescription' },
+  billing: { title: 'Billing', subtitle: 'Billing and payments', addLabel: 'Add Bill' },
+  team: { title: 'Team Management', subtitle: 'Your team members' },
+  analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+};
+
+const automobileTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
+  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
+  vehicles: { title: 'Vehicles', subtitle: 'Manage your inventory', addLabel: 'Add Vehicle' },
+  leads: { title: 'Leads', subtitle: 'Customer inquiries and prospects', addLabel: 'Add Lead' },
+  'test-drives': { title: 'Test Drives', subtitle: 'Scheduled test drives', addLabel: 'Schedule Test Drive' },
+  quotes: { title: 'Quotes', subtitle: 'Price quotes and proposals', addLabel: 'Create Quote' },
+  deals: { title: 'Deals', subtitle: 'Closed deals and sales', addLabel: 'Add Deal' },
+  finance: { title: 'Finance', subtitle: 'Finance applications', addLabel: 'Add Finance Application' },
+  insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
+  team: { title: 'Team Management', subtitle: 'Your team members' },
+  analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+};
+
+const onlineBusinessTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
+  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
+  products: { title: 'Products', subtitle: 'Manage your product catalog', addLabel: 'Add Product' },
+  inventory: { title: 'Inventory', subtitle: 'Track stock levels and locations', addLabel: 'Add Inventory' },
+  orders: { title: 'Orders', subtitle: 'Manage sales orders', addLabel: 'Create Order' },
+  customers: { title: 'Customers', subtitle: 'Customer management', addLabel: 'Add Customer' },
+  payments: { title: 'Payments', subtitle: 'Payment processing and tracking', addLabel: 'Add Payment' },
+  returns: { title: 'Returns', subtitle: 'Handle returns and refunds', addLabel: 'Process Return' },
+  discounts: { title: 'Discounts', subtitle: 'Manage promotions and discounts', addLabel: 'Create Discount' },
+  suppliers: { title: 'Suppliers', subtitle: 'Supplier management', addLabel: 'Add Supplier' },
+  'barcode-generator': { title: 'Barcode Generator', subtitle: 'Generate and manage barcodes', addLabel: 'Generate Barcode' },
+  team: { title: 'Team Management', subtitle: 'Your team members' },
+  analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+};
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [addLeadOpen, setAddLeadOpen] = useState(false);
@@ -68,7 +134,14 @@ if (industryLoading || !isLoaded) {
   );
 }
 const isEducation = industry === 'education';
-const tabConfig = isEducation ? educationTabConfig : realEstateTabConfig;
+const isHealthcare = industry === 'healthcare';
+const isAutomobileDealers = industry === 'automobile_dealers';
+const isOnlineBusiness = industry === 'online_business';
+const tabConfig = isEducation ? educationTabConfig :
+  isHealthcare ? healthcareTabConfig :
+  isAutomobileDealers ? automobileTabConfig :
+  isOnlineBusiness ? onlineBusinessTabConfig :
+  realEstateTabConfig;
 
   const handleAddNew = () => {
     switch (activeTab) {
@@ -90,6 +163,7 @@ const tabConfig = isEducation ? educationTabConfig : realEstateTabConfig;
       case 'students':
         setAddStudentOpen(true);
         break;
+      // Healthcare cases will be added when dialogs are created
     }
   };
 
@@ -120,6 +194,87 @@ const tabConfig = isEducation ? educationTabConfig : realEstateTabConfig;
           return <CompanySettingsView />;
         default:
           return <EducationDashboard />;
+      }
+    } else if (isHealthcare) {
+      switch (activeTab) {
+        case 'dashboard':
+          return <HealthcareDashboard />;
+        case 'patients':
+          return <PatientsView />;
+        case 'appointments':
+          return <AppointmentsView />;
+        case 'medical-records':
+          return <MedicalRecordsView />;
+        case 'prescriptions':
+          return <PrescriptionsView />;
+        case 'billing':
+          return <BillingView />;
+        case 'team':
+          return <TeamView />;
+        case 'analytics':
+          return <AnalyticsView />;
+        case 'company-settings':
+          return <CompanySettingsView />;
+        default:
+          return <HealthcareDashboard />;
+      }
+    } else if (isAutomobileDealers) {
+      switch (activeTab) {
+        case 'dashboard':
+          return <AutomobileDashboard />;
+        case 'vehicles':
+          return <VehiclesView />;
+        case 'leads':
+          return <AutoLeadsView />;
+        case 'test-drives':
+          return <TestDrivesView />;
+        case 'quotes':
+          return <QuotesView />;
+        case 'deals':
+          return <DealsView />;
+        case 'finance':
+          return <FinanceView />;
+        case 'insurance':
+          return <InsuranceView />;
+        case 'team':
+          return <TeamView />;
+        case 'analytics':
+          return <AnalyticsView />;
+        case 'company-settings':
+          return <CompanySettingsView />;
+        default:
+          return <AutomobileDashboard />;
+      }
+    } else if (isOnlineBusiness) {
+      switch (activeTab) {
+        case 'dashboard':
+          return <OnlineBusinessDashboard />;
+        case 'products':
+          return <ProductsView />;
+        case 'inventory':
+          return <InventoryView />;
+        case 'orders':
+          return <OrdersView />;
+        case 'customers':
+          return <CustomersView />;
+        case 'payments':
+          return <PaymentsView />;
+        case 'returns':
+          return <ReturnsView />;
+        case 'discounts':
+          return <DiscountsView />;
+        case 'suppliers':
+          return <SuppliersView />;
+        case 'barcode-generator':
+          return <BarcodeGenerator />;
+        case 'team':
+          return <TeamView />;
+        case 'analytics':
+          return <AnalyticsView />;
+        case 'company-settings':
+          return <CompanySettingsView />;
+        default:
+          return <OnlineBusinessDashboard />;
       }
     } else {
       switch (activeTab) {
@@ -173,7 +328,7 @@ const tabConfig = isEducation ? educationTabConfig : realEstateTabConfig;
       <AddWorkflowDialog open={addWorkflowOpen} onOpenChange={setAddWorkflowOpen} />
       <AddStudentDialog open={addStudentOpen} onOpenChange={setAddStudentOpen} />
       
-      {!isEducation && <AIChatAssistant />}
+      {!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness && <AIChatAssistant />}
     </div>
   );
 };
