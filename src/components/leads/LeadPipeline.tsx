@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useLeads, Lead } from '@/hooks/useLeads';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Enums } from '@/integrations/supabase/types';
+import { useUpdateLead } from '@/hooks/useLeads';
 
 type LeadStage = Enums<'lead_stage'>;
 
@@ -18,9 +20,27 @@ const stages: { id: LeadStage; label: string; color: string }[] = [
 
 export function LeadPipeline() {
   const { data: leads, isLoading } = useLeads();
+  const updateLead = useUpdateLead();
+  const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
 
   const getLeadsByStage = (stage: LeadStage) => {
     return (leads || []).filter((lead) => lead.stage === stage);
+  };
+
+  const handleDragStart = (lead: Lead) => {
+    setDraggedLead(lead);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Allow drop
+  };
+
+  const handleDrop = (e: React.DragEvent, newStage: LeadStage) => {
+    e.preventDefault();
+    if (draggedLead && draggedLead.stage !== newStage) {
+      updateLead.mutate({ id: draggedLead.id, stage: newStage });
+    }
+    setDraggedLead(null);
   };
 
   if (isLoading) {
@@ -58,9 +78,18 @@ export function LeadPipeline() {
                   {stageLeads.length}
                 </span>
               </div>
-              <div className="space-y-3 min-h-[200px] p-2 rounded-xl bg-secondary/50">
+              <div
+                className="space-y-3 min-h-[200px] p-2 rounded-xl bg-secondary/50 transition-colors hover:bg-secondary/70"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, stage.id)}
+              >
                 {stageLeads.map((lead) => (
-                  <LeadCard key={lead.id} lead={lead} />
+                  <LeadCard
+                    key={lead.id}
+                    lead={lead}
+                    onDragStart={() => handleDragStart(lead)}
+                    isDragging={draggedLead?.id === lead.id}
+                  />
                 ))}
                 {stageLeads.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground text-sm">
@@ -75,3 +104,6 @@ export function LeadPipeline() {
     </div>
   );
 }
+
+
+

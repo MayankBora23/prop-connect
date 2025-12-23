@@ -26,22 +26,36 @@ type VisitFormData = z.infer<typeof visitSchema>;
 interface AddSiteVisitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preSelectedLead?: { id: string; name: string };
+  onVisitScheduled?: (leadId: string) => void;
 }
 
-export function AddSiteVisitDialog({ open, onOpenChange }: AddSiteVisitDialogProps) {
+export function AddSiteVisitDialog({ open, onOpenChange, preSelectedLead, onVisitScheduled }: AddSiteVisitDialogProps) {
   const { toast } = useToast();
   const createVisit = useCreateSiteVisit();
   const { data: leads } = useLeads();
   const { data: properties } = useProperties();
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<VisitFormData>({
-    resolver: zodResolver(visitSchema),
+  // Dynamic schema based on whether lead is pre-selected
+  const dynamicVisitSchema = z.object({
+    lead_id: preSelectedLead ? z.string().optional() : z.string().min(1, 'Lead is required'),
+    property_id: z.string().min(1, 'Property is required'),
+    visit_date: z.string().min(1, 'Date is required'),
+    visit_time: z.string().min(1, 'Time is required'),
+    feedback: z.string().max(500).optional(),
+  });
+
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<VisitFormData>({
+    resolver: zodResolver(dynamicVisitSchema),
+    defaultValues: {
+      lead_id: preSelectedLead?.id || '',
+    },
   });
 
   const onSubmit = async (data: VisitFormData) => {
     try {
       await createVisit.mutateAsync({
-        lead_id: data.lead_id,
+        lead_id: preSelectedLead?.id || data.lead_id,
         property_id: data.property_id,
         visit_date: data.visit_date,
         visit_time: data.visit_time,
@@ -52,6 +66,12 @@ export function AddSiteVisitDialog({ open, onOpenChange }: AddSiteVisitDialogPro
         title: 'Visit Scheduled',
         description: 'Site visit has been scheduled successfully.',
       });
+
+      // Call callback if provided (for lead stage updates)
+      if (onVisitScheduled && preSelectedLead) {
+        onVisitScheduled(preSelectedLead.id);
+      }
+
       reset();
       onOpenChange(false);
     } catch (error) {
@@ -69,24 +89,36 @@ export function AddSiteVisitDialog({ open, onOpenChange }: AddSiteVisitDialogPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Schedule Site Visit
+            {preSelectedLead ? `Schedule Visit for ${preSelectedLead.name}` : 'Schedule Site Visit'}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label>Select Lead *</Label>
-            <Select onValueChange={(value) => setValue('lead_id', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a lead" />
-              </SelectTrigger>
-              <SelectContent>
-                {(leads || []).map((lead) => (
-                  <SelectItem key={lead.id} value={lead.id}>
-                    {lead.name} - {lead.phone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {preSelectedLead ? (
+              <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
+                  {preSelectedLead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{preSelectedLead.name}</p>
+                  <p className="text-xs text-muted-foreground">Pre-selected lead</p>
+                </div>
+              </div>
+            ) : (
+              <Select value={watch('lead_id')} onValueChange={(value) => setValue('lead_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a lead" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(leads || []).map((lead) => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      {lead.name} - {lead.phone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {errors.lead_id && <p className="text-xs text-destructive">{errors.lead_id.message}</p>}
           </div>
 

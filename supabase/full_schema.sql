@@ -7,6 +7,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 DROP TYPE IF EXISTS public.app_role CASCADE;
 CREATE TYPE public.app_role AS ENUM ('super_admin', 'admin', 'manager', 'sales');
 
+DROP TYPE IF EXISTS public.lead_status CASCADE;
+CREATE TYPE public.lead_status AS ENUM ('hot', 'warm', 'cold');
+
 DROP TYPE IF EXISTS public.follow_up_status CASCADE;
 CREATE TYPE public.follow_up_status AS ENUM ('pending', 'completed', 'missed');
 
@@ -190,6 +193,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
   notes TEXT[] DEFAULT ARRAY[]::text[],
   tags TEXT[] DEFAULT ARRAY[]::text[],
   stage lead_stage NOT NULL DEFAULT 'new',
+  lead_status lead_status DEFAULT 'cold',
   assigned_to UUID,
   created_by UUID,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

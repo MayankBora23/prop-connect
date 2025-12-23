@@ -1,16 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateLead } from '@/hooks/useLeads';
+import { useUpdateLead } from '@/hooks/useLeads';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import type { Lead } from '@/hooks/useLeads';
 
 const leadSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
@@ -21,11 +21,13 @@ const leadSchema = z.object({
   property_type: z.string().trim().max(50).optional().or(z.literal('')),
   source: z.string().trim().max(50).optional().or(z.literal('')),
   stage: z.enum(['new', 'contacted', 'follow-up', 'site-visit', 'negotiation', 'closed-won', 'closed-lost']).default('new'),
+  lead_status: z.enum(['hot', 'warm', 'cold']).optional(),
 });
 
 type LeadFormData = z.infer<typeof leadSchema>;
 
-interface AddLeadDialogProps {
+interface EditLeadDialogProps {
+  lead: Lead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -33,27 +35,48 @@ interface AddLeadDialogProps {
 const propertyTypes = ['1 BHK', '2 BHK', '3 BHK', '4+ BHK', 'Plot', 'Commercial', 'Villa'];
 const sources = ['Facebook Ads', 'Google Ads', 'WhatsApp', '99acres', 'MagicBricks', 'Housing.com', 'Referral', 'Walk-in', 'Other'];
 
-export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
+export function EditLeadDialog({ lead, open, onOpenChange }: EditLeadDialogProps) {
   const { toast } = useToast();
-  const createLead = useCreateLead();
+  const updateLead = useUpdateLead();
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
-      name: '',
-      phone: '',
-      email: '',
-      budget: '',
-      location: '',
-      property_type: '',
-      source: '',
-      stage: 'new',
+      name: lead?.name || '',
+      phone: lead?.phone || '',
+      email: lead?.email || '',
+      budget: lead?.budget || '',
+      location: lead?.location || '',
+      property_type: lead?.property_type || '',
+      source: lead?.source || '',
+      stage: lead?.stage || 'new',
+      lead_status: lead?.lead_status || 'cold',
     },
   });
 
+  // Update form values when lead changes
+  React.useEffect(() => {
+    if (lead) {
+      form.reset({
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email || '',
+        budget: lead.budget || '',
+        location: lead.location || '',
+        property_type: lead.property_type || '',
+        source: lead.source || '',
+        stage: lead.stage,
+        lead_status: lead.lead_status || 'cold',
+      });
+    }
+  }, [lead, form]);
+
   const onSubmit = async (data: LeadFormData) => {
+    if (!lead) return;
+
     try {
-      await createLead.mutateAsync({
+      await updateLead.mutateAsync({
+        id: lead.id,
         name: data.name,
         phone: data.phone,
         email: data.email || null,
@@ -62,26 +85,21 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
         property_type: data.property_type || null,
         source: data.source || null,
         stage: data.stage,
+        lead_status: data.lead_status,
       });
-      
+
       toast({
-        title: 'Lead created',
-        description: `${data.name} has been added successfully.`,
+        title: 'Lead updated',
+        description: `${data.name} has been updated successfully.`,
       });
-      
-      form.reset();
+
       onOpenChange(false);
     } catch (error: any) {
-      // Log full error to help debugging (check browser console / network)
-      // and show a more specific message if available.
-      // This will reveal Supabase/PostgREST errors returned from the API.
-      // Keep the generic fallback for unknown error shapes.
-      // eslint-disable-next-line no-console
-      console.error('Create lead error:', error);
+      console.error('Update lead error:', error);
       const description =
-        error?.message || error?.error || JSON.stringify(error) || 'Failed to create lead. Please try again.';
+        error?.message || error?.error || JSON.stringify(error) || 'Failed to update lead. Please try again.';
       toast({
-        title: 'Error creating lead',
+        title: 'Error updating lead',
         description,
         variant: 'destructive',
       });
@@ -92,9 +110,9 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Lead</DialogTitle>
+          <DialogTitle>Edit Lead</DialogTitle>
           <DialogDescription>
-            Fill in the lead details. Fields marked with * are required.
+            Update the lead details. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -247,13 +265,36 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="lead_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lead Status</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select lead status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="hot">Hot</SelectItem>
+                      <SelectItem value="warm">Warm</SelectItem>
+                      <SelectItem value="cold">Cold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLead.isPending} className="gradient-primary border-0">
-                {createLead.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Add Lead
+              <Button type="submit" disabled={updateLead.isPending} className="gradient-primary border-0">
+                {updateLead.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Update Lead
               </Button>
             </div>
           </form>
@@ -262,6 +303,3 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
     </Dialog>
   );
 }
-
-
-

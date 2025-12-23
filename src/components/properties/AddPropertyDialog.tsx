@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCreateProperty } from '@/hooks/useProperties';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Loader2 } from 'lucide-react';
+import { ImageUpload } from '@/components/ui/image-upload';
 
 const propertySchema = z.object({
   title: z.string().min(1, 'Title is required').max(100),
@@ -32,10 +33,17 @@ interface AddPropertyDialogProps {
 export function AddPropertyDialog({ open, onOpenChange }: AddPropertyDialogProps) {
   const { toast } = useToast();
   const createProperty = useCreateProperty();
+  const [images, setImages] = useState<string[]>([]);
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<PropertyFormData>({
+  const form = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
     defaultValues: {
+      title: '',
+      location: '',
+      bhk: '',
+      area: '',
+      price: '',
+      description: '',
       status: 'available',
     },
   });
@@ -48,20 +56,26 @@ export function AddPropertyDialog({ open, onOpenChange }: AddPropertyDialogProps
         bhk: data.bhk,
         area: data.area,
         price: data.price,
-        description: data.description || null,
+        description: data.description,
+        images: images,
         status: data.status,
-        images: [],
       });
+
       toast({
         title: 'Property Added',
         description: 'Property has been added successfully.',
       });
-      reset();
+
+      form.reset();
+      setImages([]);
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Create property error:', error);
+      const description =
+        error?.message || error?.error || JSON.stringify(error) || 'Failed to add property. Please try again.';
       toast({
-        title: 'Error',
-        description: 'Failed to add property.',
+        title: 'Error adding property',
+        description,
         variant: 'destructive',
       });
     }
@@ -69,30 +83,45 @@ export function AddPropertyDialog({ open, onOpenChange }: AddPropertyDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
             Add New Property
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="title">Property Title *</Label>
-              <Input id="title" {...register('title')} placeholder="e.g., Sunrise Heights" />
-              {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+              <Input
+                id="title"
+                placeholder="e.g., Sunrise Heights"
+                {...form.register('title')}
+              />
+              {form.formState.errors.title && (
+                <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>
+              )}
             </div>
 
             <div className="col-span-2 space-y-2">
               <Label htmlFor="location">Location *</Label>
-              <Input id="location" {...register('location')} placeholder="e.g., Whitefield, Bangalore" />
-              {errors.location && <p className="text-xs text-destructive">{errors.location.message}</p>}
+              <Input
+                id="location"
+                placeholder="e.g., Whitefield, Bangalore"
+                {...form.register('location')}
+              />
+              {form.formState.errors.location && (
+                <p className="text-sm text-destructive">{form.formState.errors.location.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bhk">BHK Type *</Label>
-              <Select onValueChange={(value) => setValue('bhk', value)}>
+              <Select
+                value={form.watch('bhk')}
+                onValueChange={(value) => form.setValue('bhk', value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select BHK" />
                 </SelectTrigger>
@@ -106,24 +135,41 @@ export function AddPropertyDialog({ open, onOpenChange }: AddPropertyDialogProps
                   <SelectItem value="Commercial">Commercial</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.bhk && <p className="text-xs text-destructive">{errors.bhk.message}</p>}
+              {form.formState.errors.bhk && (
+                <p className="text-sm text-destructive">{form.formState.errors.bhk.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="area">Area *</Label>
-              <Input id="area" {...register('area')} placeholder="e.g., 1200 sq.ft" />
-              {errors.area && <p className="text-xs text-destructive">{errors.area.message}</p>}
+              <Input
+                id="area"
+                placeholder="e.g., 1200 sq.ft"
+                {...form.register('area')}
+              />
+              {form.formState.errors.area && (
+                <p className="text-sm text-destructive">{form.formState.errors.area.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="price">Price *</Label>
-              <Input id="price" {...register('price')} placeholder="e.g., ₹50L - ₹75L" />
-              {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+              <Input
+                id="price"
+                placeholder="e.g., ₹50L - ₹75L"
+                {...form.register('price')}
+              />
+              {form.formState.errors.price && (
+                <p className="text-sm text-destructive">{form.formState.errors.price.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select defaultValue="available" onValueChange={(value: 'available' | 'sold' | 'upcoming') => setValue('status', value)}>
+              <Select
+                value={form.watch('status')}
+                onValueChange={(value) => form.setValue('status', value as any)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -133,11 +179,31 @@ export function AddPropertyDialog({ open, onOpenChange }: AddPropertyDialogProps
                   <SelectItem value="sold">Sold</SelectItem>
                 </SelectContent>
               </Select>
+              {form.formState.errors.status && (
+                <p className="text-sm text-destructive">{form.formState.errors.status.message}</p>
+              )}
             </div>
 
             <div className="col-span-2 space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" {...register('description')} placeholder="Property description..." rows={3} />
+              <Textarea
+                id="description"
+                placeholder="Property description..."
+                rows={3}
+                {...form.register('description')}
+              />
+              {form.formState.errors.description && (
+                <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>
+              )}
+            </div>
+
+            <div className="col-span-2 space-y-2">
+              <Label>Property Images</Label>
+              <ImageUpload
+                images={images}
+                onImagesChange={setImages}
+                maxImages={10}
+              />
             </div>
           </div>
 

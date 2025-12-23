@@ -1,15 +1,21 @@
+import React from 'react';
 import { Phone, Mail, MapPin, Calendar, Zap, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Lead } from '@/hooks/useLeads';
-import { useScoreLead } from '@/hooks/useLeads';
+import { useScoreLead, useUpdateLead } from '@/hooks/useLeads';
+import { useProfiles } from '@/hooks/useProfiles';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import type { Enums } from '@/integrations/supabase/types';
 
 interface LeadCardProps {
   lead: Lead;
   onClick?: () => void;
+  onDragStart?: () => void;
+  isDragging?: boolean;
 }
 
 function getScoreColor(score: number) {
@@ -26,7 +32,64 @@ function getScoreLabel(score: number) {
   return 'Cold';
 }
 
-export function LeadCard({ lead, onClick }: LeadCardProps) {
+function LeadStatusSelect({ leadId, leadStatus }: { leadId: string, leadStatus?: Enums<'lead_status'> }) {
+  const updateLead = useUpdateLead();
+
+  const getStatusColor = (status: Enums<'lead_status'>) => {
+    switch (status) {
+      case 'hot': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'warm': return 'bg-warning/10 text-warning border-warning/20';
+      case 'cold': return 'bg-info/10 text-info border-info/20';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  return (
+    <Select
+      value={leadStatus || 'cold'}
+      onValueChange={value => updateLead.mutate({ id: leadId, lead_status: value as Enums<'lead_status'> })}
+      disabled={updateLead.isPending}
+    >
+      <SelectTrigger className={`h-6 w-16 text-xs border ${getStatusColor(leadStatus || 'cold')}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="hot">Hot</SelectItem>
+        <SelectItem value="warm">Warm</SelectItem>
+        <SelectItem value="cold">Cold</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?: string }) {
+  const { data: profiles, isLoading } = useProfiles();
+  const updateLead = useUpdateLead();
+
+  return (
+    <Select
+      value={assignedTo ?? 'unassigned'}
+      onValueChange={value => {
+        updateLead.mutate({ id: leadId, assigned_to: value === 'unassigned' ? null : value });
+      }}
+      disabled={isLoading || updateLead.isPending}
+    >
+      <SelectTrigger className="h-7 w-40 text-xs bg-background">
+        <SelectValue placeholder="Assign to..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {(profiles || []).map(profile => (
+          <SelectItem key={profile.user_id} value={profile.user_id}>
+            {profile.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function LeadCard({ lead, onClick, onDragStart, isDragging = false }: LeadCardProps) {
   const scoreLead = useScoreLead();
 
   const handleScore = async (e: React.MouseEvent) => {
@@ -42,7 +105,12 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
   return (
     <div
       onClick={onClick}
-      className="card-elevated p-4 cursor-pointer hover:shadow-lg transition-all duration-200 animate-scale-in"
+      draggable={!!onDragStart}
+      onDragStart={onDragStart}
+      className={cn(
+        "card-elevated p-4 cursor-pointer hover:shadow-lg transition-all duration-200 animate-scale-in",
+        isDragging && "opacity-50 rotate-2 scale-105"
+      )}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -55,7 +123,7 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
           </div>
         </div>
         
-        {/* Lead Score Badge */}
+        {/* Lead Score Badge & Status */}
         <div className="flex items-center gap-2">
           {lead.lead_score !== null ? (
             <TooltipProvider>
@@ -95,6 +163,16 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
               )}
             </Button>
           )}
+          {/* Lead Status Tag */}
+          <div className={cn(
+            "px-2 py-1 rounded-full text-xs font-semibold border",
+            lead.lead_status === 'hot' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+            lead.lead_status === 'warm' ? 'bg-warning/10 text-warning border-warning/20' :
+            'bg-info/10 text-info border-info/20'
+          )}>
+            {lead.lead_status ? lead.lead_status.charAt(0).toUpperCase() + lead.lead_status.slice(1) : 'Cold'}
+          </div>
+
         </div>
       </div>
 
@@ -111,7 +189,7 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
         )}
         <div className="flex items-center gap-2">
           <Calendar className="w-3.5 h-3.5" />
-          <span>{format(new Date(lead.last_contact), 'MMM d, yyyy')}</span>
+          <span>{format(new Date(lead.created_at), 'MMM d, yyyy')}</span>
         </div>
       </div>
 
@@ -141,11 +219,13 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
         </div>
       )}
 
-      {lead.assigned_to && (
-        <div className="mt-3 text-xs text-muted-foreground">
-          Assigned to: <span className="font-medium text-foreground">{lead.assigned_to}</span>
-        </div>
-      )}
+      <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
+        <span>Assigned to:</span>
+        <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
+      </div>
+
     </div>
   );
 }
+
+

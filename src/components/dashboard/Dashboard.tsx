@@ -21,7 +21,7 @@ export function Dashboard() {
   const newLeadsToday = leads?.filter(l => 
     format(new Date(l.created_at), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
   ).length || 0;
-  const hotLeads = leads?.filter(l => l.tags?.includes('Hot Lead')).length || 0;
+  const hotLeads = leads?.filter(l => l.lead_status === 'hot').length || 0;
   const closedWon = leads?.filter(l => l.stage === 'closed-won').length || 0;
   const closedLost = leads?.filter(l => l.stage === 'closed-lost').length || 0;
   const conversionRate = totalLeads > 0 ? Math.round((closedWon / totalLeads) * 100) : 0;

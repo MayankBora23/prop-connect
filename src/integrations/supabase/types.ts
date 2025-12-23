@@ -13,6 +13,7 @@ export type Database = {
     PostgrestVersion: "13.0.5"
   }
   public: {
+    Json: Json
     Tables: {
       companies: {
         Row: {
@@ -127,6 +128,7 @@ export type Database = {
           scored_at: string | null
           source: string | null
           stage: Database["public"]["Enums"]["lead_stage"]
+          lead_status: Database["public"]["Enums"]["lead_status"] | null
           tags: string[] | null
           updated_at: string
         }
@@ -149,6 +151,7 @@ export type Database = {
           scored_at?: string | null
           source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
+          lead_status?: Database["public"]["Enums"]["lead_status"] | null
           tags?: string[] | null
           updated_at?: string
         }
@@ -171,6 +174,7 @@ export type Database = {
           scored_at?: string | null
           source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
+          lead_status?: Database["public"]["Enums"]["lead_status"] | null
           tags?: string[] | null
           updated_at?: string
         }
@@ -2477,6 +2481,7 @@ export type Database = {
         | "negotiation"
         | "closed-won"
         | "closed-lost"
+      lead_status: "hot" | "warm" | "cold"
       message_direction: "incoming" | "outgoing"
       message_status: "sent" | "delivered" | "read"
       message_type: "text" | "image" | "document"
