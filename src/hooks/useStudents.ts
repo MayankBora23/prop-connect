@@ -14,6 +14,7 @@ export type Student = {
   parent_email: string | null;
   notes: string[] | null;
   tags: string[] | null;
+  stage: 'new_students' | 'contacted' | 'demo_scheduled' | 'demo_attended' | 'interested' | 'fees_discussed' | 'enrolled' | 'lost';
   created_by: string | null;
   created_at: string;
   updated_at: string;
