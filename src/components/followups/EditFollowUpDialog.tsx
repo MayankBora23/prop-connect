@@ -1,97 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUpdateSiteVisit } from '@/hooks/useSiteVisits';
+import { Textarea } from '@/components/ui/textarea';
+import { useUpdateFollowUp } from '@/hooks/useFollowUps';
 import { useLeads } from '@/hooks/useLeads';
-import { useProperties } from '@/hooks/useProperties';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Loader2, User } from 'lucide-react';
-import type { SiteVisitWithDetails } from '@/hooks/useSiteVisits';
+import type { FollowUpWithLead } from '@/hooks/useFollowUps';
 
-const visitSchema = z.object({
+const followUpSchema = z.object({
   lead_id: z.string().min(1, 'Lead is required'),
-  property_id: z.string().min(1, 'Property is required'),
-  visit_date: z.string().min(1, 'Date is required'),
-  visit_time: z.string().min(1, 'Time is required'),
+  type: z.enum(['call', 'whatsapp', 'meeting', 'email']),
+  follow_up_date: z.string().min(1, 'Date is required'),
+  follow_up_time: z.string().min(1, 'Time is required'),
   assigned_to: z.string().optional(),
-  feedback: z.string().max(500).optional(),
+  notes: z.string().max(500).optional(),
 });
 
-type VisitFormData = z.infer<typeof visitSchema>;
+type FollowUpFormData = z.infer<typeof followUpSchema>;
 
-interface EditSiteVisitDialogProps {
-  visit: SiteVisitWithDetails | null;
+interface EditFollowUpDialogProps {
+  followUp: FollowUpWithLead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisitDialogProps) {
+export function EditFollowUpDialog({ followUp, open, onOpenChange }: EditFollowUpDialogProps) {
   const { toast } = useToast();
-  const updateVisit = useUpdateSiteVisit();
+  const updateFollowUp = useUpdateFollowUp();
   const { data: leads } = useLeads();
-  const { data: properties } = useProperties();
   const { data: profiles } = useProfiles();
 
-  const form = useForm<VisitFormData>({
-    resolver: zodResolver(visitSchema),
+  const form = useForm<FollowUpFormData>({
+    resolver: zodResolver(followUpSchema),
     defaultValues: {
-      lead_id: visit?.lead_id || '',
-      property_id: visit?.property_id || '',
-      visit_date: visit?.visit_date || '',
-      visit_time: visit?.visit_time || '',
-      assigned_to: visit?.assigned_to || 'unassigned',
-      feedback: visit?.feedback || '',
+      lead_id: followUp?.lead_id || '',
+      type: followUp?.type || 'call',
+      follow_up_date: followUp?.follow_up_date || '',
+      follow_up_time: followUp?.follow_up_time || '',
+      assigned_to: followUp?.assigned_to || 'unassigned',
+      notes: followUp?.notes || '',
     },
   });
 
-  // Update form values when visit changes
-  React.useEffect(() => {
-    if (visit) {
+  // Update form values when followUp changes
+  useEffect(() => {
+    if (followUp) {
       form.reset({
-        lead_id: visit.lead_id,
-        property_id: visit.property_id,
-        visit_date: visit.visit_date,
-        visit_time: visit.visit_time,
-        assigned_to: visit.assigned_to || 'unassigned',
-        feedback: visit.feedback || '',
+        lead_id: followUp.lead_id,
+        type: followUp.type,
+        follow_up_date: followUp.follow_up_date,
+        follow_up_time: followUp.follow_up_time,
+        assigned_to: followUp.assigned_to || 'unassigned',
+        notes: followUp.notes || '',
       });
     }
-  }, [visit, form]);
+  }, [followUp, form]);
 
-  const onSubmit = async (data: VisitFormData) => {
-    if (!visit) return;
+  const onSubmit = async (data: FollowUpFormData) => {
+    if (!followUp) return;
 
     try {
-      await updateVisit.mutateAsync({
-        id: visit.id,
+      await updateFollowUp.mutateAsync({
+        id: followUp.id,
         lead_id: data.lead_id,
-        property_id: data.property_id,
-        visit_date: data.visit_date,
-        visit_time: data.visit_time,
+        type: data.type,
+        follow_up_date: data.follow_up_date,
+        follow_up_time: data.follow_up_time,
         assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
-        feedback: data.feedback || null,
+        notes: data.notes || null,
       });
 
       toast({
-        title: 'Visit Updated',
-        description: 'Site visit has been updated successfully.',
+        title: 'Follow-up Updated',
+        description: 'Follow-up has been updated successfully.',
       });
 
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Update visit error:', error);
+      console.error('Update follow-up error:', error);
       const description =
-        error?.message || error?.error || JSON.stringify(error) || 'Failed to update visit. Please try again.';
+        error?.message || error?.error || JSON.stringify(error) || 'Failed to update follow-up. Please try again.';
       toast({
-        title: 'Error updating visit',
+        title: 'Error updating follow-up',
         description,
         variant: 'destructive',
       });
@@ -100,17 +98,17 @@ export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Edit Site Visit
+            Edit Follow-up
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="lead">Lead *</Label>
+            <Label>Select Lead *</Label>
             <Select
               value={form.watch('lead_id')}
               onValueChange={(value) => form.setValue('lead_id', value)}
@@ -132,29 +130,25 @@ export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisit
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="property">Property *</Label>
+            <Label>Type *</Label>
             <Select
-              value={form.watch('property_id')}
-              onValueChange={(value) => form.setValue('property_id', value)}
+              value={form.watch('type')}
+              onValueChange={(value: 'call' | 'whatsapp' | 'meeting' | 'email') => form.setValue('type', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select property" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(properties || []).map((property) => (
-                  <SelectItem key={property.id} value={property.id}>
-                    {property.title} - {property.location}
-                  </SelectItem>
-                ))}
+                <SelectItem value="call">Phone Call</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                <SelectItem value="meeting">Meeting</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
               </SelectContent>
             </Select>
-            {form.formState.errors.property_id && (
-              <p className="text-sm text-destructive">{form.formState.errors.property_id.message}</p>
-            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assigned_to">Assign to Team Member (Optional)</Label>
+            <Label>Assign to Team Member (Optional)</Label>
             <Select
               value={form.watch('assigned_to') || 'unassigned'}
               onValueChange={(value) => form.setValue('assigned_to', value)}
@@ -186,50 +180,47 @@ export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisit
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="visit_date">Date *</Label>
+              <Label htmlFor="follow_up_date">Date *</Label>
               <Input
-                id="visit_date"
+                id="follow_up_date"
                 type="date"
-                {...form.register('visit_date')}
+                {...form.register('follow_up_date')}
               />
-              {form.formState.errors.visit_date && (
-                <p className="text-sm text-destructive">{form.formState.errors.visit_date.message}</p>
+              {form.formState.errors.follow_up_date && (
+                <p className="text-sm text-destructive">{form.formState.errors.follow_up_date.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="visit_time">Time *</Label>
+              <Label htmlFor="follow_up_time">Time *</Label>
               <Input
-                id="visit_time"
+                id="follow_up_time"
                 type="time"
-                {...form.register('visit_time')}
+                {...form.register('follow_up_time')}
               />
-              {form.formState.errors.visit_time && (
-                <p className="text-sm text-destructive">{form.formState.errors.visit_time.message}</p>
+              {form.formState.errors.follow_up_time && (
+                <p className="text-sm text-destructive">{form.formState.errors.follow_up_time.message}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="feedback">Notes</Label>
+            <Label htmlFor="notes">Notes (Optional)</Label>
             <Textarea
-              id="feedback"
-              placeholder="Additional notes or feedback"
-              rows={3}
-              {...form.register('feedback')}
+              id="notes"
+              placeholder="What to discuss..."
+              rows={2}
+              {...form.register('notes')}
             />
-            {form.formState.errors.feedback && (
-              <p className="text-sm text-destructive">{form.formState.errors.feedback.message}</p>
-            )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={updateVisit.isPending} className="gradient-primary border-0">
-              {updateVisit.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Update Visit
+            <Button type="submit" className="flex-1 gradient-primary border-0" disabled={updateFollowUp.isPending}>
+              {updateFollowUp.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Update Follow-up
             </Button>
           </div>
         </form>

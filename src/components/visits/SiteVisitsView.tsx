@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useSiteVisits, SiteVisitWithDetails, useUpdateSiteVisit } from '@/hooks/useSiteVisits';
 import { useLeads } from '@/hooks/useLeads';
 import { useUpdateLead } from '@/hooks/useLeads';
+import { useProfiles } from '@/hooks/useProfiles';
 import { AddSiteVisitDialog } from './AddSiteVisitDialog';
 import { EditSiteVisitDialog } from './EditSiteVisitDialog';
-import { Calendar, Clock, User, MessageSquare, Check, X, MapPin, Edit } from 'lucide-react';
+import { Calendar, Clock, User, MessageSquare, Check, X, MapPin, Edit, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 export function SiteVisitsView() {
   const { data: visits, isLoading: visitsLoading } = useSiteVisits();
   const { data: leads, isLoading: leadsLoading } = useLeads();
+  const { data: profiles } = useProfiles();
   const updateVisit = useUpdateSiteVisit();
   const updateLead = useUpdateLead();
   const { toast } = useToast();
@@ -81,7 +83,15 @@ export function SiteVisitsView() {
     }
   };
 
-  const VisitCard = ({ visit, onEdit }: { visit: SiteVisitWithDetails; onEdit?: (visit: SiteVisitWithDetails) => void }) => (
+  const getAssignedProfileName = (assignedTo: string | null) => {
+    if (!assignedTo || !profiles) return null;
+    const profile = profiles.find(p => p.user_id === assignedTo);
+    return profile?.name || null;
+  };
+
+  const VisitCard = ({ visit, onEdit }: { visit: SiteVisitWithDetails; onEdit?: (visit: SiteVisitWithDetails) => void }) => {
+    const assignedProfileName = getAssignedProfileName(visit.assigned_to);
+    return (
     <div className="card-elevated p-4 animate-scale-in">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -103,7 +113,7 @@ export function SiteVisitsView() {
         </span>
       </div>
 
-      <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="space-y-2 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4" />
           <span>{format(new Date(visit.visit_date), 'MMM d, yyyy')}</span>
@@ -112,6 +122,12 @@ export function SiteVisitsView() {
           <Clock className="w-4 h-4" />
           <span>{visit.visit_time}</span>
         </div>
+        {assignedProfileName && (
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            <span>Assigned to: {assignedProfileName}</span>
+          </div>
+        )}
       </div>
 
       {visit.feedback && (
@@ -155,7 +171,8 @@ export function SiteVisitsView() {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const LeadCard = ({ lead, onScheduleVisit }: { lead: any; onScheduleVisit: (lead: any) => void }) => (
     <div className="card-elevated p-4 animate-scale-in">

@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateFollowUp } from '@/hooks/useFollowUps';
 import { useLeads } from '@/hooks/useLeads';
+import { useProfiles } from '@/hooks/useProfiles';
 import { useToast } from '@/hooks/use-toast';
-import { Bell, Loader2 } from 'lucide-react';
+import { Bell, Loader2, User } from 'lucide-react';
 
 const followUpSchema = z.object({
   lead_id: z.string().min(1, 'Lead is required'),
@@ -25,27 +26,44 @@ type FollowUpFormData = z.infer<typeof followUpSchema>;
 interface AddFollowUpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preSelectedLead?: { id: string; name: string };
 }
 
-export function AddFollowUpDialog({ open, onOpenChange }: AddFollowUpDialogProps) {
+export function AddFollowUpDialog({ open, onOpenChange, preSelectedLead }: AddFollowUpDialogProps) {
   const { toast } = useToast();
   const createFollowUp = useCreateFollowUp();
   const { data: leads } = useLeads();
+  const { data: profiles } = useProfiles();
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FollowUpFormData>({
-    resolver: zodResolver(followUpSchema),
+  // Dynamic schema based on whether lead is pre-selected
+  const dynamicFollowUpSchema = z.object({
+    lead_id: preSelectedLead ? z.string().optional() : z.string().min(1, 'Lead is required'),
+    type: z.enum(['call', 'whatsapp', 'meeting', 'email']),
+    follow_up_date: z.string().min(1, 'Date is required'),
+    follow_up_time: z.string().min(1, 'Time is required'),
+    assigned_to: z.string().optional(),
+    notes: z.string().max(500).optional(),
+  });
+
+  type DynamicFollowUpFormData = z.infer<typeof dynamicFollowUpSchema>;
+
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<DynamicFollowUpFormData>({
+    resolver: zodResolver(dynamicFollowUpSchema),
     defaultValues: {
       type: 'call',
+      lead_id: preSelectedLead?.id || '',
+      assigned_to: 'unassigned',
     },
   });
 
-  const onSubmit = async (data: FollowUpFormData) => {
+  const onSubmit = async (data: DynamicFollowUpFormData) => {
     try {
       await createFollowUp.mutateAsync({
-        lead_id: data.lead_id,
+        lead_id: preSelectedLead?.id || data.lead_id,
         type: data.type,
         follow_up_date: data.follow_up_date,
         follow_up_time: data.follow_up_time,
+        assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
         notes: data.notes || null,
         status: 'pending',
       });
@@ -76,18 +94,30 @@ export function AddFollowUpDialog({ open, onOpenChange }: AddFollowUpDialogProps
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label>Select Lead *</Label>
-            <Select onValueChange={(value) => setValue('lead_id', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a lead" />
-              </SelectTrigger>
-              <SelectContent>
-                {(leads || []).map((lead) => (
-                  <SelectItem key={lead.id} value={lead.id}>
-                    {lead.name} - {lead.phone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {preSelectedLead ? (
+              <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
+                  {preSelectedLead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{preSelectedLead.name}</p>
+                  <p className="text-xs text-muted-foreground">Pre-selected lead</p>
+                </div>
+              </div>
+            ) : (
+              <Select value={watch('lead_id')} onValueChange={(value) => setValue('lead_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a lead" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(leads || []).map((lead) => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      {lead.name} - {lead.phone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {errors.lead_id && <p className="text-xs text-destructive">{errors.lead_id.message}</p>}
           </div>
 
@@ -102,6 +132,34 @@ export function AddFollowUpDialog({ open, onOpenChange }: AddFollowUpDialogProps
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="meeting">Meeting</SelectItem>
                 <SelectItem value="email">Email</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Assign to Team Member (Optional)</Label>
+            <Select value={watch('assigned_to') || 'unassigned'} onValueChange={(value) => setValue('assigned_to', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose team member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span>Unassigned</span>
+                  </div>
+                </SelectItem>
+                {(profiles || []).map((profile) => (
+                  <SelectItem key={profile.user_id} value={profile.user_id}>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      <span>{profile.name}</span>
+                      {profile.role && (
+                        <span className="text-xs text-muted-foreground">({profile.role})</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -10,14 +10,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateSiteVisit } from '@/hooks/useSiteVisits';
 import { useLeads } from '@/hooks/useLeads';
 import { useProperties } from '@/hooks/useProperties';
+import { useProfiles } from '@/hooks/useProfiles';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, User } from 'lucide-react';
 
 const visitSchema = z.object({
   lead_id: z.string().min(1, 'Lead is required'),
   property_id: z.string().min(1, 'Property is required'),
   visit_date: z.string().min(1, 'Date is required'),
   visit_time: z.string().min(1, 'Time is required'),
+  assigned_to: z.string().optional(),
   feedback: z.string().max(500).optional(),
 });
 
@@ -35,6 +37,7 @@ export function AddSiteVisitDialog({ open, onOpenChange, preSelectedLead, onVisi
   const createVisit = useCreateSiteVisit();
   const { data: leads } = useLeads();
   const { data: properties } = useProperties();
+  const { data: profiles } = useProfiles();
 
   // Dynamic schema based on whether lead is pre-selected
   const dynamicVisitSchema = z.object({
@@ -42,6 +45,7 @@ export function AddSiteVisitDialog({ open, onOpenChange, preSelectedLead, onVisi
     property_id: z.string().min(1, 'Property is required'),
     visit_date: z.string().min(1, 'Date is required'),
     visit_time: z.string().min(1, 'Time is required'),
+    assigned_to: z.string().optional(),
     feedback: z.string().max(500).optional(),
   });
 
@@ -59,6 +63,7 @@ export function AddSiteVisitDialog({ open, onOpenChange, preSelectedLead, onVisi
         property_id: data.property_id,
         visit_date: data.visit_date,
         visit_time: data.visit_time,
+        assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
         feedback: data.feedback || null,
         status: 'scheduled',
       });
@@ -137,6 +142,34 @@ export function AddSiteVisitDialog({ open, onOpenChange, preSelectedLead, onVisi
               </SelectContent>
             </Select>
             {errors.property_id && <p className="text-xs text-destructive">{errors.property_id.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Assign to Team Member (Optional)</Label>
+            <Select value={watch('assigned_to') || 'unassigned'} onValueChange={(value) => setValue('assigned_to', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose team member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span>Unassigned</span>
+                  </div>
+                </SelectItem>
+                {(profiles || []).map((profile) => (
+                  <SelectItem key={profile.user_id} value={profile.user_id}>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      <span>{profile.name}</span>
+                      {profile.role && (
+                        <span className="text-xs text-muted-foreground">({profile.role})</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

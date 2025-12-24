@@ -9,7 +9,6 @@ export type SiteVisitUpdate = TablesUpdate<'site_visits'>;
 export type SiteVisitWithDetails = SiteVisit & {
   leads: { name: string } | null;
   properties: { title: string } | null;
-  profiles: { name: string } | null;
 };
 
 export function useSiteVisits() {

@@ -1,22 +1,38 @@
+import React, { useState } from 'react';
 import { useFollowUps, FollowUpWithLead, useUpdateFollowUp } from '@/hooks/useFollowUps';
-import { Phone, MessageSquare, Calendar, Mail, Clock, Check, AlertCircle } from 'lucide-react';
+import { useLeads } from '@/hooks/useLeads';
+import { Phone, MessageSquare, Calendar, Mail, Clock, Check, AlertCircle, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { AddFollowUpDialog } from './AddFollowUpDialog';
+import { EditFollowUpDialog } from './EditFollowUpDialog';
 import type { Enums } from '@/integrations/supabase/types';
 
 type FollowUpType = Enums<'follow_up_type'>;
 
 export function FollowUpsView() {
   const { data: followUps, isLoading } = useFollowUps();
+  const { data: leads } = useLeads();
   const updateFollowUp = useUpdateFollowUp();
   const { toast } = useToast();
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<any>(null);
+  const [editFollowUpDialogOpen, setEditFollowUpDialogOpen] = useState(false);
+  const [selectedFollowUpForEditing, setSelectedFollowUpForEditing] = useState<FollowUpWithLead | null>(null);
 
   const pendingFollowUps = (followUps || []).filter(f => f.status === 'pending');
   const missedFollowUps = (followUps || []).filter(f => f.status === 'missed');
   const completedFollowUps = (followUps || []).filter(f => f.status === 'completed');
+
+  // Get leads in follow-up stage that don't have pending follow-ups
+  const followUpStageLeads = (leads || []).filter(lead => {
+    const isInFollowUpStage = lead.stage === 'follow-up';
+    const hasPendingFollowUp = pendingFollowUps.some(fu => fu.lead_id === lead.id);
+    return isInFollowUpStage && !hasPendingFollowUp;
+  });
 
   const getTypeIcon = (type: FollowUpType) => {
     switch (type) {
@@ -41,6 +57,11 @@ export function FollowUpsView() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleEditFollowUp = (followUp: FollowUpWithLead) => {
+    setSelectedFollowUpForEditing(followUp);
+    setEditFollowUpDialogOpen(true);
   };
 
   const FollowUpCard = ({ followUp }: { followUp: FollowUpWithLead }) => {
@@ -91,8 +112,8 @@ export function FollowUpsView() {
 
         {followUp.status === 'pending' && (
           <div className="flex items-center gap-2 mt-4">
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="flex-1 gradient-primary border-0"
               onClick={() => handleMarkComplete(followUp.id)}
               disabled={updateFollowUp.isPending}
@@ -100,11 +121,66 @@ export function FollowUpsView() {
               <Check className="w-4 h-4 mr-2" />
               Mark Complete
             </Button>
-            <Button size="sm" variant="outline">
-              Reschedule
+            <Button size="sm" variant="outline" onClick={() => handleEditFollowUp(followUp)}>
+              Edit
             </Button>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const LeadFollowUpCard = ({ lead }: { lead: any }) => {
+    const handleScheduleFollowUp = () => {
+      setSelectedLeadForScheduling(lead);
+      setScheduleDialogOpen(true);
+    };
+
+
+    return (
+      <div className="card-elevated p-4 animate-scale-in">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
+              <p className="text-xs text-muted-foreground">Follow-up Stage</p>
+            </div>
+          </div>
+          <span className="text-xs px-2 py-1 rounded-full font-medium bg-info/10 text-info">
+            Follow-up
+          </span>
+        </div>
+
+        {lead.notes && (
+          <p className="text-sm text-muted-foreground mb-3">{lead.notes}</p>
+        )}
+
+        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+          <div className="flex items-center gap-1">
+            <User className="w-4 h-4" />
+            <span>{lead.phone}</span>
+          </div>
+          {lead.email && (
+            <div className="flex items-center gap-1">
+              <Mail className="w-4 h-4" />
+              <span>{lead.email}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-center">
+          <Button
+            size="sm"
+            className="w-full gradient-primary border-0"
+            onClick={handleScheduleFollowUp}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Schedule Follow-up
+          </Button>
+        </div>
       </div>
     );
   };
@@ -129,7 +205,7 @@ export function FollowUpsView() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card-elevated p-4 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl gradient-warning flex items-center justify-center">
             <Clock className="w-6 h-6 text-warning-foreground" />
@@ -137,6 +213,15 @@ export function FollowUpsView() {
           <div>
             <p className="text-2xl font-bold text-foreground">{pendingFollowUps.length}</p>
             <p className="text-sm text-muted-foreground">Pending Today</p>
+          </div>
+        </div>
+        <div className="card-elevated p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl gradient-info flex items-center justify-center">
+            <User className="w-6 h-6 text-info-foreground" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{followUpStageLeads.length}</p>
+            <p className="text-sm text-muted-foreground">Follow-up Stage</p>
           </div>
         </div>
         <div className="card-elevated p-4 flex items-center gap-4">
@@ -169,6 +254,21 @@ export function FollowUpsView() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {missedFollowUps.map((followUp) => (
               <FollowUpCard key={followUp.id} followUp={followUp} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Follow-up Stage Leads */}
+      {followUpStageLeads.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+            <User className="w-5 h-5 text-info" />
+            Leads in Follow-up Stage
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {followUpStageLeads.map((lead) => (
+              <LeadFollowUpCard key={lead.id} lead={lead} />
             ))}
           </div>
         </div>
@@ -207,6 +307,33 @@ export function FollowUpsView() {
           <p className="text-sm text-muted-foreground py-4">No completed follow-ups</p>
         )}
       </div>
+
+      {/* Schedule Follow-up Dialog */}
+      <AddFollowUpDialog
+        open={scheduleDialogOpen}
+        onOpenChange={(open) => {
+          setScheduleDialogOpen(open);
+          if (!open) {
+            setSelectedLeadForScheduling(null);
+          }
+        }}
+        preSelectedLead={selectedLeadForScheduling ? {
+          id: selectedLeadForScheduling.id,
+          name: selectedLeadForScheduling.name
+        } : undefined}
+      />
+
+      {/* Edit Follow-up Dialog */}
+      <EditFollowUpDialog
+        followUp={selectedFollowUpForEditing}
+        open={editFollowUpDialogOpen}
+        onOpenChange={(open) => {
+          setEditFollowUpDialogOpen(open);
+          if (!open) {
+            setSelectedFollowUpForEditing(null);
+          }
+        }}
+      />
     </div>
   );
 }
