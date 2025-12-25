@@ -15,6 +15,7 @@ export type Student = {
   notes: string[] | null;
   tags: string[] | null;
   stage: 'new_students' | 'contacted' | 'demo_scheduled' | 'demo_attended' | 'interested' | 'fees_discussed' | 'enrolled' | 'lost';
+  assigned_to: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -32,7 +33,7 @@ export function useStudents() {
     queryFn: async () => {
       if (!company?.id) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('students')
         .select('*')
         .eq('company_id', company.id)
@@ -49,7 +50,7 @@ export function useStudent(id: string) {
   return useQuery({
     queryKey: ['student', id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('students')
         .select('*')
         .eq('id', id)
@@ -69,7 +70,7 @@ export function useCreateStudent() {
     mutationFn: async (student: StudentInsert) => {
       if (!company?.id) throw new Error('No company found');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('students')
         .insert({
           ...student,
@@ -92,7 +93,7 @@ export function useUpdateStudent() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: StudentUpdate & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('students')
         .update(updates)
         .eq('id', id)
@@ -113,7 +114,7 @@ export function useDeleteStudent() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('students')
         .delete()
         .eq('id', id);

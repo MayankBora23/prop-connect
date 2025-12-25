@@ -42,6 +42,7 @@ const educationMenuItems = [
   { id: 'students', label: 'Students', icon: Users2, badge: undefined },
   { id: 'courses', label: 'Courses', icon: BookOpen, badge: undefined },
   { id: 'batches', label: 'Batches', icon: CalendarCheck, badge: undefined },
+  { id: 'teachers', label: 'Teachers', icon: GraduationCap, badge: undefined },
   { id: 'enrollments', label: 'Enrollments', icon: Users, badge: undefined },
   { id: 'attendance', label: 'Attendance', icon: Calendar, badge: undefined },
   { id: 'fees', label: 'Fees', icon: DollarSign, badge: undefined },

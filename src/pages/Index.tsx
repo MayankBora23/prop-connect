@@ -22,7 +22,12 @@ import { EducationDashboard } from '@/components/education/EducationDashboard';
 import { StudentsView } from '@/components/education/StudentsView';
 import { CoursesView } from '@/components/education/CoursesView';
 import { BatchesView } from '@/components/education/BatchesView';
+import { EnrollmentsView } from '@/components/education/EnrollmentsView';
+import { TeachersView } from '@/components/education/TeachersView';
 import { AddStudentDialog } from '@/components/education/AddStudentDialog';
+import { AddCourseDialog } from '@/components/education/AddCourseDialog';
+import { AddBatchDialog } from '@/components/education/AddBatchDialog';
+import { AddTeacherDialog } from '@/components/education/AddTeacherDialog';
 import { HealthcareDashboard } from '@/components/healthcare/HealthcareDashboard';
 import { PatientsView } from '@/components/healthcare/PatientsView';
 import { AppointmentsView } from '@/components/healthcare/AppointmentsView';
@@ -66,6 +71,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   students: { title: 'Students', subtitle: 'Manage your students', addLabel: 'Add Student' },
   courses: { title: 'Courses', subtitle: 'Course catalog', addLabel: 'Add Course' },
   batches: { title: 'Batches', subtitle: 'Manage batches', addLabel: 'Add Batch' },
+  teachers: { title: 'Teachers', subtitle: 'Faculty management', addLabel: 'Add Teacher' },
   enrollments: { title: 'Enrollments', subtitle: 'Student enrollments' },
   attendance: { title: 'Attendance', subtitle: 'Track attendance' },
   fees: { title: 'Fees', subtitle: 'Fee management' },
@@ -124,6 +130,9 @@ const Index = () => {
   const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
   const [addWorkflowOpen, setAddWorkflowOpen] = useState(false);
   const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [addCourseOpen, setAddCourseOpen] = useState(false);
+  const [addBatchOpen, setAddBatchOpen] = useState(false);
+  const [addTeacherOpen, setAddTeacherOpen] = useState(false);
   
 const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
 if (industryLoading || !isLoaded) {
@@ -163,6 +172,15 @@ const tabConfig = isEducation ? educationTabConfig :
       case 'students':
         setAddStudentOpen(true);
         break;
+      case 'courses':
+        setAddCourseOpen(true);
+        break;
+      case 'batches':
+        setAddBatchOpen(true);
+        break;
+      case 'teachers':
+        setAddTeacherOpen(true);
+        break;
       // Healthcare cases will be added when dialogs are created
     }
   };
@@ -180,8 +198,10 @@ const tabConfig = isEducation ? educationTabConfig :
           return <CoursesView />;
         case 'batches':
           return <BatchesView />;
+        case 'teachers':
+          return <TeachersView />;
         case 'enrollments':
-          return <div className="card-elevated p-6"><p className="text-muted-foreground">Enrollments view coming soon</p></div>;
+          return <EnrollmentsView />;
         case 'attendance':
           return <div className="card-elevated p-6"><p className="text-muted-foreground">Attendance view coming soon</p></div>;
         case 'fees':
@@ -327,6 +347,9 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddFollowUpDialog open={addFollowUpOpen} onOpenChange={setAddFollowUpOpen} />
       <AddWorkflowDialog open={addWorkflowOpen} onOpenChange={setAddWorkflowOpen} />
       <AddStudentDialog open={addStudentOpen} onOpenChange={setAddStudentOpen} />
+      <AddCourseDialog open={addCourseOpen} onOpenChange={setAddCourseOpen} />
+      <AddBatchDialog open={addBatchOpen} onOpenChange={setAddBatchOpen} />
+      <AddTeacherDialog open={addTeacherOpen} onOpenChange={setAddTeacherOpen} />
       
       {!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness && <AIChatAssistant />}
     </div>

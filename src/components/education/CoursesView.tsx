@@ -1,64 +1,68 @@
+import { useState } from 'react';
 import { useCourses } from '@/hooks/useCourses';
-import { Skeleton } from '@/components/ui/skeleton';
+import { CourseCard } from './CourseCard';
 import { Button } from '@/components/ui/button';
-import { Filter, Download } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { Course } from '@/hooks/useCourses';
 
 export function CoursesView() {
+  const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
   const { data: courses, isLoading } = useCourses();
 
-  return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground">Courses</h2>
-        </div>
+  const filteredCourses = (courses || []).filter(
+    (course) => filter === 'all' || course.status === filter
+  );
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
+  return (
+    <div className="space-y-6 animate-fade-in">
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {(['all', 'active', 'archived'] as const).map((status) => (
+          <Button
+            key={status}
+            variant={filter === status ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter(status)}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-        </div>
+        ))}
       </div>
 
       {/* Courses Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card-elevated p-4">
-              <Skeleton className="h-6 w-32 mb-2" />
-              <Skeleton className="h-4 w-full mb-4" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          ))
-        ) : (courses || []).length === 0 ? (
-          <div className="col-span-full card-elevated p-8 text-center text-muted-foreground">
-            No courses found. Add your first course to get started.
-          </div>
-        ) : (
-          (courses || []).map((course) => (
-            <div key={course.id} className="card-elevated p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <h3 className="font-semibold text-foreground mb-2">{course.name}</h3>
-              {course.description && (
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{course.description}</p>
-              )}
-              <div className="flex items-center justify-between text-sm">
-                {course.duration_months && (
-                  <span className="text-muted-foreground">Duration: {course.duration_months} months</span>
-                )}
-                {course.price && (
-                  <span className="font-medium text-primary">{course.price}</span>
-                )}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card-elevated overflow-hidden">
+              <Skeleton className="h-32 w-full rounded-t-lg" />
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-8 w-1/3" />
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCourses.map((course) => (
+            <CourseCard key={course.id} course={course} />
+          ))}
+        </div>
+      )}
+
+      {!isLoading && filteredCourses.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          {filter === 'all' ? (
+            <p>No courses found. Use the "Add Course" button in the header to create your first course.</p>
+          ) : (
+            <p>No {filter} courses found with the selected filter.</p>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }

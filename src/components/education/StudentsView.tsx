@@ -138,70 +138,70 @@ export function StudentsView() {
       {viewMode === 'pipeline' ? (
         <StudentPipeline />
       ) : (
-        <div className="card-elevated overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-secondary">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Parent Info</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date of Birth</th>
+      <div className="card-elevated overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-secondary">
+            <tr>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Parent Info</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date of Birth</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stage</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
-                  </tr>
-                ))
-              ) : (students || []).length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                    No students found. Add your first student to get started.
-                  </td>
                 </tr>
-              ) : (
-                (students || []).map((student) => (
-                  <tr key={student.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
-                          {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground text-sm">{student.name}</p>
-                          <p className="text-xs text-muted-foreground">{student.email || '-'}</p>
-                        </div>
+              ))
+            ) : (students || []).length === 0 ? (
+              <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                  No students found. Add your first student to get started.
+                </td>
+              </tr>
+            ) : (
+              (students || []).map((student) => (
+                <tr key={student.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                        {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-foreground">{student.phone}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      {student.parent_name ? (
-                        <>
-                          <p className="text-sm text-foreground">{student.parent_name}</p>
-                          <p className="text-xs text-muted-foreground">{student.parent_phone || '-'}</p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">-</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-foreground">
-                      {student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : '-'}
-                    </td>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">{student.name}</p>
+                          <p className="text-xs text-muted-foreground">{student.email || '-'}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-foreground">{student.phone}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    {student.parent_name ? (
+                      <>
+                        <p className="text-sm text-foreground">{student.parent_name}</p>
+                        <p className="text-xs text-muted-foreground">{student.parent_phone || '-'}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">-</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-foreground">
+                    {student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : '-'}
+                  </td>
                     <td className="px-4 py-3">
                       <AssignStudentSelect studentId={student.id} assignedTo={student.created_by} />
                     </td>
@@ -254,13 +254,13 @@ export function StudentsView() {
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
       )}
 
       {/* Edit Dialog */}
