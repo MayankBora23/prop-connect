@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Course } from '@/hooks/useCourses';
 import { useDeleteCourse } from '@/hooks/useCourses';
-import { useProfiles } from '@/hooks/useProfiles';
+import { useTeachers } from '@/hooks/useTeachers';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { EditCourseDialog } from './EditCourseDialog';
@@ -16,9 +16,7 @@ interface CourseCardProps {
 export function CourseCard({ course }: CourseCardProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const deleteCourse = useDeleteCourse();
-  const { data: profiles } = useProfiles();
-
-  const instructor = profiles?.find(p => p.user_id === course.instructor_id);
+  const instructor = course.teachers?.name || 'Not assigned';
 
   const handleDelete = async () => {
     try {
@@ -130,10 +128,10 @@ export function CourseCard({ course }: CourseCardProps) {
             </div>
           )}
 
-          {instructor && (
+          {instructor && instructor !== 'Not assigned' && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <BookOpen className="w-4 h-4" />
-              <span>{instructor.name}</span>
+              <GraduationCap className="w-4 h-4" />
+              <span>{instructor}</span>
             </div>
           )}
         </div>

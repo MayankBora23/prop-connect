@@ -17,6 +17,10 @@ export type Course = {
   created_at: string;
   updated_at: string;
   company_id: string | null;
+  // Relations
+  teachers?: {
+    name: string;
+  };
 };
 
 export type CourseInsert = Omit<Course, 'id' | 'created_at' | 'updated_at' | 'company_id'>;
@@ -32,7 +36,12 @@ export function useCourses() {
 
       const { data, error } = await (supabase as any)
         .from('courses')
-        .select('*')
+        .select(`
+          *,
+          teachers:instructor_id (
+            name
+          )
+        `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: false });
 

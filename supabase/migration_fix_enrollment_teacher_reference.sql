@@ -1,7 +1,10 @@
 -- Fix enrollment teacher_id to reference teachers table instead of profiles
 -- This migration updates the foreign key constraint
 
--- First, drop the existing constraint
+-- First, clear the teacher_id field for all enrollments since we're changing the reference
+UPDATE public.enrollments SET teacher_id = NULL;
+
+-- Then drop the existing constraint
 ALTER TABLE public.enrollments
 DROP CONSTRAINT IF EXISTS enrollments_teacher_id_fkey;
 

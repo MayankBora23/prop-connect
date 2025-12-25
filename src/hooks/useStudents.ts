@@ -20,6 +20,10 @@ export type Student = {
   created_at: string;
   updated_at: string;
   company_id: string | null;
+  // Relations
+  profiles?: {
+    name: string;
+  };
 };
 
 export type StudentInsert = Omit<Student, 'id' | 'created_at' | 'updated_at' | 'company_id'>;
@@ -35,7 +39,12 @@ export function useStudents() {
       
       const { data, error } = await (supabase as any)
         .from('students')
-        .select('*')
+        .select(`
+          *,
+          profiles:assigned_to (
+            name
+          )
+        `)
         .eq('company_id', company.id)
         .order('created_at', { ascending: false });
 

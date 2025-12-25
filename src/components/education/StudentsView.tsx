@@ -203,7 +203,7 @@ export function StudentsView() {
                     {student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : '-'}
                   </td>
                     <td className="px-4 py-3">
-                      <AssignStudentSelect studentId={student.id} assignedTo={student.created_by} />
+                      <AssignStudentSelect studentId={student.id} assignedTo={student.assigned_to} />
                     </td>
                     <td className="px-4 py-3">
                       <StageSelect studentId={student.id} stage={student.stage} />

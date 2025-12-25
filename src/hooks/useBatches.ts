@@ -15,6 +15,10 @@ export type Batch = {
   created_at: string;
   updated_at: string;
   company_id: string | null;
+  // Relations
+  teachers?: {
+    name: string;
+  };
 };
 
 export type BatchInsert = Omit<Batch, 'id' | 'created_at' | 'updated_at' | 'company_id'>;
@@ -28,11 +32,14 @@ export function useBatches() {
     queryFn: async () => {
       if (!company?.id) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('batches')
         .select(`
           *,
           courses:course_id (
+            name
+          ),
+          teachers:instructor_id (
             name
           )
         `)
@@ -54,7 +61,7 @@ export function useCreateBatch() {
     mutationFn: async (batch: BatchInsert) => {
       if (!company?.id) throw new Error('No company found');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('batches')
         .insert({
           ...batch,
@@ -77,7 +84,7 @@ export function useUpdateBatch() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: BatchUpdate & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('batches')
         .update(updates)
         .eq('id', id)
@@ -93,3 +100,20 @@ export function useUpdateBatch() {
   });
 }
 
+export function useDeleteBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('batches')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+    },
+  });
+}
