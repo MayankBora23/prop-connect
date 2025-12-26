@@ -46,7 +46,10 @@ DROP TYPE IF EXISTS public.enrollment_status CASCADE;
 CREATE TYPE public.enrollment_status AS ENUM ('active', 'completed', 'cancelled', 'on_hold');
 
 DROP TYPE IF EXISTS public.attendance_status CASCADE;
-CREATE TYPE public.attendance_status AS ENUM ('present', 'absent', 'late', 'excused');
+CREATE TYPE public.attendance_status AS ENUM ('present', 'absent');
+
+DROP TYPE IF EXISTS public.teacher_attendance_status CASCADE;
+CREATE TYPE public.teacher_attendance_status AS ENUM ('present', 'half_day', 'absent');
 
 DROP TYPE IF EXISTS public.assignment_status CASCADE;
 CREATE TYPE public.assignment_status AS ENUM ('pending', 'submitted', 'graded', 'overdue');
@@ -430,6 +433,26 @@ ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 DROP TRIGGER IF EXISTS update_attendance_updated_at ON public.attendance;
 CREATE TRIGGER update_attendance_updated_at
 BEFORE UPDATE ON public.attendance
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- 17.1) Education: Teacher Attendance table
+CREATE TABLE IF NOT EXISTS public.teacher_attendance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+  attendance_date DATE NOT NULL,
+  status teacher_attendance_status NOT NULL DEFAULT 'present',
+  notes TEXT,
+  marked_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE
+);
+
+ALTER TABLE public.teacher_attendance ENABLE ROW LEVEL SECURITY;
+DROP TRIGGER IF EXISTS update_teacher_attendance_updated_at ON public.teacher_attendance;
+CREATE TRIGGER update_teacher_attendance_updated_at
+BEFORE UPDATE ON public.teacher_attendance
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -1630,6 +1653,26 @@ USING (company_id = public.get_user_company_id(auth.uid()));
 
 CREATE POLICY "Admins can delete attendance"
 ON public.attendance FOR DELETE
+USING (
+  company_id = public.get_user_company_id(auth.uid())
+  AND public.has_role_level(auth.uid(), 'admin')
+);
+
+-- Education: Teacher Attendance
+CREATE POLICY "Users can view teacher attendance in their company"
+ON public.teacher_attendance FOR SELECT
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can create teacher attendance in their company"
+ON public.teacher_attendance FOR INSERT
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can update teacher attendance"
+ON public.teacher_attendance FOR UPDATE
+USING (company_id = public.get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can delete teacher attendance"
+ON public.teacher_attendance FOR DELETE
 USING (
   company_id = public.get_user_company_id(auth.uid())
   AND public.has_role_level(auth.uid(), 'admin')

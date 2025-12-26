@@ -24,10 +24,12 @@ import { CoursesView } from '@/components/education/CoursesView';
 import { BatchesView } from '@/components/education/BatchesView';
 import { EnrollmentsView } from '@/components/education/EnrollmentsView';
 import { TeachersView } from '@/components/education/TeachersView';
+import { AttendanceView } from '@/components/education/AttendanceView';
 import { AddStudentDialog } from '@/components/education/AddStudentDialog';
 import { AddCourseDialog } from '@/components/education/AddCourseDialog';
 import { AddBatchDialog } from '@/components/education/AddBatchDialog';
 import { AddTeacherDialog } from '@/components/education/AddTeacherDialog';
+import { EducationAnalytics } from '@/components/education/EducationAnalytics';
 import { HealthcareDashboard } from '@/components/healthcare/HealthcareDashboard';
 import { PatientsView } from '@/components/healthcare/PatientsView';
 import { AppointmentsView } from '@/components/healthcare/AppointmentsView';
@@ -203,13 +205,13 @@ const tabConfig = isEducation ? educationTabConfig :
         case 'enrollments':
           return <EnrollmentsView />;
         case 'attendance':
-          return <div className="card-elevated p-6"><p className="text-muted-foreground">Attendance view coming soon</p></div>;
+          return <AttendanceView />;
         case 'fees':
           return <div className="card-elevated p-6"><p className="text-muted-foreground">Fees view coming soon</p></div>;
         case 'team':
           return <TeamView />;
         case 'analytics':
-          return <AnalyticsView />;
+          return <EducationAnalytics />;
         case 'company-settings':
           return <CompanySettingsView />;
         default:

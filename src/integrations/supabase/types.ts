@@ -381,6 +381,209 @@ export interface Database {
           }
         ]
       }
+      enrollments: {
+        Row: {
+          batch_id: string
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          enrollment_date: string
+          fees_paid: number | null
+          fees_pending: number | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["enrollment_status"]
+          student_id: string
+          teacher_id: string | null
+          total_fees: number | null
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          enrollment_date?: string
+          fees_paid?: number | null
+          fees_pending?: number | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["enrollment_status"]
+          student_id: string
+          teacher_id?: string | null
+          total_fees?: number | null
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          enrollment_date?: string
+          fees_paid?: number | null
+          fees_pending?: number | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["enrollment_status"]
+          student_id?: string
+          teacher_id?: string | null
+          total_fees?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      attendance: {
+        Row: {
+          attendance_date: string
+          company_id: string | null
+          created_at: string
+          enrollment_id: string
+          id: string
+          marked_by: string | null
+          notes: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          company_id?: string | null
+          created_at?: string
+          enrollment_id: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"]
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          company_id?: string | null
+          created_at?: string
+          enrollment_id?: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      teacher_attendance: {
+        Row: {
+          attendance_date: string
+          company_id: string | null
+          created_at: string
+          id: string
+          marked_by: string | null
+          notes: string | null
+          status: Database["public"]["Enums"]["teacher_attendance_status"]
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          status?: Database["public"]["Enums"]["teacher_attendance_status"]
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          status?: Database["public"]["Enums"]["teacher_attendance_status"]
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_attendance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_attendance_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_attendance_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -390,7 +593,8 @@ export interface Database {
     }
     Enums: {
       app_role: "super_admin" | "admin" | "manager" | "sales"
-      attendance_status: "present" | "absent" | "late" | "excused"
+      attendance_status: "present" | "absent"
+      teacher_attendance_status: "present" | "half_day" | "absent"
       enrollment_status: "active" | "completed" | "cancelled" | "on_hold"
       follow_up_status: "pending" | "completed" | "missed"
       follow_up_type: "call" | "whatsapp" | "meeting" | "email"
