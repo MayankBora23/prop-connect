@@ -1,19 +1,87 @@
+import { useState } from 'react';
+import { AutoLeadPipeline } from './AutoLeadPipeline';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LayoutGrid, List, Filter, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Filter, Download, Upload, Users, Phone, Mail } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import { useProfiles } from '@/hooks/useProfiles';
+import { useUpdateAutoLead, useDeleteAutoLead } from '@/hooks/useAutoLeads';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import type { AutoLead } from '@/hooks/useAutoLeads';
+
+function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?: string }) {
+  const { data: profiles, isLoading } = useProfiles();
+  const updateLead = useUpdateAutoLead();
+
+  return (
+    <Select
+      value={assignedTo ?? 'unassigned'}
+      onValueChange={value => {
+        updateLead.mutate({ id: leadId, assigned_to: value === 'unassigned' ? null : value });
+      }}
+      disabled={isLoading || updateLead.isPending}
+    >
+      <SelectTrigger className="h-7 w-40 text-xs bg-background">
+        <SelectValue placeholder="Assign to..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {(profiles || []).map(profile => (
+          <SelectItem key={profile.user_id} value={profile.user_id}>
+            {profile.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+const statusOptions = [
+  { value: 'new_lead', label: 'New Lead' },
+  { value: 'contacted', label: 'Contacted' },
+  { value: 'test_drive_scheduled', label: 'Test Drive Scheduled' },
+  { value: 'quotation_shared', label: 'Quotation Shared' },
+  { value: 'negotiation_final_discussion', label: 'Negotiation / Final Discussion' },
+  { value: 'booking_done', label: 'Booking Done' },
+  { value: 'delivered_sold', label: 'Delivered / Sold' },
+];
+
+function StatusSelect({ leadId, status } : { leadId: string, status: string }) {
+  const updateLead = useUpdateAutoLead();
+  return (
+    <Select
+      value={status || 'new'}
+      onValueChange={value => updateLead.mutate({ id: leadId, status: value })}
+      disabled={updateLead.isPending}
+    >
+      <SelectTrigger className="h-7 w-36 text-xs bg-background">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {statusOptions.map(opt => (
+          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export function AutoLeadsView() {
+  const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const { data: leads, isLoading } = useAutoLeads();
+  const deleteLead = useDeleteAutoLead();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'new': return 'bg-blue-100 text-blue-800';
-      case 'contacted': return 'bg-yellow-100 text-yellow-800';
-      case 'qualified': return 'bg-green-100 text-green-800';
-      case 'lost': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleDelete = async (leadId: string, leadName: string) => {
+    try {
+      await deleteLead.mutateAsync(leadId);
+      toast.success(`${leadName} has been deleted successfully`);
+    } catch (error) {
+      toast.error(`Failed to delete ${leadName}`);
     }
   };
 
@@ -22,7 +90,22 @@ export function AutoLeadsView() {
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground">Leads</h2>
+          <Button
+            variant={viewMode === 'pipeline' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('pipeline')}
+          >
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Pipeline
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="w-4 h-4 mr-2" />
+            List
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -41,110 +124,129 @@ export function AutoLeadsView() {
         </div>
       </div>
 
-      {/* Leads List */}
-      <div className="card-elevated overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-secondary">
-            <tr>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Interest</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
-                </tr>
-              ))
-            ) : (leads || []).length === 0 ? (
+      {/* Content */}
+      {viewMode === 'pipeline' ? (
+        <AutoLeadPipeline />
+      ) : (
+        <div className="card-elevated overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-secondary">
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  No leads found. Add your first lead to get started.
-                </td>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Interest</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
-            ) : (
-              (leads || []).map((lead) => (
-                <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
-                        {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground text-sm">{lead.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {lead.source && `Source: ${lead.source}`}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-3 h-3 text-muted-foreground" />
-                        <p className="text-sm text-foreground">{lead.phone}</p>
-                      </div>
-                      {lead.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3 h-3 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">{lead.email}</p>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="space-y-1">
-                      {lead.preferred_vehicle_type && (
-                        <Badge variant="outline" className="capitalize text-xs">
-                          {lead.preferred_vehicle_type}
-                        </Badge>
-                      )}
-                      {lead.preferred_brand && (
-                        <p className="text-sm text-foreground">{lead.preferred_brand}</p>
-                      )}
-                      {lead.preferred_model && (
-                        <p className="text-xs text-muted-foreground">{lead.preferred_model}</p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="space-y-1">
-                      {lead.budget_min && lead.budget_max && (
-                        <p className="text-sm font-medium text-foreground">
-                          ₹{lead.budget_min.toLocaleString()} - ₹{lead.budget_max.toLocaleString()}
-                        </p>
-                      )}
-                      {lead.financing_needed && (
-                        <Badge variant="secondary" className="text-xs">
-                          Needs Finance
-                        </Badge>
-                      )}
-                      {lead.test_drive_requested && (
-                        <Badge variant="secondary" className="text-xs">
-                          Test Drive
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge className={getStatusColor(lead.status || 'new')}>
-                      {lead.status || 'new'}
-                    </Badge>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
+                  </tr>
+                ))
+              ) : (leads || []).length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    No leads found. Add your first lead to get started.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                (leads || []).map((lead) => (
+                  <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                          {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">{lead.name}</p>
+                          <p className="text-xs text-muted-foreground">{lead.source || 'Unknown'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-foreground">{lead.phone}</p>
+                      <p className="text-xs text-muted-foreground">{lead.email || '-'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-foreground">{lead.preferred_brand || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{lead.preferred_model || '-'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-primary">
+                        {lead.budget_min && lead.budget_max
+                          ? `₹${lead.budget_min.toLocaleString()} - ₹${lead.budget_max.toLocaleString()}`
+                          : '-'
+                        }
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusSelect leadId={lead.id} status={lead.status || 'new'} />
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {format(new Date(lead.created_at), 'MMM d, yyyy')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {lead.name}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(lead.id, lead.name)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

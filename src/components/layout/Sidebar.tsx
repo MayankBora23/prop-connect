@@ -22,6 +22,7 @@ import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, S
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 const realEstateMenuItems = [
@@ -93,7 +94,7 @@ const onlineBusinessMenuItems = [
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { data: profile } = useCurrentProfile();
   const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
@@ -134,7 +135,11 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
         )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            const newCollapsed = !collapsed;
+            setCollapsed(newCollapsed);
+            onCollapsedChange?.(newCollapsed);
+          }}
           className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors"
         >
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}

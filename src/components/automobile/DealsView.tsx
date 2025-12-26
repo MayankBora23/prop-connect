@@ -2,7 +2,10 @@ import { useDeals } from '@/hooks/useDeals';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Filter, Download, Upload, Briefcase, DollarSign } from 'lucide-react';
+import { Filter, Download, Upload, Briefcase, DollarSign, Edit, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useDeleteDeal } from '@/hooks/useDeals';
+import { toast } from 'sonner';
 
 export function DealsView() {
   const { data: deals, isLoading } = useDeals();

@@ -2,10 +2,23 @@ import { useVehicles } from '@/hooks/useVehicles';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Filter, Download, Upload, Car, Fuel, Settings } from 'lucide-react';
+import { Filter, Download, Upload, Car, Fuel, Settings, Edit, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useDeleteVehicle } from '@/hooks/useVehicles';
+import { toast } from 'sonner';
 
 export function VehiclesView() {
   const { data: vehicles, isLoading } = useVehicles();
+  const deleteVehicle = useDeleteVehicle();
+
+  const handleDelete = async (vehicleId: string, vehicleName: string) => {
+    try {
+      await deleteVehicle.mutateAsync(vehicleId);
+      toast.success(`${vehicleName} has been deleted successfully`);
+    } catch (error) {
+      toast.error(`Failed to delete ${vehicleName}`);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -61,6 +74,7 @@ export function VehiclesView() {
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transmission</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Price</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -73,11 +87,12 @@ export function VehiclesView() {
                   <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
                   <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
                   <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                 </tr>
               ))
             ) : (vehicles || []).length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   No vehicles found. Add your first vehicle to get started.
                 </td>
               </tr>
@@ -127,6 +142,45 @@ export function VehiclesView() {
                     <Badge className={getStatusColor(vehicle.status)}>
                       {vehicle.status}
                     </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Vehicle</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete {vehicle.year} {vehicle.brand} {vehicle.model}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(vehicle.id, `${vehicle.year} ${vehicle.brand} ${vehicle.model}`)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </td>
                 </tr>
               ))

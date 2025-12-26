@@ -577,6 +577,7 @@ CREATE TABLE IF NOT EXISTS public.patients (
   date_of_birth DATE,
   address TEXT,
   medical_id TEXT UNIQUE,
+  aadhar_number TEXT,
   emergency_contact_name TEXT,
   emergency_contact_phone TEXT,
   blood_type TEXT,

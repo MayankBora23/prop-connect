@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { LeadsView } from '@/components/leads/LeadsView';
@@ -32,6 +33,7 @@ import { AddTeacherDialog } from '@/components/education/AddTeacherDialog';
 import { EducationAnalytics } from '@/components/education/EducationAnalytics';
 import { HealthcareDashboard } from '@/components/healthcare/HealthcareDashboard';
 import { PatientsView } from '@/components/healthcare/PatientsView';
+import { AddPatientDialog } from '@/components/healthcare/AddPatientDialog';
 import { AppointmentsView } from '@/components/healthcare/AppointmentsView';
 import { MedicalRecordsView } from '@/components/healthcare/MedicalRecordsView';
 import { PrescriptionsView } from '@/components/healthcare/PrescriptionsView';
@@ -44,6 +46,13 @@ import { QuotesView } from '@/components/automobile/QuotesView';
 import { DealsView } from '@/components/automobile/DealsView';
 import { FinanceView } from '@/components/automobile/FinanceView';
 import { InsuranceView } from '@/components/automobile/InsuranceView';
+import { AddAutoLeadDialog } from '@/components/automobile/AddAutoLeadDialog';
+import { AddVehicleDialog } from '@/components/automobile/AddVehicleDialog';
+import { AddTestDriveDialog } from '@/components/automobile/AddTestDriveDialog';
+import { AddQuoteDialog } from '@/components/automobile/AddQuoteDialog';
+import { AddDealDialog } from '@/components/automobile/AddDealDialog';
+import { AddFinanceDialog } from '@/components/automobile/AddFinanceDialog';
+import { AddInsuranceDialog } from '@/components/automobile/AddInsuranceDialog';
 import { OnlineBusinessDashboard } from '@/components/online-business/OnlineBusinessDashboard';
 import { ProductsView } from '@/components/online-business/ProductsView';
 import { InventoryView } from '@/components/online-business/InventoryView';
@@ -126,6 +135,7 @@ const onlineBusinessTabConfig: Record<string, { title: string; subtitle?: string
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
   const [addVisitOpen, setAddVisitOpen] = useState(false);
@@ -135,6 +145,14 @@ const Index = () => {
   const [addCourseOpen, setAddCourseOpen] = useState(false);
   const [addBatchOpen, setAddBatchOpen] = useState(false);
   const [addTeacherOpen, setAddTeacherOpen] = useState(false);
+  const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [addAutoLeadOpen, setAddAutoLeadOpen] = useState(false);
+  const [addVehicleOpen, setAddVehicleOpen] = useState(false);
+  const [addTestDriveOpen, setAddTestDriveOpen] = useState(false);
+  const [addQuoteOpen, setAddQuoteOpen] = useState(false);
+  const [addDealOpen, setAddDealOpen] = useState(false);
+  const [addFinanceOpen, setAddFinanceOpen] = useState(false);
+  const [addInsuranceOpen, setAddInsuranceOpen] = useState(false);
   
 const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
 if (industryLoading || !isLoaded) {
@@ -157,7 +175,11 @@ const tabConfig = isEducation ? educationTabConfig :
   const handleAddNew = () => {
     switch (activeTab) {
       case 'leads':
-        setAddLeadOpen(true);
+        if (isAutomobileDealers) {
+          setAddAutoLeadOpen(true);
+        } else {
+          setAddLeadOpen(true);
+        }
         break;
       case 'properties':
         setAddPropertyOpen(true);
@@ -183,7 +205,41 @@ const tabConfig = isEducation ? educationTabConfig :
       case 'teachers':
         setAddTeacherOpen(true);
         break;
-      // Healthcare cases will be added when dialogs are created
+      case 'patients':
+        setAddPatientOpen(true);
+        break;
+      // Automobile cases
+      case 'vehicles':
+        if (isAutomobileDealers) {
+          setAddVehicleOpen(true);
+        }
+        break;
+      case 'test-drives':
+        if (isAutomobileDealers) {
+          setAddTestDriveOpen(true);
+        }
+        break;
+      case 'quotes':
+        if (isAutomobileDealers) {
+          setAddQuoteOpen(true);
+        }
+        break;
+      case 'deals':
+        if (isAutomobileDealers) {
+          setAddDealOpen(true);
+        }
+        break;
+      case 'finance':
+        if (isAutomobileDealers) {
+          setAddFinanceOpen(true);
+        }
+        break;
+      case 'insurance':
+        if (isAutomobileDealers) {
+          setAddInsuranceOpen(true);
+        }
+        break;
+      // More healthcare cases can be added here when dialogs are created
     }
   };
 
@@ -328,9 +384,13 @@ const tabConfig = isEducation ? educationTabConfig :
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      
-      <main className="ml-64 transition-all duration-300">
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onCollapsedChange={setSidebarCollapsed}
+      />
+
+      <main className={cn("transition-all duration-300", sidebarCollapsed ? "ml-16" : "ml-64")}>
         <Header
           title={config.title}
           subtitle={config.subtitle}
@@ -352,7 +412,15 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddCourseDialog open={addCourseOpen} onOpenChange={setAddCourseOpen} />
       <AddBatchDialog open={addBatchOpen} onOpenChange={setAddBatchOpen} />
       <AddTeacherDialog open={addTeacherOpen} onOpenChange={setAddTeacherOpen} />
-      
+      <AddPatientDialog open={addPatientOpen} onOpenChange={setAddPatientOpen} />
+      <AddAutoLeadDialog open={addAutoLeadOpen} onOpenChange={setAddAutoLeadOpen} />
+      <AddVehicleDialog open={addVehicleOpen} onOpenChange={setAddVehicleOpen} />
+      <AddTestDriveDialog open={addTestDriveOpen} onOpenChange={setAddTestDriveOpen} />
+      <AddQuoteDialog open={addQuoteOpen} onOpenChange={setAddQuoteOpen} />
+      <AddDealDialog open={addDealOpen} onOpenChange={setAddDealOpen} />
+      <AddFinanceDialog open={addFinanceOpen} onOpenChange={setAddFinanceOpen} />
+      <AddInsuranceDialog open={addInsuranceOpen} onOpenChange={setAddInsuranceOpen} />
+
       {!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness && <AIChatAssistant />}
     </div>
   );

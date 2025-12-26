@@ -584,6 +584,107 @@ export interface Database {
           }
         ]
       }
+      patients: {
+        Row: {
+          address: string | null
+          allergies: string[] | null
+          blood_type: string | null
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          gender: string | null
+          id: string
+          insurance_coverage_type: string | null
+          insurance_policy_id: string | null
+          insurance_provider_name: string | null
+          insurance_remarks: string | null
+          insurance_tpa_contact: string | null
+          insurance_validity_date: string | null
+          medical_conditions: string[] | null
+          medical_id: string | null
+          aadhar_number: string | null
+          name: string
+          notes: string | null
+          past_surgeries_history: string | null
+          phone: string
+          stage: Database["public"]["Enums"]["patient_stage"]
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          allergies?: string[] | null
+          blood_type?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          gender?: string | null
+          id?: string
+          insurance_coverage_type?: string | null
+          insurance_policy_id?: string | null
+          insurance_provider_name?: string | null
+          insurance_remarks?: string | null
+          insurance_tpa_contact?: string | null
+          insurance_validity_date?: string | null
+          medical_conditions?: string[] | null
+          medical_id?: string | null
+          aadhar_number?: string | null
+          name: string
+          notes?: string | null
+          past_surgeries_history?: string | null
+          phone: string
+          stage?: Database["public"]["Enums"]["patient_stage"]
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          allergies?: string[] | null
+          blood_type?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          gender?: string | null
+          id?: string
+          insurance_coverage_type?: string | null
+          insurance_policy_id?: string | null
+          insurance_provider_name?: string | null
+          insurance_remarks?: string | null
+          insurance_tpa_contact?: string | null
+          insurance_validity_date?: string | null
+          medical_conditions?: string[] | null
+          medical_id?: string | null
+          aadhar_number?: string | null
+          name?: string
+          notes?: string | null
+          past_surgeries_history?: string | null
+          phone?: string
+          stage?: Database["public"]["Enums"]["patient_stage"]
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -601,6 +702,7 @@ export interface Database {
       industry_type: "real_estate" | "education" | "healthcare" | "automobile_dealers" | "online_business"
       lead_stage: "new" | "contacted" | "follow-up" | "site-visit" | "negotiation" | "closed-won" | "closed-lost"
       lead_status: "hot" | "warm" | "cold"
+      patient_stage: "new_patient_inquiry" | "appointment_scheduled" | "checked_in_visit_started" | "consultation_treatment_completed" | "billing_payment_pending" | "payment_completed" | "follow_up_scheduled"
       message_direction: "incoming" | "outgoing"
       message_status: "sent" | "delivered" | "read"
       message_type: "text" | "image" | "document"

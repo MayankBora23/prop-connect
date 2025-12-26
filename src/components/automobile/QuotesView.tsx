@@ -2,10 +2,23 @@ import { useQuotes } from '@/hooks/useQuotes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Filter, Download, Upload, FileCheck, DollarSign } from 'lucide-react';
+import { Filter, Download, Upload, FileCheck, DollarSign, Edit, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useDeleteQuote } from '@/hooks/useQuotes';
+import { toast } from 'sonner';
 
 export function QuotesView() {
   const { data: quotes, isLoading } = useQuotes();
+  const deleteQuote = useDeleteQuote();
+
+  const handleDelete = async (quoteId: string, quoteNumber: string) => {
+    try {
+      await deleteQuote.mutateAsync(quoteId);
+      toast.success(`Quote ${quoteNumber} has been deleted successfully`);
+    } catch (error) {
+      toast.error(`Failed to delete quote ${quoteNumber}`);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -53,6 +66,7 @@ export function QuotesView() {
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Amount</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valid Until</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -65,11 +79,12 @@ export function QuotesView() {
                   <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
                   <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
                   <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                 </tr>
               ))
             ) : (quotes || []).length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   No quotes found. Create your first quote to get started.
                 </td>
               </tr>
@@ -119,6 +134,45 @@ export function QuotesView() {
                     <Badge className={getStatusColor(quote.status)}>
                       {quote.status}
                     </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Quote</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete quote {quote.quote_number || `Q-${quote.id.slice(-6)}`}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(quote.id, quote.quote_number || `Q-${quote.id.slice(-6)}`)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </td>
                 </tr>
               ))
