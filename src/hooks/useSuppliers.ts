@@ -4,7 +4,21 @@ import { useCurrentCompany } from './useCompany';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 export type Supplier = Tables<'suppliers'>;
-export type SupplierInsert = TablesInsert<'suppliers'>;
+export type SupplierInsert = {
+  name: string;
+  contact_person?: string;
+  email?: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  gst_number?: string;
+  payment_terms?: string;
+  credit_limit?: number;
+  is_active?: boolean;
+  notes?: string;
+};
 export type SupplierUpdate = TablesUpdate<'suppliers'>;
 
 export function useSuppliers() {

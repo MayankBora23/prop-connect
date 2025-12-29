@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useCreateDeal } from '@/hooks/useDeals';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
 import { useVehicles } from '@/hooks/useVehicles';
-import { useQuotes } from '@/hooks/useQuotes';
+import { useBookings } from '@/hooks/useBookings';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -48,7 +48,7 @@ export function AddDealDialog({ open, onOpenChange }: AddDealDialogProps) {
   const createDeal = useCreateDeal();
   const { data: leads } = useAutoLeads();
   const { data: vehicles } = useVehicles();
-  const { data: quotes } = useQuotes();
+  const { data: bookings } = useBookings();
 
   const form = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -70,19 +70,19 @@ export function AddDealDialog({ open, onOpenChange }: AddDealDialogProps) {
   const selectedLeadId = form.watch('lead_id');
   const selectedVehicleId = form.watch('vehicle_id');
 
-  // Filter quotes based on selected lead and vehicle
-  const relevantQuotes = (quotes || []).filter(quote =>
-    (!selectedLeadId || quote.lead_id === selectedLeadId) &&
-    (!selectedVehicleId || quote.vehicle_id === selectedVehicleId)
+  // Filter bookings based on selected lead and vehicle
+  const relevantBookings = (bookings || []).filter(booking =>
+    (!selectedLeadId || booking.lead_id === selectedLeadId) &&
+    (!selectedVehicleId || booking.vehicle_id === selectedVehicleId)
   );
 
-  // Auto-fill final price when quote is selected
-  const selectedQuoteId = form.watch('quote_id');
-  const selectedQuote = relevantQuotes.find(q => q.id === selectedQuoteId);
+  // Auto-fill final price when booking is selected
+  const selectedBookingId = form.watch('quote_id');
+  const selectedBooking = relevantBookings.find(b => b.id === selectedBookingId);
   const finalPrice = form.watch('final_price');
 
   // Calculate financed amount
-  const financedAmount = Math.max(0, (finalPrice || selectedQuote?.total_amount || 0) - (form.watch('down_payment') || 0));
+  const financedAmount = Math.max(0, (finalPrice || selectedBooking?.total_amount || 0) - (form.watch('down_payment') || 0));
 
   const onSubmit = async (data: DealFormData) => {
     try {
@@ -188,24 +188,24 @@ export function AddDealDialog({ open, onOpenChange }: AddDealDialogProps) {
               name="quote_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Quote (Optional)</FormLabel>
+                  <FormLabel>Booking (Optional)</FormLabel>
                   <Select onValueChange={(value) => {
                     field.onChange(value);
-                    const quote = relevantQuotes.find(q => q.id === value);
-                    if (quote) {
-                      form.setValue('final_price', quote.total_amount);
+                    const booking = relevantBookings.find(b => b.id === value);
+                    if (booking) {
+                      form.setValue('final_price', booking.total_amount);
                     }
                   }} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select quote (optional)" />
+                        <SelectValue placeholder="Select booking (optional)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="none">No quote selected</SelectItem>
-                      {relevantQuotes.map((quote) => (
-                        <SelectItem key={quote.id} value={quote.id}>
-                          {quote.quote_number || `Quote ${quote.id.slice(-6)}`} - ₹{quote.total_amount.toLocaleString()}
+                      <SelectItem value="none">No booking selected</SelectItem>
+                      {relevantBookings.map((booking) => (
+                        <SelectItem key={booking.id} value={booking.id}>
+                          {booking.booking_number || `Booking ${booking.id.slice(-6)}`} - ₹{booking.total_amount.toLocaleString()}
                         </SelectItem>
                       ))}
                     </SelectContent>

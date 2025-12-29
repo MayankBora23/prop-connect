@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,15 +7,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCreateTestDrive } from '@/hooks/useTestDrives';
+import { useCreateAutoLead, useUpdateAutoLead } from '@/hooks/useAutoLeads';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Star } from 'lucide-react';
 
 const testDriveSchema = z.object({
+  lead_mode: z.enum(['existing', 'new']).default('existing'),
   lead_id: z.string().uuid().optional(),
+  // New lead fields
+  new_lead_name: z.string().trim().min(1, 'Lead name is required').max(100, 'Lead name must be less than 100 characters').optional(),
+  new_lead_phone: z.string().trim().min(10, 'Phone must be at least 10 digits').max(15, 'Phone must be less than 15 digits').regex(/^[0-9+\-\s]+$/, 'Invalid phone number format').optional(),
+  new_lead_email: z.string().email('Invalid email format').optional().or(z.literal('')),
   vehicle_id: z.string().min(1, 'Vehicle is required'),
   driver_name: z.string().trim().min(1, 'Driver name is required').max(100, 'Driver name must be less than 100 characters'),
   driver_phone: z.string().trim().min(10, 'Phone must be at least 10 digits').max(15, 'Phone must be less than 15 digits').regex(/^[0-9+\-\s]+$/, 'Invalid phone number format'),
@@ -26,6 +33,16 @@ const testDriveSchema = z.object({
   status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).default('scheduled'),
   feedback: z.string().trim().max(1000, 'Feedback must be less than 1000 characters').optional().or(z.literal('')),
   rating: z.number().min(1, 'Rating must be at least 1').max(5, 'Rating cannot exceed 5').optional(),
+}).refine((data) => {
+  // If creating new lead, name and phone are required
+  if (data.lead_mode === 'new' && (!data.new_lead_name?.trim() || !data.new_lead_phone?.trim())) {
+    return false;
+  }
+  // For existing leads, lead_id is optional (can be pre-selected)
+  return true;
+}, {
+  message: "Please provide new lead details (name and phone required)",
+  path: ["lead_mode"],
 });
 
 type TestDriveFormData = z.infer<typeof testDriveSchema>;
@@ -33,6 +50,7 @@ type TestDriveFormData = z.infer<typeof testDriveSchema>;
 interface AddTestDriveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preSelectedLead?: { id: string; name: string } | null;
 }
 
 const testDriveStatuses = [
@@ -50,16 +68,25 @@ const ratings = [
   { value: 5, label: '5 Stars' },
 ];
 
-export function AddTestDriveDialog({ open, onOpenChange }: AddTestDriveDialogProps) {
+export function AddTestDriveDialog({ open, onOpenChange, preSelectedLead }: AddTestDriveDialogProps) {
   const { toast } = useToast();
   const createTestDrive = useCreateTestDrive();
+  const createLead = useCreateAutoLead();
+  const updateLead = useUpdateAutoLead();
   const { data: leads } = useAutoLeads();
   const { data: vehicles } = useVehicles();
+
+  // Check if the pre-selected lead exists in the leads list
+  const preSelectedLeadExists = preSelectedLead && leads?.some(lead => lead.id === preSelectedLead.id);
 
   const form = useForm<TestDriveFormData>({
     resolver: zodResolver(testDriveSchema),
     defaultValues: {
+      lead_mode: 'existing',
       lead_id: undefined,
+      new_lead_name: '',
+      new_lead_phone: '',
+      new_lead_email: '',
       vehicle_id: '',
       driver_name: '',
       driver_phone: '',
@@ -73,10 +100,60 @@ export function AddTestDriveDialog({ open, onOpenChange }: AddTestDriveDialogPro
     },
   });
 
+  // Handle pre-selected lead
+  useEffect(() => {
+    if (preSelectedLead && open && leads) {
+      // Check if the pre-selected lead exists in the loaded leads
+      const leadExists = leads.some(lead => lead.id === preSelectedLead.id);
+      if (leadExists) {
+        // Set values for pre-selected lead
+        form.setValue('lead_mode', 'existing');
+        form.setValue('lead_id', preSelectedLead.id);
+        form.setValue('new_lead_name', '');
+        form.setValue('new_lead_phone', '');
+        form.setValue('new_lead_email', '');
+        // Clear any existing errors
+        form.clearErrors('lead_id');
+        form.clearErrors('lead_mode');
+      }
+    }
+  }, [preSelectedLead?.id, open, leads, form]);
+
+  // Clear irrelevant fields when switching lead mode
+  const leadMode = form.watch('lead_mode');
+  useEffect(() => {
+    if (leadMode === 'existing') {
+      form.setValue('new_lead_name', '');
+      form.setValue('new_lead_phone', '');
+      form.setValue('new_lead_email', '');
+    } else if (leadMode === 'new') {
+      form.setValue('lead_id', undefined);
+    }
+  }, [leadMode, form]);
+
   const onSubmit = async (data: TestDriveFormData) => {
     try {
+      let leadId = data.lead_id;
+
+      // If creating a new lead, create it first
+      if (data.lead_mode === 'new' && data.new_lead_name && data.new_lead_phone) {
+        const newLead = await createLead.mutateAsync({
+          name: data.new_lead_name,
+          phone: data.new_lead_phone,
+          email: data.new_lead_email || null,
+          status: 'test_drive_scheduled',
+          source: 'test_drive_booking',
+          financing_needed: false,
+          insurance_needed: false,
+          test_drive_requested: true,
+          notes: [],
+          tags: [],
+        });
+        leadId = newLead.id;
+      }
+
       await createTestDrive.mutateAsync({
-        lead_id: data.lead_id === 'none' ? null : data.lead_id || null,
+        lead_id: leadId || null,
         vehicle_id: data.vehicle_id,
         driver_name: data.driver_name,
         driver_phone: data.driver_phone,
@@ -89,11 +166,23 @@ export function AddTestDriveDialog({ open, onOpenChange }: AddTestDriveDialogPro
         rating: data.rating,
       });
 
+      // Update lead status if it was in test_drive_scheduled stage
+      if (leadId && data.lead_mode === 'existing') {
+        const lead = leads?.find(l => l.id === leadId);
+        if (lead && lead.status === 'test_drive_scheduled') {
+          await updateLead.mutateAsync({
+            id: leadId,
+            status: 'quotation_shared'
+          });
+        }
+      }
+
       toast({
         title: 'Test drive scheduled',
         description: `Test drive for ${data.driver_name} has been scheduled successfully.`,
       });
 
+      // Reset form but preserve pre-selected lead logic
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
@@ -114,37 +203,106 @@ export function AddTestDriveDialog({ open, onOpenChange }: AddTestDriveDialogPro
         <DialogHeader>
           <DialogTitle>Schedule Test Drive</DialogTitle>
           <DialogDescription>
-            Schedule a test drive for a customer. Fields marked with * are required.
+            Schedule a test drive by selecting an existing lead or creating a new lead entry. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="lead_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lead (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            {/* Lead Selection */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="lead_mode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lead Selection</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a lead (optional)" />
-                      </SelectTrigger>
+                      <Tabs value={field.value} onValueChange={field.onChange} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="existing">Select Existing Lead</TabsTrigger>
+                          <TabsTrigger value="new">Create New Lead</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="existing" className="space-y-4">
+                          <FormField
+                            control={form.control}
+                            name="lead_id"
+                            render={({ field: leadField }) => (
+                              <FormItem>
+                                <FormLabel>Existing Lead</FormLabel>
+                                <Select onValueChange={leadField.onChange} value={leadField.value || undefined}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a lead" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {(leads || []).map((lead) => (
+                                      <SelectItem key={lead.id} value={lead.id}>
+                                        {lead.name} - {lead.phone}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TabsContent>
+
+                        <TabsContent value="new" className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="new_lead_name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Lead Name *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter lead name" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="new_lead_phone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Lead Phone *</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter phone number" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="new_lead_email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Lead Email (Optional)</FormLabel>
+                                <FormControl>
+                                  <Input type="email" placeholder="Enter email address" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TabsContent>
+                      </Tabs>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">No lead selected</SelectItem>
-                      {(leads || []).map((lead) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          {lead.name} - {lead.phone}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
@@ -344,7 +502,15 @@ export function AddTestDriveDialog({ open, onOpenChange }: AddTestDriveDialogPro
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createTestDrive.isPending} className="gradient-primary border-0">
+              <Button
+                type="submit"
+                disabled={createTestDrive.isPending}
+                className="gradient-primary border-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  form.handleSubmit(onSubmit)();
+                }}
+              >
                 {createTestDrive.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Schedule Test Drive
               </Button>

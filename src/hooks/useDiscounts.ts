@@ -3,142 +3,122 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCurrentCompany } from './useCompany';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-export type Payment = Tables<'payments'>;
-export type PaymentInsert = {
-  order_id: string;
-  amount: number;
-  payment_method: string;
-  payment_status?: string;
-  transaction_id?: string;
-  payment_gateway?: string;
-  payment_date?: string;
-  failure_reason?: string;
-  notes?: string;
+export type Discount = Tables<'discounts'>;
+export type DiscountInsert = {
+  name: string;
+  description?: string;
+  discount_type: 'percentage' | 'fixed_amount';
+  discount_value: number;
+  minimum_purchase?: number;
+  maximum_discount?: number;
+  is_active?: boolean;
+  valid_from?: string;
+  valid_until?: string;
+  usage_limit?: number;
+  coupon_code?: string;
+  applicable_products?: string[];
+  applicable_categories?: string[];
 };
-export type PaymentUpdate = TablesUpdate<'payments'>;
+export type DiscountUpdate = TablesUpdate<'discounts'>;
 
-export function usePayments() {
+export function useDiscounts() {
   const { data: company } = useCurrentCompany();
 
   return useQuery({
-    queryKey: ['payments', company?.id],
+    queryKey: ['discounts', company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
 
       const { data, error } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          sales_orders (
-            id,
-            order_number,
-            total_amount,
-            online_customers (
-              id,
-              name
-            )
-          )
-        `)
+        .from('discounts')
+        .select('*')
         .eq('company_id', company.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as Discount[];
     },
     enabled: !!company?.id,
   });
 }
 
-export function usePayment(id: string) {
+export function useDiscount(id: string) {
   return useQuery({
-    queryKey: ['payment', id],
+    queryKey: ['discount', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          sales_orders (
-            id,
-            order_number,
-            total_amount,
-            online_customers (
-              id,
-              name,
-              phone,
-              email
-            )
-          )
-        `)
+        .from('discounts')
+        .select('*')
         .eq('id', id)
         .maybeSingle();
 
       if (error) throw error;
-      return data;
+      return data as Discount | null;
     },
   });
 }
 
-export function useCreatePayment() {
+export function useCreateDiscount() {
   const queryClient = useQueryClient();
   const { data: company } = useCurrentCompany();
 
   return useMutation({
-    mutationFn: async (payment: PaymentInsert) => {
+    mutationFn: async (discount: DiscountInsert) => {
       if (!company?.id) throw new Error('No company found');
 
       const { data, error } = await supabase
-        .from('payments')
+        .from('discounts')
         .insert({
-          ...payment,
+          ...discount,
           company_id: company.id,
         })
         .select()
         .single();
 
       if (error) throw error;
-      return data as Payment;
+      return data as Discount;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['discounts'] });
     },
   });
 }
 
-export function useUpdatePayment() {
+export function useUpdateDiscount() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: PaymentUpdate & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: DiscountUpdate & { id: string }) => {
       const { data, error } = await supabase
-        .from('payments')
+        .from('discounts')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      return data as Payment;
+      return data as Discount;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['discounts'] });
     },
   });
 }
 
-export function useDeletePayment() {
+export function useDeleteDiscount() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('payments')
+        .from('discounts')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['discounts'] });
     },
   });
 }

@@ -3,8 +3,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCurrentCompany } from './useCompany';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-export type OnlineCustomer = Tables<'online_customers'>;
-export type OnlineCustomerInsert = TablesInsert<'online_customers'>;
+export type OnlineCustomer = Tables<'online_customers'> & {
+  customer_group?: 'regular' | 'premium' | 'vip' | null;
+  total_orders?: number | null;
+  total_spent?: number | null;
+  last_order_date?: string | null;
+};
+export type OnlineCustomerInsert = {
+  name: string;
+  email?: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  date_of_birth?: string;
+  gender?: string;
+  customer_group?: string;
+  notes?: string;
+  tags?: string[];
+};
 export type OnlineCustomerUpdate = TablesUpdate<'online_customers'>;
 
 export function useOnlineCustomers() {
@@ -22,7 +40,7 @@ export function useOnlineCustomers() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as OnlineCustomer[];
+      return (data || []) as any[] as OnlineCustomer[];
     },
     enabled: !!company?.id,
   });

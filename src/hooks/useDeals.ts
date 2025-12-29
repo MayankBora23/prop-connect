@@ -34,9 +34,9 @@ export function useDeals() {
             year,
             fuel_type
           ),
-          quotes (
+          bookings (
             id,
-            quote_number,
+            booking_number,
             total_amount
           )
         `)
@@ -75,9 +75,9 @@ export function useDeal(id: string) {
             transmission,
             price
           ),
-          quotes (
+          bookings (
             id,
-            quote_number,
+            booking_number,
             total_amount,
             vehicle_price,
             discount_amount

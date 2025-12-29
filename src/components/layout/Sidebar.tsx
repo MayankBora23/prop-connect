@@ -69,7 +69,7 @@ const automobileMenuItems = [
   { id: 'vehicles', label: 'Vehicles', icon: Car, badge: undefined },
   { id: 'leads', label: 'Leads', icon: Users, badge: undefined },
   { id: 'test-drives', label: 'Test Drives', icon: Calendar, badge: undefined },
-  { id: 'quotes', label: 'Quotes', icon: FileCheck, badge: undefined },
+  { id: 'bookings', label: 'Bookings', icon: FileCheck, badge: undefined },
   { id: 'deals', label: 'Deals', icon: Briefcase, badge: undefined },
   { id: 'finance', label: 'Finance', icon: Banknote, badge: undefined },
   { id: 'insurance', label: 'Insurance', icon: Shield, badge: undefined },

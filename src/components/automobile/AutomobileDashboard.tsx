@@ -132,7 +132,7 @@ export function AutomobileDashboard() {
           </button>
           <button className="flex flex-col items-center gap-2 p-4 rounded-lg border border-dashed border-border hover:bg-secondary/50 transition-colors">
             <Briefcase className="w-6 h-6 text-muted-foreground" />
-            <span className="text-sm font-medium">Create Quote</span>
+            <span className="text-sm font-medium">Create Booking</span>
           </button>
         </div>
       </div>

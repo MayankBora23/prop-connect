@@ -33,7 +33,8 @@ export function useTestDrives() {
             brand,
             model,
             year,
-            fuel_type
+            fuel_type,
+            variant
           )
         `)
         .eq('company_id', company.id)
@@ -69,7 +70,8 @@ export function useTestDrive(id: string) {
             model,
             year,
             fuel_type,
-            transmission
+            transmission,
+            variant
           )
         `)
         .eq('id', id)

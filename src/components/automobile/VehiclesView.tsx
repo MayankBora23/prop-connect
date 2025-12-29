@@ -5,11 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Filter, Download, Upload, Car, Fuel, Settings, Edit, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useDeleteVehicle } from '@/hooks/useVehicles';
+import { EditVehicleDialog } from './EditVehicleDialog';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import type { VehicleWithRelations } from '@/hooks/useAutoTypes';
 
 export function VehiclesView() {
   const { data: vehicles, isLoading } = useVehicles();
   const deleteVehicle = useDeleteVehicle();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleWithRelations | null>(null);
 
   const handleDelete = async (vehicleId: string, vehicleName: string) => {
     try {
@@ -73,6 +78,7 @@ export function VehiclesView() {
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fuel</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transmission</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Price</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quantity</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
             </tr>
@@ -109,7 +115,7 @@ export function VehiclesView() {
                           {vehicle.year} {vehicle.brand} {vehicle.model}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {vehicle.variant && `${vehicle.variant} • `}{vehicle.stock_number}
+                          {vehicle.variant || 'No variant'}
                         </p>
                       </div>
                     </div>
@@ -138,6 +144,9 @@ export function VehiclesView() {
                   <td className="px-4 py-3 text-sm font-medium text-foreground">
                     ₹{vehicle.price.toLocaleString()}
                   </td>
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">
+                    {vehicle.quantity}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge className={getStatusColor(vehicle.status)}>
                       {vehicle.status}
@@ -149,6 +158,10 @@ export function VehiclesView() {
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0"
+                        onClick={() => {
+                          setSelectedVehicle(vehicle);
+                          setEditDialogOpen(true);
+                        }}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -188,6 +201,16 @@ export function VehiclesView() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Vehicle Dialog */}
+      <EditVehicleDialog
+        vehicle={selectedVehicle}
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setSelectedVehicle(null);
+        }}
+      />
     </div>
   );
 }

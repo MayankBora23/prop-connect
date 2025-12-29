@@ -42,17 +42,24 @@ import { AutomobileDashboard } from '@/components/automobile/AutomobileDashboard
 import { VehiclesView } from '@/components/automobile/VehiclesView';
 import { AutoLeadsView } from '@/components/automobile/AutoLeadsView';
 import { TestDrivesView } from '@/components/automobile/TestDrivesView';
-import { QuotesView } from '@/components/automobile/QuotesView';
+import { BookingsView } from '@/components/automobile/BookingsView';
 import { DealsView } from '@/components/automobile/DealsView';
 import { FinanceView } from '@/components/automobile/FinanceView';
 import { InsuranceView } from '@/components/automobile/InsuranceView';
 import { AddAutoLeadDialog } from '@/components/automobile/AddAutoLeadDialog';
 import { AddVehicleDialog } from '@/components/automobile/AddVehicleDialog';
 import { AddTestDriveDialog } from '@/components/automobile/AddTestDriveDialog';
-import { AddQuoteDialog } from '@/components/automobile/AddQuoteDialog';
+import { AddBookingDialog } from '@/components/automobile/AddBookingDialog';
 import { AddDealDialog } from '@/components/automobile/AddDealDialog';
 import { AddFinanceDialog } from '@/components/automobile/AddFinanceDialog';
 import { AddInsuranceDialog } from '@/components/automobile/AddInsuranceDialog';
+import { AddProductDialog } from '@/components/online-business/AddProductDialog';
+import { AddCustomerDialog } from '@/components/online-business/AddCustomerDialog';
+import { AddSupplierDialog } from '@/components/online-business/AddSupplierDialog';
+import { AddOrderDialog } from '@/components/online-business/AddOrderDialog';
+import { AddPaymentDialog } from '@/components/online-business/AddPaymentDialog';
+import { AddDiscountDialog } from '@/components/online-business/AddDiscountDialog';
+import { AddReturnDialog } from '@/components/online-business/AddReturnDialog';
 import { OnlineBusinessDashboard } from '@/components/online-business/OnlineBusinessDashboard';
 import { ProductsView } from '@/components/online-business/ProductsView';
 import { InventoryView } from '@/components/online-business/InventoryView';
@@ -108,7 +115,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   vehicles: { title: 'Vehicles', subtitle: 'Manage your inventory', addLabel: 'Add Vehicle' },
   leads: { title: 'Leads', subtitle: 'Customer inquiries and prospects', addLabel: 'Add Lead' },
   'test-drives': { title: 'Test Drives', subtitle: 'Scheduled test drives', addLabel: 'Schedule Test Drive' },
-  quotes: { title: 'Quotes', subtitle: 'Price quotes and proposals', addLabel: 'Create Quote' },
+  bookings: { title: 'Bookings', subtitle: 'Vehicle bookings and reservations', addLabel: 'Create Booking' },
   deals: { title: 'Deals', subtitle: 'Closed deals and sales', addLabel: 'Add Deal' },
   finance: { title: 'Finance', subtitle: 'Finance applications', addLabel: 'Add Finance Application' },
   insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
@@ -149,10 +156,17 @@ const Index = () => {
   const [addAutoLeadOpen, setAddAutoLeadOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
   const [addTestDriveOpen, setAddTestDriveOpen] = useState(false);
-  const [addQuoteOpen, setAddQuoteOpen] = useState(false);
+  const [addBookingOpen, setAddBookingOpen] = useState(false);
   const [addDealOpen, setAddDealOpen] = useState(false);
   const [addFinanceOpen, setAddFinanceOpen] = useState(false);
   const [addInsuranceOpen, setAddInsuranceOpen] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [addOrderOpen, setAddOrderOpen] = useState(false);
+  const [addPaymentOpen, setAddPaymentOpen] = useState(false);
+  const [addDiscountOpen, setAddDiscountOpen] = useState(false);
+  const [addReturnOpen, setAddReturnOpen] = useState(false);
   
 const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
 if (industryLoading || !isLoaded) {
@@ -178,7 +192,7 @@ const tabConfig = isEducation ? educationTabConfig :
         if (isAutomobileDealers) {
           setAddAutoLeadOpen(true);
         } else {
-          setAddLeadOpen(true);
+        setAddLeadOpen(true);
         }
         break;
       case 'properties':
@@ -219,9 +233,9 @@ const tabConfig = isEducation ? educationTabConfig :
           setAddTestDriveOpen(true);
         }
         break;
-      case 'quotes':
+      case 'bookings':
         if (isAutomobileDealers) {
-          setAddQuoteOpen(true);
+          setAddBookingOpen(true);
         }
         break;
       case 'deals':
@@ -237,6 +251,42 @@ const tabConfig = isEducation ? educationTabConfig :
       case 'insurance':
         if (isAutomobileDealers) {
           setAddInsuranceOpen(true);
+        }
+        break;
+      // Online Business cases
+      case 'products':
+        if (isOnlineBusiness) {
+          setAddProductOpen(true);
+        }
+        break;
+      case 'customers':
+        if (isOnlineBusiness) {
+          setAddCustomerOpen(true);
+        }
+        break;
+      case 'suppliers':
+        if (isOnlineBusiness) {
+          setAddSupplierOpen(true);
+        }
+        break;
+      case 'orders':
+        if (isOnlineBusiness) {
+          setAddOrderOpen(true);
+        }
+        break;
+      case 'payments':
+        if (isOnlineBusiness) {
+          setAddPaymentOpen(true);
+        }
+        break;
+      case 'discounts':
+        if (isOnlineBusiness) {
+          setAddDiscountOpen(true);
+        }
+        break;
+      case 'returns':
+        if (isOnlineBusiness) {
+          setAddReturnOpen(true);
         }
         break;
       // More healthcare cases can be added here when dialogs are created
@@ -306,8 +356,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <AutoLeadsView />;
         case 'test-drives':
           return <TestDrivesView />;
-        case 'quotes':
-          return <QuotesView />;
+        case 'bookings':
+          return <BookingsView />;
         case 'deals':
           return <DealsView />;
         case 'finance':
@@ -416,11 +466,20 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddAutoLeadDialog open={addAutoLeadOpen} onOpenChange={setAddAutoLeadOpen} />
       <AddVehicleDialog open={addVehicleOpen} onOpenChange={setAddVehicleOpen} />
       <AddTestDriveDialog open={addTestDriveOpen} onOpenChange={setAddTestDriveOpen} />
-      <AddQuoteDialog open={addQuoteOpen} onOpenChange={setAddQuoteOpen} />
+      <AddBookingDialog open={addBookingOpen} onOpenChange={setAddBookingOpen} />
       <AddDealDialog open={addDealOpen} onOpenChange={setAddDealOpen} />
       <AddFinanceDialog open={addFinanceOpen} onOpenChange={setAddFinanceOpen} />
       <AddInsuranceDialog open={addInsuranceOpen} onOpenChange={setAddInsuranceOpen} />
 
+      {/* Online Business Dialogs */}
+      <AddProductDialog open={addProductOpen} onOpenChange={setAddProductOpen} />
+      <AddCustomerDialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen} />
+      <AddSupplierDialog open={addSupplierOpen} onOpenChange={setAddSupplierOpen} />
+      <AddOrderDialog open={addOrderOpen} onOpenChange={setAddOrderOpen} />
+      <AddPaymentDialog open={addPaymentOpen} onOpenChange={setAddPaymentOpen} />
+      <AddDiscountDialog open={addDiscountOpen} onOpenChange={setAddDiscountOpen} />
+      <AddReturnDialog open={addReturnOpen} onOpenChange={setAddReturnOpen} />
+      
       {!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness && <AIChatAssistant />}
     </div>
   );

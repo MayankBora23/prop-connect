@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateVehicle } from '@/hooks/useVehicles';
+import { useUpdateVehicle } from '@/hooks/useVehicles';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import type { VehicleWithRelations } from '@/hooks/useAutoTypes';
 
 const vehicleSchema = z.object({
   vehicle_type: z.enum(['car', 'bike', 'used_car', 'used_bike'], { message: 'Vehicle type is required' }),
@@ -46,7 +47,8 @@ const vehicleSchema = z.object({
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
-interface AddVehicleDialogProps {
+interface EditVehicleDialogProps {
+  vehicle: VehicleWithRelations | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -80,9 +82,9 @@ const vehicleStatuses = [
   { value: 'maintenance', label: 'Maintenance' },
 ];
 
-export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) {
+export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDialogProps) {
   const { toast } = useToast();
-  const createVehicle = useCreateVehicle();
+  const updateVehicle = useUpdateVehicle();
 
   const form = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
@@ -110,9 +112,40 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
     },
   });
 
+  // Populate form when vehicle changes
+  useEffect(() => {
+    if (vehicle) {
+      form.reset({
+        vehicle_type: vehicle.vehicle_type,
+        brand: vehicle.brand,
+        model: vehicle.model,
+        variant: vehicle.variant || '',
+        year: vehicle.year,
+        price: vehicle.price,
+        quantity: 1, // Default to 1 if not set
+        fuel_type: vehicle.fuel_type,
+        transmission: vehicle.transmission,
+        mileage: vehicle.mileage || undefined,
+        engine_capacity: vehicle.engine_capacity || '',
+        seating_capacity: vehicle.seating_capacity || undefined,
+        color: vehicle.color || '',
+        description: vehicle.description || '',
+        location: vehicle.location || '',
+        status: vehicle.status,
+        odometer_reading: vehicle.odometer_reading || undefined,
+        ownership_count: vehicle.ownership_count || undefined,
+        rc_status: vehicle.rc_status || undefined,
+        insurance_status: vehicle.insurance_status || undefined,
+      });
+    }
+  }, [vehicle, form]);
+
   const onSubmit = async (data: VehicleFormData) => {
+    if (!vehicle) return;
+
     try {
-      await createVehicle.mutateAsync({
+      await updateVehicle.mutateAsync({
+        id: vehicle.id,
         vehicle_type: data.vehicle_type,
         brand: data.brand,
         model: data.model,
@@ -137,18 +170,17 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
       });
 
       toast({
-        title: 'Vehicle added',
-        description: `${data.year} ${data.brand} ${data.model} has been added successfully.`,
+        title: 'Vehicle updated',
+        description: `${data.year} ${data.brand} ${data.model} has been updated successfully.`,
       });
 
-      form.reset();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Create vehicle error:', error);
+      console.error('Update vehicle error:', error);
       const description =
-        error?.message || error?.error || JSON.stringify(error) || 'Failed to create vehicle. Please try again.';
+        error?.message || error?.error || JSON.stringify(error) || 'Failed to update vehicle. Please try again.';
       toast({
-        title: 'Error creating vehicle',
+        title: 'Error updating vehicle',
         description,
         variant: 'destructive',
       });
@@ -159,15 +191,15 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Vehicle</DialogTitle>
+          <DialogTitle>Edit Vehicle</DialogTitle>
           <DialogDescription>
-            Fill in the vehicle details. Fields marked with * are required.
+            Update the vehicle details. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="vehicle_type"
@@ -326,7 +358,7 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="fuel_type"
@@ -434,12 +466,42 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Color</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., White, Black" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Showroom A, Warehouse" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             {/* Used Vehicle Fields - conditionally rendered */}
             {(form.watch('vehicle_type') === 'used_car' || form.watch('vehicle_type') === 'used_bike') && (
               <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
                 <h4 className="font-medium text-foreground">Used Vehicle Details</h4>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="odometer_reading"
@@ -483,7 +545,7 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="rc_status"
@@ -534,37 +596,6 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Color</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., White, Black" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Showroom A, Warehouse" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-
             <FormField
               control={form.control}
               name="description"
@@ -587,9 +618,9 @@ export function AddVehicleDialog({ open, onOpenChange }: AddVehicleDialogProps) 
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createVehicle.isPending} className="gradient-primary border-0">
-                {createVehicle.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Add Vehicle
+              <Button type="submit" disabled={updateVehicle.isPending} className="gradient-primary border-0">
+                {updateVehicle.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Update Vehicle
               </Button>
             </div>
           </form>

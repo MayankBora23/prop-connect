@@ -685,6 +685,68 @@ export interface Database {
           }
         ]
       }
+      products: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          sku: string | null
+          barcode: string | null
+          category: string | null
+          unit_type: string
+          selling_price: number
+          purchase_price: number | null
+          tax_percentage: number
+          stock_quantity: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          company_id: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          sku?: string | null
+          barcode?: string | null
+          category?: string | null
+          unit_type?: string
+          selling_price: number
+          purchase_price?: number | null
+          tax_percentage?: number
+          stock_quantity?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          company_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          sku?: string | null
+          barcode?: string | null
+          category?: string | null
+          unit_type?: string
+          selling_price?: number
+          purchase_price?: number | null
+          tax_percentage?: number
+          stock_quantity?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          company_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

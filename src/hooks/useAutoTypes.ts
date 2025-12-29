@@ -28,12 +28,13 @@ export interface AutoLeadWithRelations {
 
 export interface VehicleWithRelations {
   id: string;
-  vehicle_type: 'car' | 'bike';
+  vehicle_type: 'car' | 'bike' | 'used_car' | 'used_bike';
   brand: string;
   model: string;
   variant?: string | null;
   year: number;
   price: number;
+  quantity: number;
   fuel_type: 'petrol' | 'diesel' | 'electric' | 'hybrid' | 'cng';
   transmission: 'manual' | 'automatic' | 'cvt' | 'dct';
   mileage?: number | null;
@@ -45,17 +46,25 @@ export interface VehicleWithRelations {
   description?: string | null;
   location?: string | null;
   status: 'available' | 'sold' | 'reserved' | 'maintenance';
+  odometer_reading?: number | null;
+  ownership_count?: number | null;
+  rc_status?: 'available' | 'pending' | 'missing' | null;
+  insurance_status?: 'valid' | 'expired' | 'pending' | 'missing' | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
   company_id: string;
 }
 
-export interface QuoteWithRelations {
+export interface BookingWithRelations {
   id: string;
   lead_id?: string | null;
   vehicle_id: string;
-  quote_number?: string | null;
+  booking_number?: string | null;
+  booking_date: string;
+  delivery_date?: string | null;
+  delivery_location?: string | null;
+  special_requests?: string | null;
   vehicle_price: number;
   discount_amount: number;
   accessories_cost: number;
@@ -63,8 +72,10 @@ export interface QuoteWithRelations {
   insurance_cost: number;
   finance_cost: number;
   total_amount: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
-  valid_until?: string | null;
+  down_payment: number;
+  remaining_balance: number;
+  payment_status: 'pending' | 'partial' | 'completed';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   notes?: string | null;
   terms_conditions?: string | null;
   created_by?: string | null;
@@ -84,6 +95,7 @@ export interface QuoteWithRelations {
     model: string;
     year: number;
     fuel_type: string;
+    variant?: string | null;
   } | null;
 }
 
@@ -118,5 +130,6 @@ export interface TestDriveWithRelations {
     model: string;
     year: number;
     fuel_type: string;
+    variant?: string | null;
   } | null;
 }
