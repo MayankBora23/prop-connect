@@ -14,10 +14,11 @@ import {
   ChevronRight,
   Home,
   Settings,
+  Briefcase,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
-import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Briefcase, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode } from 'lucide-react';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -32,6 +33,7 @@ const realEstateMenuItems = [
   { id: 'inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: 3 },
   { id: 'visits', label: 'Site Visits', icon: Calendar, badge: undefined },
   { id: 'followups', label: 'Follow-ups', icon: Clock, badge: 5 },
+  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'automation', label: 'Automation', icon: Zap, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
@@ -47,6 +49,7 @@ const educationMenuItems = [
   { id: 'enrollments', label: 'Enrollments', icon: Users, badge: undefined },
   { id: 'attendance', label: 'Attendance', icon: Calendar, badge: undefined },
   { id: 'fees', label: 'Fees', icon: DollarSign, badge: undefined },
+  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -59,6 +62,7 @@ const healthcareMenuItems = [
   { id: 'medical-records', label: 'Medical Records', icon: File, badge: undefined },
   { id: 'prescriptions', label: 'Prescriptions', icon: Pill, badge: undefined },
   { id: 'billing', label: 'Billing', icon: CreditCard, badge: undefined },
+  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -73,6 +77,7 @@ const automobileMenuItems = [
   { id: 'deals', label: 'Deals', icon: Briefcase, badge: undefined },
   { id: 'finance', label: 'Finance', icon: Banknote, badge: undefined },
   { id: 'insurance', label: 'Insurance', icon: Shield, badge: undefined },
+  { id: 'workspace', label: 'Workspace', icon: Home, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -89,6 +94,7 @@ const onlineBusinessMenuItems = [
   { id: 'discounts', label: 'Discounts', icon: Tag, badge: undefined },
   { id: 'suppliers', label: 'Suppliers', icon: Truck, badge: undefined },
   { id: 'barcode-generator', label: 'Barcode Generator', icon: QrCode, badge: undefined },
+  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },

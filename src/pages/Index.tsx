@@ -18,6 +18,7 @@ import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
 import { AddFollowUpDialog } from '@/components/followups/AddFollowUpDialog';
 import { AddWorkflowDialog } from '@/components/automation/AddWorkflowDialog';
 import { AIChatAssistant } from '@/components/chat/AIChatAssistant';
+import { PersonalWorkspace } from '@/components/workspace/PersonalWorkspace';
 import { useIndustry } from '@/hooks/useIndustry';
 import { EducationDashboard } from '@/components/education/EducationDashboard';
 import { StudentsView } from '@/components/education/StudentsView';
@@ -78,6 +79,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   inbox: { title: 'WhatsApp Inbox', subtitle: 'Customer conversations' },
   visits: { title: 'Site Visits', subtitle: 'Scheduled property visits', addLabel: 'Schedule Visit' },
   followups: { title: 'Follow-ups', subtitle: 'Track your tasks', addLabel: 'Add Follow-up' },
+  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
@@ -93,6 +95,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   enrollments: { title: 'Enrollments', subtitle: 'Student enrollments' },
   attendance: { title: 'Attendance', subtitle: 'Track attendance' },
   fees: { title: 'Fees', subtitle: 'Fee management' },
+  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -105,6 +108,7 @@ const healthcareTabConfig: Record<string, { title: string; subtitle?: string; ad
   'medical-records': { title: 'Medical Records', subtitle: 'Patient medical history', addLabel: 'Add Record' },
   prescriptions: { title: 'Prescriptions', subtitle: 'Manage prescriptions', addLabel: 'Add Prescription' },
   billing: { title: 'Billing', subtitle: 'Billing and payments', addLabel: 'Add Bill' },
+  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -119,6 +123,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   deals: { title: 'Deals', subtitle: 'Closed deals and sales', addLabel: 'Add Deal' },
   finance: { title: 'Finance', subtitle: 'Finance applications', addLabel: 'Add Finance Application' },
   insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
+  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -135,6 +140,7 @@ const onlineBusinessTabConfig: Record<string, { title: string; subtitle?: string
   discounts: { title: 'Discounts', subtitle: 'Manage promotions and discounts', addLabel: 'Create Discount' },
   suppliers: { title: 'Suppliers', subtitle: 'Supplier management', addLabel: 'Add Supplier' },
   'barcode-generator': { title: 'Barcode Generator', subtitle: 'Generate and manage barcodes', addLabel: 'Generate Barcode' },
+  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -314,6 +320,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <AttendanceView />;
         case 'fees':
           return <div className="card-elevated p-6"><p className="text-muted-foreground">Fees view coming soon</p></div>;
+        case 'workspace':
+          return <PersonalWorkspace />;
         case 'team':
           return <TeamView />;
         case 'analytics':
@@ -337,6 +345,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <PrescriptionsView />;
         case 'billing':
           return <BillingView />;
+        case 'workspace':
+          return <PersonalWorkspace />;
         case 'team':
           return <TeamView />;
         case 'analytics':
@@ -364,6 +374,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <FinanceView />;
         case 'insurance':
           return <InsuranceView />;
+        case 'workspace':
+          return <PersonalWorkspace />;
         case 'team':
           return <TeamView />;
         case 'analytics':
@@ -395,6 +407,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <SuppliersView />;
         case 'barcode-generator':
           return <BarcodeGenerator />;
+        case 'workspace':
+          return <PersonalWorkspace />;
         case 'team':
           return <TeamView />;
         case 'analytics':
@@ -418,6 +432,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <SiteVisitsView />;
         case 'followups':
           return <FollowUpsView />;
+        case 'workspace':
+          return <PersonalWorkspace />;
         case 'team':
           return <TeamView />;
         case 'automation':

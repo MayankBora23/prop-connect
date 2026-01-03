@@ -14,24 +14,38 @@ export function useProfiles() {
   return useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
-      // Fetch profiles
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      // Get current user's company
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!profile?.company_id) return [];
+
+      // Fetch profiles from the same company
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
+        .eq('company_id', profile.company_id)
         .order('name', { ascending: true });
-      
+
       if (profilesError) throw profilesError;
 
-      // Fetch user roles
+      // Fetch user roles for this company
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role');
-      
+        .select('user_id, role')
+        .eq('company_id', profile.company_id);
+
       if (rolesError) throw rolesError;
 
       // Map roles to profiles
       const rolesMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
-      
+
       return (profiles || []).map(profile => ({
         ...profile,
         role: rolesMap.get(profile.user_id) || null,

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useNavigate } from 'react-router-dom';
+import { NotificationCenter } from '@/components/workspace/NotificationCenter';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,10 +47,7 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: H
             />
           </div>
 
-          <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-            <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </button>
+          <NotificationCenter />
 
           {onAddNew && (
             <Button onClick={onAddNew} className="gradient-primary border-0">

@@ -90,7 +90,14 @@ export function TeamView() {
 
   const handleRemoveMember = async () => {
     if (!selectedMember || !company) return;
-    
+
+    console.log('Attempting to remove team member:', {
+      userId: selectedMember.user_id,
+      companyId: company.id,
+      memberName: selectedMember.name,
+      currentUserRole: currentProfile?.role,
+    });
+
     try {
       await removeMember.mutateAsync({
         userId: selectedMember.user_id,
@@ -98,14 +105,15 @@ export function TeamView() {
       });
       toast({
         title: 'Success',
-        description: `${selectedMember.name} has been removed from the team`,
+        description: `${selectedMember.name} has been permanently removed from the team`,
       });
       setRemoveDialogOpen(false);
       setSelectedMember(null);
     } catch (error: any) {
+      console.error('Failed to remove team member:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to remove team member',
+        description: error.message || 'Failed to remove team member. Please try again.',
         variant: 'destructive',
       });
     }
@@ -243,18 +251,19 @@ export function TeamView() {
                   {canManageRoles && !isCurrentUser && !isSuperAdmin && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={removeMember.isPending}>
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditingRole(user.user_id)}>
+                        <DropdownMenuItem onClick={() => setEditingRole(user.user_id)} disabled={removeMember.isPending}>
                           <UserCog className="w-4 h-4 mr-2" />
                           Change Role
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-destructive"
+                          disabled={removeMember.isPending}
                           onClick={() => {
                             setSelectedMember(user);
                             setRemoveDialogOpen(true);
@@ -310,17 +319,23 @@ export function TeamView() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove {selectedMember?.name} from the team? 
-              They will lose access to all company data.
+              Are you sure you want to permanently remove {selectedMember?.name} from the team?
+              This action cannot be undone and will completely remove their access to the company data.
+              {selectedMember?.role === 'super_admin' && (
+                <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
+                  ⚠️ Warning: You are removing a Super Admin. This may affect company administration.
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleRemoveMember}
+              disabled={removeMember.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              {removeMember.isPending ? 'Removing...' : 'Remove Permanently'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
