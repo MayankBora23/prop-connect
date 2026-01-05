@@ -1,6 +1,10 @@
 import { useState } from 'react';
-import { useMessages, MessageWithLead, useCreateMessage } from '@/hooks/useMessages';
-import { useLeads } from '@/hooks/useLeads';
+import {
+  useWhatsAppConversations,
+  useWhatsAppMessages,
+  useCreateWhatsAppMessage,
+  useWhatsAppMessagesRealtime
+} from '@/hooks/useWhatsApp';
 import { cn } from '@/lib/utils';
 import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,67 +14,65 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 export function WhatsAppInbox() {
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const { data: messages, isLoading: messagesLoading } = useMessages();
-  const { data: leads } = useLeads();
-  const createMessage = useCreateMessage();
+
+  const { data: conversations, isLoading: conversationsLoading } = useWhatsAppConversations();
+  const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
+  const createMessage = useCreateWhatsAppMessage();
   const { toast } = useToast();
 
-  // Group messages by lead
-  const conversations = (messages || []).reduce((acc, msg) => {
-    if (!acc[msg.lead_id]) {
-      acc[msg.lead_id] = {
-        leadId: msg.lead_id,
-        leadName: msg.leads?.name || 'Unknown',
-        phone: msg.leads?.phone || '',
-        messages: [],
-        lastMessage: msg,
-      };
-    }
-    acc[msg.lead_id].messages.push(msg);
-    if (new Date(msg.created_at) > new Date(acc[msg.lead_id].lastMessage.created_at)) {
-      acc[msg.lead_id].lastMessage = msg;
-    }
-    return acc;
-  }, {} as Record<string, { 
-    leadId: string; 
-    leadName: string; 
-    phone: string; 
-    messages: MessageWithLead[]; 
-    lastMessage: MessageWithLead 
-  }>);
-
-  const conversationList = Object.values(conversations).filter(conv => 
-    conv.leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conv.phone.includes(searchTerm)
+  // Prepare conversations list with search filtering
+  const conversationList = (conversations || []).filter(conv =>
+    (conv.contact_name || conv.contact_phone).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.contact_phone.includes(searchTerm)
   );
 
-  const activeConversation = selectedLeadId ? conversations[selectedLeadId] : null;
+  const activeConversation = selectedConversationId ? conversations?.find(c => c.id === selectedConversationId) : null;
+  const activeMessages = messagesData?.data || [];
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedLeadId) return;
+    if (!newMessage.trim() || !selectedConversationId) return;
 
     try {
-      await createMessage.mutateAsync({
-        lead_id: selectedLeadId,
-        content: newMessage,
-        direction: 'outgoing',
-        message_type: 'text',
+      // Call the Edge Function to send the message via Twilio
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          conversation_id: selectedConversationId,
+          body: newMessage.trim(),
+        }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to send message: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Message sent successfully:', result);
+
       setNewMessage('');
+      toast({
+        title: 'Message sent',
+        description: 'Your message has been sent successfully',
+      });
     } catch (error) {
+      console.error('Send message error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send message',
+        description: error.message || 'Failed to send message',
         variant: 'destructive',
       });
     }
   };
 
-  if (messagesLoading) {
+  if (conversationsLoading) {
     return (
       <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
         <div className="w-80 border-r border-border flex flex-col">
@@ -109,34 +111,27 @@ export function WhatsAppInbox() {
           {conversationList.length > 0 ? (
             conversationList.map((conv) => (
               <button
-                key={conv.leadId}
-                onClick={() => setSelectedLeadId(conv.leadId)}
+                key={conv.id}
+                onClick={() => setSelectedConversationId(conv.id)}
                 className={cn(
                   'w-full p-4 flex items-start gap-3 hover:bg-secondary transition-colors text-left',
-                  selectedLeadId === conv.leadId && 'bg-secondary'
+                  selectedConversationId === conv.id && 'bg-secondary'
                 )}
               >
                 <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
-                  {conv.leadName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  {(conv.contact_name || conv.contact_phone).split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-foreground text-sm truncate">{conv.leadName}</span>
+                    <span className="font-medium text-foreground text-sm truncate">
+                      {conv.contact_name || conv.contact_phone}
+                    </span>
                     <span className="text-xs text-muted-foreground flex-shrink-0">
-                      {format(new Date(conv.lastMessage.created_at), 'h:mm a')}
+                      {format(new Date(conv.last_message_at), 'h:mm a')}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {conv.lastMessage.direction === 'outgoing' && (
-                      <span className="inline-flex mr-1">
-                        {conv.lastMessage.status === 'read' ? (
-                          <CheckCheck className="w-3 h-3 text-info" />
-                        ) : (
-                          <Check className="w-3 h-3" />
-                        )}
-                      </span>
-                    )}
-                    {conv.lastMessage.content}
+                    {conv.contact_phone}
                   </p>
                 </div>
               </button>
@@ -150,22 +145,24 @@ export function WhatsAppInbox() {
       </div>
 
       {/* Chat Area */}
-      {activeConversation ? (
+      {activeConversation && activeMessages ? (
         <div className="flex-1 flex flex-col">
           {/* Chat Header */}
           <div className="h-16 px-4 flex items-center gap-3 border-b border-border bg-card">
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-              {activeConversation.leadName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              {(activeConversation.contact_name || activeConversation.contact_phone).split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
             <div>
-              <h3 className="font-medium text-foreground">{activeConversation.leadName}</h3>
-              <p className="text-xs text-muted-foreground">{activeConversation.phone}</p>
+              <h3 className="font-medium text-foreground">
+                {activeConversation.contact_name || activeConversation.contact_phone}
+              </h3>
+              <p className="text-xs text-muted-foreground">{activeConversation.contact_phone}</p>
             </div>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-secondary/30">
-            {activeConversation.messages.map((msg) => (
+            {activeMessages.map((msg) => (
               <div
                 key={msg.id}
                 className={cn(
@@ -181,7 +178,7 @@ export function WhatsAppInbox() {
                       : 'bg-card text-card-foreground rounded-bl-md'
                   )}
                 >
-                  <p className="text-sm">{msg.content}</p>
+                  <p className="text-sm">{msg.body}</p>
                   <div className={cn(
                     'flex items-center gap-1 mt-1',
                     msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
@@ -226,11 +223,11 @@ export function WhatsAppInbox() {
                 className="flex-1"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               />
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="gradient-primary border-0 rounded-full"
                 onClick={handleSendMessage}
-                disabled={createMessage.isPending || !newMessage.trim()}
+                disabled={createMessage.isPending || !newMessage.trim() || !selectedConversationId}
               >
                 <Send className="w-4 h-4" />
               </Button>

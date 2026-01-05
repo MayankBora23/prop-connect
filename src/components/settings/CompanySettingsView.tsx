@@ -10,49 +10,84 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useCurrentCompany } from '@/hooks/useCompany';
 import { useUpdateCompany } from '@/hooks/useCompany';
 import { useCurrentProfile } from '@/hooks/useProfiles';
+import { useWhatsAppSettings, useCreateWhatsAppSettings, useUpdateWhatsAppSettings } from '@/hooks/useWhatsApp';
 import { toast } from 'sonner';
-import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings } from 'lucide-react';
 
 const companySchema = z.object({
-  name: z.string().min(2, 'Company name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address').max(255),
+  company_name: z.string().min(2, 'Company name must be at least 2 characters').max(100),
   phone: z.string().max(20).optional().or(z.literal('')),
   address: z.string().max(500).optional().or(z.literal('')),
-  logo_url: z.string().url('Invalid URL').optional().or(z.literal('')),
+  city: z.string().max(100).optional().or(z.literal('')),
+  state: z.string().max(100).optional().or(z.literal('')),
+  zip_code: z.string().max(20).optional().or(z.literal('')),
+});
+
+const whatsappSchema = z.object({
+  twilio_sid: z.string().min(1, 'Twilio SID is required'),
+  twilio_auth_token: z.string().min(1, 'Twilio Auth Token is required'),
+  whatsapp_number: z.string().min(1, 'WhatsApp number is required'),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
+type WhatsAppFormData = z.infer<typeof whatsappSchema>;
 
 export function CompanySettingsView() {
   const { data: company, isLoading: companyLoading } = useCurrentCompany();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const updateCompany = useUpdateCompany();
+
+  // WhatsApp settings
+  const { data: whatsappSettings, isLoading: whatsappLoading } = useWhatsAppSettings();
+  const createWhatsAppSettings = useCreateWhatsAppSettings();
+  const updateWhatsAppSettings = useUpdateWhatsAppSettings();
   
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
     defaultValues: {
-      name: '',
-      email: '',
+      company_name: '',
       phone: '',
       address: '',
-      logo_url: '',
+      city: '',
+      state: '',
+      zip_code: '',
+    },
+  });
+
+  const whatsappForm = useForm<WhatsAppFormData>({
+    resolver: zodResolver(whatsappSchema),
+    defaultValues: {
+      twilio_sid: '',
+      twilio_auth_token: '',
+      whatsapp_number: '',
     },
   });
 
   useEffect(() => {
     if (company) {
       form.reset({
-        name: company.name || '',
-        email: company.email || '',
+        company_name: company.company_name || '',
         phone: company.phone || '',
         address: company.address || '',
-        logo_url: company.logo_url || '',
+        city: company.city || '',
+        state: company.state || '',
+        zip_code: company.zip_code || '',
       });
     }
   }, [company, form]);
 
+  useEffect(() => {
+    if (whatsappSettings) {
+      whatsappForm.reset({
+        twilio_sid: whatsappSettings.twilio_sid || '',
+        twilio_auth_token: whatsappSettings.twilio_auth_token || '',
+        whatsapp_number: whatsappSettings.whatsapp_number || '',
+      });
+    }
+  }, [whatsappSettings, whatsappForm]);
+
   const isSuperAdmin = profile?.role === 'super_admin';
-  const isLoading = companyLoading || profileLoading;
+  const isLoading = companyLoading || profileLoading || whatsappLoading;
 
   const onSubmit = async (data: CompanyFormData) => {
     if (!company?.id) return;
@@ -60,15 +95,40 @@ export function CompanySettingsView() {
     try {
       await updateCompany.mutateAsync({
         id: company.id,
-        name: data.name,
-        email: data.email,
+        company_name: data.company_name,
         phone: data.phone || null,
         address: data.address || null,
-        logo_url: data.logo_url || null,
+        city: data.city || null,
+        state: data.state || null,
+        zip_code: data.zip_code || null,
       });
       toast.success('Company settings updated successfully');
     } catch (error: any) {
       toast.error(error.message || 'Failed to update company settings');
+    }
+  };
+
+  const onWhatsAppSubmit = async (data: WhatsAppFormData) => {
+    if (!company?.id) return;
+
+    try {
+      if (whatsappSettings) {
+        await updateWhatsAppSettings.mutateAsync({
+          id: whatsappSettings.id,
+          twilio_sid: data.twilio_sid,
+          twilio_auth_token: data.twilio_auth_token,
+          whatsapp_number: data.whatsapp_number,
+        });
+      } else {
+        await createWhatsAppSettings.mutateAsync({
+          company_id: company.id,
+          twilio_sid: data.twilio_sid,
+          twilio_auth_token: data.twilio_auth_token,
+          whatsapp_number: data.whatsapp_number,
+        });
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save WhatsApp settings');
     }
   };
 
@@ -125,7 +185,7 @@ export function CompanySettingsView() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="name"
+                name="company_name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
@@ -133,23 +193,6 @@ export function CompanySettingsView() {
                       <div className="relative">
                         <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input {...field} placeholder="Enter company name" className="pl-10" />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input {...field} type="email" placeholder="contact@company.com" className="pl-10" />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -191,16 +234,83 @@ export function CompanySettingsView() {
                 )}
               />
 
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter city" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter state" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="logo_url"
+                name="zip_code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Logo URL</FormLabel>
+                    <FormLabel>ZIP Code</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter ZIP code" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" disabled={updateCompany.isPending} className="w-full">
+                {updateCompany.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      {/* WhatsApp Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            WhatsApp Business Integration
+          </CardTitle>
+          <CardDescription>
+            Configure Twilio WhatsApp Business API for customer communication
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...whatsappForm}>
+            <form onSubmit={whatsappForm.handleSubmit(onWhatsAppSubmit)} className="space-y-6">
+              <FormField
+                control={whatsappForm.control}
+                name="twilio_sid"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Twilio Account SID</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input {...field} placeholder="https://example.com/logo.png" className="pl-10" />
+                        <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input {...field} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -208,23 +318,81 @@ export function CompanySettingsView() {
                 )}
               />
 
-              {form.watch('logo_url') && (
-                <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-                  <span className="text-sm text-muted-foreground">Preview:</span>
-                  <img 
-                    src={form.watch('logo_url')} 
-                    alt="Company logo preview" 
-                    className="h-12 w-auto object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
+              <FormField
+                control={whatsappForm.control}
+                name="twilio_auth_token"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Twilio Auth Token</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          {...field}
+                          type="password"
+                          placeholder="Your Twilio Auth Token"
+                          className="pl-10 font-mono text-sm"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <Button type="submit" disabled={updateCompany.isPending} className="w-full">
-                {updateCompany.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Changes
+              <FormField
+                control={whatsappForm.control}
+                name="whatsapp_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp Business Number</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input {...field} placeholder="+1234567890" className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="bg-muted p-4 rounded-lg space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Setup Instructions:</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Get your Twilio Account SID and Auth Token from your Twilio Console</li>
+                    <li>Purchase a WhatsApp Business number or use the Twilio Sandbox</li>
+                    <li>Deploy the Edge Function to Supabase (see APPLY_WHATSAPP_MIGRATION.md)</li>
+                    <li>Use the webhook URL below in Twilio Console → WhatsApp → Senders</li>
+                    <li>Test by sending a WhatsApp message to your business number</li>
+                  </ol>
+                </div>
+
+                {whatsappSettings && (
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-2">Webhook URL for Twilio:</h4>
+                    <div className="bg-background p-3 rounded border font-mono text-sm break-all">
+                      https://your-project.supabase.co/functions/v1/whatsapp-webhook
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Replace <code>your-project</code> with your actual Supabase project URL.<br/>
+                      <strong>⚠️ DO NOT use the cloudflared tunnel URL here!</strong><br/>
+                      Twilio webhooks must point to Supabase, not your local tunnel.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending}
+                className="w-full"
+              >
+                {(createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending) && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                {whatsappSettings ? 'Update WhatsApp Settings' : 'Save WhatsApp Settings'}
               </Button>
             </form>
           </Form>
