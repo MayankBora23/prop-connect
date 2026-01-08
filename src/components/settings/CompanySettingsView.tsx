@@ -362,11 +362,20 @@ export function CompanySettingsView() {
                   <h4 className="font-medium mb-2">Setup Instructions:</h4>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Get your Twilio Account SID and Auth Token from your Twilio Console</li>
-                    <li>Purchase a WhatsApp Business number or use the Twilio Sandbox</li>
+                    <li><strong>For Sandbox Testing:</strong> Use Twilio's shared sandbox number (+14155238886)</li>
+                    <li><strong>For Production:</strong> Purchase or verify your own unique WhatsApp Business number</li>
                     <li>Deploy the Edge Function to Supabase (see APPLY_WHATSAPP_MIGRATION.md)</li>
                     <li>Use the webhook URL below in Twilio Console → WhatsApp → Senders</li>
                     <li>Test by sending a WhatsApp message to your business number</li>
                   </ol>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-2 text-amber-700">⚠️ Important: Multi-Tenant Sandbox Support</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Twilio uses shared sandbox numbers across all accounts. This CRM automatically routes messages
+                    by Account SID for sandbox testing, then switches to phone number routing for production.
+                  </p>
                 </div>
 
                 {whatsappSettings && (

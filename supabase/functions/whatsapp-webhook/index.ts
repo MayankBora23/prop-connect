@@ -12,6 +12,7 @@ interface TwilioWebhookPayload {
   From: string
   Body: string
   MessageSid: string
+  AccountSid: string
   NumMedia?: string
   MediaUrl0?: string
   MediaContentType0?: string
@@ -51,6 +52,7 @@ serve(async (req) => {
       From: formData.get('From') || '',
       Body: formData.get('Body') || '',
       MessageSid: formData.get('MessageSid') || '',
+      AccountSid: formData.get('AccountSid') || '',
       NumMedia: formData.get('NumMedia') || '',
       MediaUrl0: formData.get('MediaUrl0') || '',
       MediaContentType0: formData.get('MediaContentType0') || '',
@@ -61,16 +63,37 @@ serve(async (req) => {
     // Extract the phone number from the 'To' field (remove whatsapp: prefix if present)
     const whatsappNumber = payload.To.replace('whatsapp:', '')
 
-    // Find the company that owns this WhatsApp number
-    const { data: whatsappSettings, error: settingsError } = await supabase
+    // For multi-tenant sandbox support, first try routing by AccountSid (required for sandbox)
+    // Fall back to whatsapp_number for live/production environments
+    let whatsappSettings, settingsError
+
+    // Try routing by AccountSid first (handles sandbox where multiple companies share same number)
+    const accountSidResult = await supabase
       .from('whatsapp_settings')
-      .select('company_id, twilio_auth_token')
-      .eq('whatsapp_number', whatsappNumber)
+      .select('company_id, twilio_auth_token, whatsapp_number')
+      .eq('twilio_sid', payload.AccountSid)
       .single()
 
+    if (accountSidResult.data) {
+      whatsappSettings = accountSidResult.data
+      settingsError = null
+      console.log('Routed by AccountSid (sandbox mode):', payload.AccountSid)
+    } else {
+      // Fall back to routing by whatsapp_number (for live/production)
+      const numberResult = await supabase
+        .from('whatsapp_settings')
+        .select('company_id, twilio_auth_token, whatsapp_number')
+        .eq('whatsapp_number', whatsappNumber)
+        .single()
+
+      whatsappSettings = numberResult.data
+      settingsError = numberResult.error
+      console.log('Routed by whatsapp_number (live mode):', whatsappNumber)
+    }
+
     if (settingsError || !whatsappSettings) {
-      console.error('WhatsApp settings not found for number:', whatsappNumber)
-      return new Response('WhatsApp number not configured', { status: 404, headers: corsHeaders })
+      console.error('WhatsApp settings not found for AccountSid:', payload.AccountSid, 'or number:', whatsappNumber)
+      return new Response('WhatsApp settings not configured', { status: 404, headers: corsHeaders })
     }
 
     // TEMPORARILY DISABLE SIGNATURE VALIDATION FOR DEBUGGING

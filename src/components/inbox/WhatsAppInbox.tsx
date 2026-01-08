@@ -17,7 +17,7 @@ export function WhatsAppInbox() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-
+  
   const { data: conversations, isLoading: conversationsLoading } = useWhatsAppConversations();
   const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
   const createMessage = useCreateWhatsAppMessage();
@@ -223,8 +223,8 @@ export function WhatsAppInbox() {
                 className="flex-1"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               />
-              <Button
-                size="icon"
+              <Button 
+                size="icon" 
                 className="gradient-primary border-0 rounded-full"
                 onClick={handleSendMessage}
                 disabled={createMessage.isPending || !newMessage.trim() || !selectedConversationId}

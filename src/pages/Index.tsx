@@ -6,6 +6,8 @@ import { Dashboard } from '@/components/dashboard/Dashboard';
 import { LeadsView } from '@/components/leads/LeadsView';
 import { PropertiesView } from '@/components/properties/PropertiesView';
 import { WhatsAppInbox } from '@/components/inbox/WhatsAppInbox';
+import { EducationWhatsAppInbox } from '@/components/education/WhatsAppInbox';
+import { AutomobileWhatsAppInbox } from '@/components/automobile/WhatsAppInbox';
 import { SiteVisitsView } from '@/components/visits/SiteVisitsView';
 import { FollowUpsView } from '@/components/followups/FollowUpsView';
 import { TeamView } from '@/components/team/TeamView';
@@ -95,6 +97,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   enrollments: { title: 'Enrollments', subtitle: 'Student enrollments' },
   attendance: { title: 'Attendance', subtitle: 'Track attendance' },
   fees: { title: 'Fees', subtitle: 'Fee management' },
+  'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Student conversations' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
@@ -123,6 +126,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   deals: { title: 'Deals', subtitle: 'Closed deals and sales', addLabel: 'Add Deal' },
   finance: { title: 'Finance', subtitle: 'Finance applications', addLabel: 'Add Finance Application' },
   insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
+  'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Auto lead conversations' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
@@ -320,6 +324,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <AttendanceView />;
         case 'fees':
           return <div className="card-elevated p-6"><p className="text-muted-foreground">Fees view coming soon</p></div>;
+        case 'whatsapp-inbox':
+          return <EducationWhatsAppInbox />;
         case 'workspace':
           return <PersonalWorkspace />;
         case 'team':
@@ -374,6 +380,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <FinanceView />;
         case 'insurance':
           return <InsuranceView />;
+        case 'whatsapp-inbox':
+          return <AutomobileWhatsAppInbox />;
         case 'workspace':
           return <PersonalWorkspace />;
         case 'team':
