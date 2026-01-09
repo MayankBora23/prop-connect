@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useFollowUps, FollowUpWithLead, useUpdateFollowUp } from '@/hooks/useFollowUps';
 import { useLeads } from '@/hooks/useLeads';
-import { Phone, MessageSquare, Calendar, Mail, Clock, Check, AlertCircle, User } from 'lucide-react';
+import { useProfiles } from '@/hooks/useProfiles';
+import { Phone, MessageSquare, Calendar, Mail, Clock, Check, AlertCircle, User, Edit, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +17,7 @@ type FollowUpType = Enums<'follow_up_type'>;
 export function FollowUpsView() {
   const { data: followUps, isLoading } = useFollowUps();
   const { data: leads } = useLeads();
+  const { data: profiles } = useProfiles();
   const updateFollowUp = useUpdateFollowUp();
   const { toast } = useToast();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -59,144 +61,70 @@ export function FollowUpsView() {
     }
   };
 
+  const handleMarkMissed = async (id: string) => {
+    try {
+      await updateFollowUp.mutateAsync({ id, status: 'missed' });
+      toast({
+        title: 'Follow-up Marked as Missed',
+        description: 'Follow-up moved to missed section',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update follow-up',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getAssignedProfileName = (assignedTo: string | null) => {
+    if (!assignedTo || !profiles) return null;
+    const profile = profiles.find(p => p.user_id === assignedTo);
+    return profile?.name || null;
+  };
+
   const handleEditFollowUp = (followUp: FollowUpWithLead) => {
     setSelectedFollowUpForEditing(followUp);
     setEditFollowUpDialogOpen(true);
   };
 
-  const FollowUpCard = ({ followUp }: { followUp: FollowUpWithLead }) => {
-    const TypeIcon = getTypeIcon(followUp.type);
-
-    return (
-      <div className="card-elevated p-4 animate-scale-in">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              'w-10 h-10 rounded-full flex items-center justify-center',
-              followUp.type === 'call' ? 'bg-success/10 text-success' :
-              followUp.type === 'whatsapp' ? 'bg-info/10 text-info' :
-              followUp.type === 'meeting' ? 'bg-warning/10 text-warning' :
-              'bg-primary/10 text-primary'
-            )}>
-              <TypeIcon className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground text-sm">{followUp.leads?.name || 'Unknown Lead'}</h4>
-              <p className="text-xs text-muted-foreground capitalize">{followUp.type}</p>
-            </div>
-          </div>
-          <span className={cn(
-            'text-xs px-2 py-1 rounded-full font-medium',
-            followUp.status === 'pending' ? 'bg-warning/10 text-warning' :
-            followUp.status === 'completed' ? 'bg-success/10 text-success' :
-            'bg-destructive/10 text-destructive'
-          )}>
-            {followUp.status}
-          </span>
-        </div>
-
-        {followUp.notes && (
-          <p className="text-sm text-muted-foreground mb-3">{followUp.notes}</p>
-        )}
-
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-4 h-4" />
-            <span>{format(new Date(followUp.follow_up_date), 'MMM d, yyyy')}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>{followUp.follow_up_time}</span>
-          </div>
-        </div>
-
-        {followUp.status === 'pending' && (
-          <div className="flex items-center gap-2 mt-4">
-            <Button
-              size="sm"
-              className="flex-1 gradient-primary border-0"
-              onClick={() => handleMarkComplete(followUp.id)}
-              disabled={updateFollowUp.isPending}
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Mark Complete
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleEditFollowUp(followUp)}>
-              Edit
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const LeadFollowUpCard = ({ lead }: { lead: any }) => {
-    const handleScheduleFollowUp = () => {
-      setSelectedLeadForScheduling(lead);
-      setScheduleDialogOpen(true);
-    };
-
-
-    return (
-      <div className="card-elevated p-4 animate-scale-in">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
-              <p className="text-xs text-muted-foreground">Follow-up Stage</p>
-            </div>
-          </div>
-          <span className="text-xs px-2 py-1 rounded-full font-medium bg-info/10 text-info">
-            Follow-up
-          </span>
-        </div>
-
-        {lead.notes && (
-          <p className="text-sm text-muted-foreground mb-3">{lead.notes}</p>
-        )}
-
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-          <div className="flex items-center gap-1">
-            <User className="w-4 h-4" />
-            <span>{lead.phone}</span>
-          </div>
-          {lead.email && (
-            <div className="flex items-center gap-1">
-              <Mail className="w-4 h-4" />
-              <span>{lead.email}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-center">
-          <Button
-            size="sm"
-            className="w-full gradient-primary border-0"
-            onClick={handleScheduleFollowUp}
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            Schedule Follow-up
-          </Button>
-        </div>
-      </div>
-    );
-  };
 
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-lg" />
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-lg" />
           ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 w-full rounded-lg" />
-          ))}
+
+        {/* Table skeleton */}
+        <div className="card-elevated overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-secondary">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-20" /></th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -244,21 +172,6 @@ export function FollowUpsView() {
         </div>
       </div>
 
-      {/* Missed Follow-ups (Priority) */}
-      {missedFollowUps.length > 0 && (
-        <div>
-          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-destructive" />
-            Missed Follow-ups
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {missedFollowUps.map((followUp) => (
-              <FollowUpCard key={followUp.id} followUp={followUp} />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Follow-up Stage Leads */}
       {followUpStageLeads.length > 0 && (
         <div>
@@ -266,10 +179,75 @@ export function FollowUpsView() {
             <User className="w-5 h-5 text-info" />
             Leads in Follow-up Stage
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {followUpStageLeads.map((lead) => (
-              <LeadFollowUpCard key={lead.id} lead={lead} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Property</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Last Contact</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {followUpStageLeads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                          {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">{lead.name}</p>
+                          <p className="text-xs text-muted-foreground">{(lead as any).source || lead.email || 'No email'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-foreground">{lead.phone}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-foreground">{lead.property_type || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{(lead as any).location || (lead.city ? `${lead.city}${lead.state ? ', ' + lead.state : ''}` : '-') || '-'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-primary">
+                        {(lead as any).budget ||
+                          (lead.budget_min && lead.budget_max
+                            ? `$${lead.budget_min.toLocaleString()} - $${lead.budget_max.toLocaleString()}`
+                            : lead.budget_min
+                              ? `$${lead.budget_min.toLocaleString()}+`
+                              : lead.budget_max
+                                ? `Up to $${lead.budget_max.toLocaleString()}`
+                                : '-'
+                          )
+                        }
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {format(new Date(lead.created_at), 'MMM d, yyyy')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => {
+                            setSelectedLeadForScheduling(lead);
+                            setScheduleDialogOpen(true);
+                          }}
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -281,10 +259,95 @@ export function FollowUpsView() {
           Today's Follow-ups
         </h3>
         {pendingFollowUps.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingFollowUps.map((followUp) => (
-              <FollowUpCard key={followUp.id} followUp={followUp} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {pendingFollowUps.map((followUp) => {
+                  const TypeIcon = getTypeIcon(followUp.type);
+                  return (
+                    <tr key={followUp.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center',
+                            followUp.type === 'call' ? 'bg-success/10 text-success' :
+                            followUp.type === 'whatsapp' ? 'bg-info/10 text-info' :
+                            followUp.type === 'meeting' ? 'bg-warning/10 text-warning' :
+                            'bg-primary/10 text-primary'
+                          )}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{followUp.leads?.name || 'Unknown Lead'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground capitalize">{followUp.type}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{format(new Date(followUp.follow_up_date), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{followUp.follow_up_time}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-warning/10 text-warning">
+                          {followUp.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {followUp.notes ? (
+                          <span className="text-sm text-muted-foreground truncate block" title={followUp.notes}>
+                            {followUp.notes}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No notes</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleMarkComplete(followUp.id)}
+                            disabled={updateFollowUp.isPending}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleEditFollowUp(followUp)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleMarkMissed(followUp.id)}
+                            disabled={updateFollowUp.isPending}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No pending follow-ups</p>
@@ -298,13 +361,146 @@ export function FollowUpsView() {
           Completed
         </h3>
         {completedFollowUps.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {completedFollowUps.map((followUp) => (
-              <FollowUpCard key={followUp.id} followUp={followUp} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {completedFollowUps.map((followUp) => {
+                  const TypeIcon = getTypeIcon(followUp.type);
+                  return (
+                    <tr key={followUp.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center',
+                            followUp.type === 'call' ? 'bg-success/10 text-success' :
+                            followUp.type === 'whatsapp' ? 'bg-info/10 text-info' :
+                            followUp.type === 'meeting' ? 'bg-warning/10 text-warning' :
+                            'bg-primary/10 text-primary'
+                          )}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{followUp.leads?.name || 'Unknown Lead'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground capitalize">{followUp.type}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{format(new Date(followUp.follow_up_date), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{followUp.follow_up_time}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{getAssignedProfileName(followUp.assigned_to) || 'Unassigned'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-success/10 text-success">
+                          {followUp.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {followUp.notes ? (
+                          <span className="text-sm text-muted-foreground truncate block" title={followUp.notes}>
+                            {followUp.notes}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No notes</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No completed follow-ups</p>
+        )}
+      </div>
+
+      {/* Missed Follow-ups */}
+      <div>
+        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-destructive" />
+          Missed Follow-ups ({missedFollowUps.length})
+        </h3>
+        {missedFollowUps.length > 0 ? (
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {missedFollowUps.map((followUp) => {
+                  const TypeIcon = getTypeIcon(followUp.type);
+                  return (
+                    <tr key={followUp.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center',
+                            followUp.type === 'call' ? 'bg-success/10 text-success' :
+                            followUp.type === 'whatsapp' ? 'bg-info/10 text-info' :
+                            followUp.type === 'meeting' ? 'bg-warning/10 text-warning' :
+                            'bg-primary/10 text-primary'
+                          )}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{followUp.leads?.name || 'Unknown Lead'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground capitalize">{followUp.type}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{format(new Date(followUp.follow_up_date), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{followUp.follow_up_time}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{getAssignedProfileName(followUp.assigned_to) || 'Unassigned'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-destructive/10 text-destructive">
+                          {followUp.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {followUp.notes ? (
+                          <span className="text-sm text-muted-foreground truncate block" title={followUp.notes}>
+                            {followUp.notes}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No notes</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">No missed follow-ups</p>
         )}
       </div>
 

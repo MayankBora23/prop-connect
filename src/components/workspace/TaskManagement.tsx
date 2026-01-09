@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { Check, Clock, User, Calendar, Phone, MessageSquare, Calendar as CalendarIcon, Mail, Car, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +27,11 @@ export function TaskManagement() {
         variant: 'destructive',
       });
     }
+  };
+
+  const getAssignedProfileName = (assignedTo: string | null) => {
+    // For now, return a placeholder since we don't have profile data in this context
+    return assignedTo ? 'Assigned' : 'Unassigned';
   };
 
   const getTypeIcon = (type: string) => {
@@ -58,101 +62,64 @@ export function TaskManagement() {
     }
   };
 
-  const TaskCard = ({ task }: { task: any }) => {
-    const TypeIcon = getTypeIcon(task.type);
-
-    const getPriorityColor = (priority?: string) => {
-      switch (priority) {
-        case 'high': return 'bg-destructive/10 text-destructive';
-        case 'medium': return 'bg-warning/10 text-warning';
-        case 'low': return 'bg-success/10 text-success';
-        default: return 'bg-muted/10 text-muted-foreground';
-      }
-    };
-
-    const formatDate = (dateString?: string) => {
-      if (!dateString) return 'No due date';
-      return format(new Date(dateString), 'MMM d, yyyy');
-    };
-
-    return (
-      <div className="card-elevated p-4 animate-scale-in mb-3">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              'w-10 h-10 rounded-full flex items-center justify-center',
-              getTypeColor(task.type)
-            )}>
-              <TypeIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-foreground text-sm truncate">
-                {task.title}
-              </h4>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="text-xs">
-                  {task.type.replace('_', ' ').toUpperCase()}
-                </Badge>
-                {task.priority && (
-                  <Badge
-                    variant="outline"
-                    className={cn('text-xs', getPriorityColor(task.priority))}
-                  >
-                    {task.priority.toUpperCase()}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-          <Badge
-            variant={task.status === 'completed' ? 'default' : 'secondary'}
-            className="text-xs"
-          >
-            {task.status}
-          </Badge>
-        </div>
-
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-          {task.description}
-        </p>
-
-        {task.dueDate && (
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              <span>Due: {formatDate(task.dueDate)}</span>
-            </div>
-          </div>
-        )}
-
-        {task.status === 'assigned' && task.type === 'follow_up' && (
-          <Button
-            size="sm"
-            className="w-full gradient-primary border-0"
-            onClick={() => handleMarkComplete(task.id)}
-            disabled={updateFollowUp.isPending}
-          >
-            <Check className="w-4 h-4 mr-2" />
-            Mark Complete
-          </Button>
-        )}
-      </div>
-    );
-  };
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-200px)] animate-fade-in">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="space-y-3">
-            <Skeleton className="h-8 w-32" />
-            <div className="space-y-3">
-              {Array.from({ length: 2 }).map((_, j) => (
-                <Skeleton key={j} className="h-32 w-full rounded-lg" />
-              ))}
-            </div>
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <Skeleton className="h-6 w-32 mb-4" />
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-8" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-14" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <tr key={j}>
+                    <td className="px-4 py-3"><Skeleton className="h-10 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-12" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-12" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
+        </div>
+        <div>
+          <Skeleton className="h-6 w-28 mb-4" />
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-8" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-14" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <tr key={j}>
+                    <td className="px-4 py-3"><Skeleton className="h-10 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-12" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-12" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     );
   }
@@ -160,86 +127,276 @@ export function TaskManagement() {
   const { assigned = [], pending = [], completed = [] } = taskCategories || {};
 
   return (
-    <div className="animate-fade-in">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-foreground">My Tasks</h2>
-        <p className="text-sm text-muted-foreground">
-          Manage your assigned tasks and track progress
-        </p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Assigned Tasks */}
+      <div>
+        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-warning" />
+          Assigned Tasks ({assigned.length})
+        </h3>
+        {assigned.length > 0 ? (
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Due Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {assigned.map((task) => {
+                  const TypeIcon = getTypeIcon(task.type);
+                  return (
+                    <tr key={task.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center',
+                            getTypeColor(task.type)
+                          )}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{task.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="text-xs">
+                          {task.type.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {task.priority && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-xs',
+                              task.priority === 'high' ? 'bg-destructive/10 text-destructive' :
+                              task.priority === 'medium' ? 'bg-warning/10 text-warning' :
+                              'bg-success/10 text-success'
+                            )}
+                          >
+                            {task.priority.toUpperCase()}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">
+                          {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'No due date'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-secondary/50"
+                        >
+                          {task.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleMarkComplete(task.id)}
+                            disabled={updateFollowUp.isPending}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">No assigned tasks</p>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-280px)]">
-        {/* Assigned Tasks */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-full bg-warning flex items-center justify-center">
-              <User className="w-3 h-3 text-warning-foreground" />
-            </div>
-            <h3 className="font-semibold text-foreground">
-              Assigned ({assigned.length})
-            </h3>
+      {/* Pending Tasks */}
+      <div>
+        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-info" />
+          Pending Tasks ({pending.length})
+        </h3>
+        {pending.length > 0 ? (
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Due Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {pending.map((task) => {
+                  const TypeIcon = getTypeIcon(task.type);
+                  return (
+                    <tr key={task.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center',
+                            getTypeColor(task.type)
+                          )}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{task.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="text-xs">
+                          {task.type.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {task.priority && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-xs',
+                              task.priority === 'high' ? 'bg-destructive/10 text-destructive' :
+                              task.priority === 'medium' ? 'bg-warning/10 text-warning' :
+                              'bg-success/10 text-success'
+                            )}
+                          >
+                            {task.priority.toUpperCase()}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">
+                          {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'No due date'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-info/10 text-info"
+                        >
+                          {task.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleMarkComplete(task.id)}
+                            disabled={updateFollowUp.isPending}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <ScrollArea className="flex-1">
-            {assigned.length > 0 ? (
-              assigned.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No assigned tasks</p>
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">No pending tasks</p>
+        )}
+      </div>
 
-        {/* Pending Tasks */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-full bg-info flex items-center justify-center">
-              <Clock className="w-3 h-3 text-info-foreground" />
-            </div>
-            <h3 className="font-semibold text-foreground">
-              Pending ({pending.length})
-            </h3>
+      {/* Completed Tasks */}
+      <div>
+        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-success" />
+          Completed Tasks ({completed.length})
+        </h3>
+        {completed.length > 0 ? (
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Due Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {completed.map((task) => {
+                  const TypeIcon = getTypeIcon(task.type);
+                  return (
+                    <tr key={task.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center',
+                            getTypeColor(task.type)
+                          )}>
+                            <TypeIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{task.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="text-xs">
+                          {task.type.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {task.priority && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-xs',
+                              task.priority === 'high' ? 'bg-destructive/10 text-destructive' :
+                              task.priority === 'medium' ? 'bg-warning/10 text-warning' :
+                              'bg-success/10 text-success'
+                            )}
+                          >
+                            {task.priority.toUpperCase()}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">
+                          {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'No due date'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant="default"
+                          className="text-xs bg-success/10 text-success"
+                        >
+                          {task.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <ScrollArea className="flex-1">
-            {pending.length > 0 ? (
-              pending.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No pending tasks</p>
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-
-        {/* Completed Tasks */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center">
-              <Check className="w-3 h-3 text-success-foreground" />
-            </div>
-            <h3 className="font-semibold text-foreground">
-              Completed ({completed.length})
-            </h3>
-          </div>
-          <ScrollArea className="flex-1">
-            {completed.length > 0 ? (
-              completed.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Check className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No completed tasks yet</p>
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">No completed tasks yet</p>
+        )}
       </div>
     </div>
   );

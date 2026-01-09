@@ -89,170 +89,66 @@ export function SiteVisitsView() {
     return profile?.name || null;
   };
 
-  const VisitCard = ({ visit, onEdit }: { visit: SiteVisitWithDetails; onEdit?: (visit: SiteVisitWithDetails) => void }) => {
-    const assignedProfileName = getAssignedProfileName(visit.assigned_to);
-    return (
-    <div className="card-elevated p-4 animate-scale-in">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-            {(visit.leads?.name || 'N/A').split(' ').map(n => n[0]).join('').slice(0, 2)}
-          </div>
-          <div>
-            <h4 className="font-semibold text-foreground text-sm">{visit.leads?.name || 'Unknown Lead'}</h4>
-            <p className="text-xs text-muted-foreground">{visit.properties?.title || 'Unknown Property'}</p>
-          </div>
-        </div>
-        <span className={cn(
-          'text-xs px-2 py-1 rounded-full font-medium',
-          visit.status === 'scheduled' ? 'bg-info/10 text-info' :
-          visit.status === 'completed' ? 'bg-success/10 text-success' :
-          'bg-destructive/10 text-destructive'
-        )}>
-          {visit.status}
-        </span>
-      </div>
-
-        <div className="space-y-2 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          <span>{format(new Date(visit.visit_date), 'MMM d, yyyy')}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          <span>{visit.visit_time}</span>
-        </div>
-        {assignedProfileName && (
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span>Assigned to: {assignedProfileName}</span>
-          </div>
-        )}
-      </div>
-
-      {visit.feedback && (
-        <div className="mt-3 pt-3 border-t border-border">
-          <p className="text-xs text-muted-foreground">{visit.feedback}</p>
-        </div>
-      )}
-
-      {visit.status === 'scheduled' && (
-        <div className="flex items-center gap-2 mt-4">
-          <Button size="sm" variant="outline" className="flex-1">
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Send Reminder
-          </Button>
-          {onEdit && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onEdit(visit)}
-              disabled={updateVisit.isPending}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleStatusChange(visit.id, 'completed')}
-            disabled={updateVisit.isPending}
-          >
-            <Check className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleStatusChange(visit.id, 'cancelled')}
-            disabled={updateVisit.isPending}
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      )}
-    </div>
-    );
-  };
-
-  const LeadCard = ({ lead, onScheduleVisit }: { lead: any; onScheduleVisit: (lead: any) => void }) => (
-    <div className="card-elevated p-4 animate-scale-in">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-            {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-          </div>
-          <div>
-            <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
-            <p className="text-xs text-muted-foreground">{lead.source || 'Unknown Source'}</p>
-          </div>
-        </div>
-        <span className="text-xs px-2 py-1 rounded-full font-medium bg-warning/10 text-warning">
-          Site Visit Stage
-        </span>
-      </div>
-
-      <div className="space-y-2 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4" />
-          <span>{lead.phone}</span>
-        </div>
-        {lead.location && (
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            <span>{lead.location}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          <span>{format(new Date(lead.created_at), 'MMM d, yyyy')}</span>
-        </div>
-      </div>
-
-      <div className="mt-3 pt-3 border-t border-border">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-foreground">{lead.property_type || 'Not specified'}</span>
-          <span className="text-xs font-semibold text-primary">{lead.budget || 'No budget'}</span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 mt-4">
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          onClick={() => onScheduleVisit(lead)}
-        >
-          <MessageSquare className="w-4 h-4 mr-2" />
-          Schedule Visit
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onScheduleVisit(lead)}
-        >
-          <Calendar className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  );
 
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
           <Skeleton className="h-6 w-48 mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-48 w-full rounded-lg" />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
         <div>
           <Skeleton className="h-6 w-40 mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-48 w-full rounded-lg" />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-20" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-20" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -268,10 +164,80 @@ export function SiteVisitsView() {
           Leads in Site Visit Stage ({siteVisitLeads.length})
         </h3>
         {siteVisitLeads.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {siteVisitLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} onScheduleVisit={handleScheduleVisit} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Property</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Created</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {siteVisitLeads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                          {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">{lead.name}</p>
+                          <p className="text-xs text-muted-foreground">{(lead as any).source || lead.email || 'No email'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-foreground">{lead.phone}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-foreground">{lead.property_type || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{(lead as any).location || (lead.city ? `${lead.city}${lead.state ? ', ' + lead.state : ''}` : '-') || '-'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-primary">
+                        {(lead as any).budget ||
+                          (lead.budget_min && lead.budget_max
+                            ? `$${lead.budget_min.toLocaleString()} - $${lead.budget_max.toLocaleString()}`
+                            : lead.budget_min
+                              ? `$${lead.budget_min.toLocaleString()}+`
+                              : lead.budget_max
+                                ? `Up to $${lead.budget_max.toLocaleString()}`
+                                : '-'
+                          )
+                        }
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {format(new Date(lead.created_at), 'MMM d, yyyy')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleScheduleVisit(lead)}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleScheduleVisit(lead)}
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No leads in site visit stage</p>
@@ -285,10 +251,95 @@ export function SiteVisitsView() {
           Scheduled Visits ({scheduledVisits.length})
         </h3>
         {scheduledVisits.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scheduledVisits.map((visit) => (
-              <VisitCard key={visit.id} visit={visit} onEdit={handleEditVisit} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Property</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {scheduledVisits.map((visit) => {
+                  const assignedProfileName = getAssignedProfileName(visit.assigned_to);
+                  return (
+                    <tr key={visit.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                            {(visit.leads?.name || 'N/A').split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{visit.leads?.name || 'Unknown Lead'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{visit.properties?.title || 'Unknown Property'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{format(new Date(visit.visit_date), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{visit.visit_time}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{assignedProfileName || 'Unassigned'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          'text-xs px-2 py-1 rounded-full font-medium',
+                          'bg-info/10 text-info'
+                        )}>
+                          {visit.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => {}}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleEditVisit(visit)}
+                            disabled={updateVisit.isPending}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleStatusChange(visit.id, 'completed')}
+                            disabled={updateVisit.isPending}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleStatusChange(visit.id, 'cancelled')}
+                            disabled={updateVisit.isPending}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No scheduled visits</p>
@@ -302,10 +353,65 @@ export function SiteVisitsView() {
           Completed ({completedVisits.length})
         </h3>
         {completedVisits.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {completedVisits.map((visit) => (
-              <VisitCard key={visit.id} visit={visit} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Property</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feedback</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {completedVisits.map((visit) => {
+                  const assignedProfileName = getAssignedProfileName(visit.assigned_to);
+                  return (
+                    <tr key={visit.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                            {(visit.leads?.name || 'N/A').split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{visit.leads?.name || 'Unknown Lead'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{visit.properties?.title || 'Unknown Property'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{format(new Date(visit.visit_date), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{visit.visit_time}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{assignedProfileName || 'Unassigned'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          'text-xs px-2 py-1 rounded-full font-medium',
+                          'bg-success/10 text-success'
+                        )}>
+                          {visit.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {visit.feedback ? (
+                          <span className="text-sm text-muted-foreground truncate block" title={visit.feedback}>
+                            {visit.feedback}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No feedback</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No completed visits</p>
@@ -319,10 +425,65 @@ export function SiteVisitsView() {
             <span className="w-2 h-2 rounded-full bg-destructive" />
             Cancelled ({cancelledVisits.length})
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cancelledVisits.map((visit) => (
-              <VisitCard key={visit.id} visit={visit} />
-            ))}
+          <div className="card-elevated overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Property</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feedback</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {cancelledVisits.map((visit) => {
+                  const assignedProfileName = getAssignedProfileName(visit.assigned_to);
+                  return (
+                    <tr key={visit.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                            {(visit.leads?.name || 'N/A').split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{visit.leads?.name || 'Unknown Lead'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{visit.properties?.title || 'Unknown Property'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{format(new Date(visit.visit_date), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{visit.visit_time}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{assignedProfileName || 'Unassigned'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          'text-xs px-2 py-1 rounded-full font-medium',
+                          'bg-destructive/10 text-destructive'
+                        )}>
+                          {visit.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        {visit.feedback ? (
+                          <span className="text-sm text-muted-foreground truncate block" title={visit.feedback}>
+                            {visit.feedback}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No feedback</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
