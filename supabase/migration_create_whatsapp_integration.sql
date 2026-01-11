@@ -54,7 +54,10 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_messages (
   status TEXT NOT NULL DEFAULT 'sent', -- sent, delivered, read, failed
   message_sid TEXT, -- Twilio message SID for tracking
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE
+  company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  file_url TEXT, -- URL of uploaded file/image
+  file_name TEXT, -- Original filename
+  file_type TEXT -- 'image' or 'document'
 );
 
 -- Enable RLS

@@ -31,6 +31,9 @@ export interface WhatsAppMessage {
   message_sid?: string
   created_at: string
   company_id: string
+  file_url?: string
+  file_name?: string
+  file_type?: string
 }
 
 export interface WhatsAppMessageWithConversation extends WhatsAppMessage {
@@ -135,6 +138,117 @@ export function useWhatsAppConversation(id: string) {
       return (data as unknown) as WhatsAppConversation
     },
     enabled: !!id,
+  })
+}
+
+export function useUpdateWhatsAppConversation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<WhatsAppConversation> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('whatsapp_conversations' as any)
+        .update(updates as any)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversation', (data as any).id] })
+      toast.success('Contact name updated successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update contact name')
+    },
+  })
+}
+
+export function useClearWhatsAppChat() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .delete()
+        .eq('conversation_id', conversationId)
+
+      if (error) throw error
+      return { conversationId }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', data.conversationId] })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages-realtime', data.conversationId] })
+      toast.success('Chat cleared successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to clear chat')
+    },
+  })
+}
+
+export function useDeleteWhatsAppMessage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (messageId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .delete()
+        .eq('id', messageId)
+
+      if (error) throw error
+      return { messageId }
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate all message queries since we don't know which conversation this message belonged to
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages-realtime'] })
+      toast.success('Message deleted')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete message')
+    },
+  })
+}
+
+export function useDeleteWhatsAppConversation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ conversationId, deleteMessages = false }: { conversationId: string, deleteMessages?: boolean }) => {
+      // If deleting messages too, delete them first
+      if (deleteMessages) {
+        const { error: messagesError } = await supabase
+          .from('whatsapp_messages' as any)
+          .delete()
+          .eq('conversation_id', conversationId)
+
+        if (messagesError) throw messagesError
+      }
+
+      // Delete the conversation
+      const { error } = await supabase
+        .from('whatsapp_conversations' as any)
+        .delete()
+        .eq('id', conversationId)
+
+      if (error) throw error
+      return { conversationId, deleteMessages }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', data.conversationId] })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages-realtime', data.conversationId] })
+      toast.success(data.deleteMessages ? 'Contact and messages deleted successfully' : 'Contact deleted successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete contact')
+    },
   })
 }
 

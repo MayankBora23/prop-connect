@@ -10,6 +10,9 @@ const corsHeaders = {
 interface SendMessageRequest {
   conversation_id: string
   body: string
+  file_url?: string
+  file_name?: string
+  file_type?: string
 }
 
 serve(async (req) => {
@@ -30,13 +33,24 @@ serve(async (req) => {
     )
 
     // Get the request body
-    const { conversation_id, body }: SendMessageRequest = await req.json()
+    const { conversation_id, body, file_url, file_name, file_type }: SendMessageRequest = await req.json()
 
-    if (!conversation_id || !body) {
-      return new Response('Missing conversation_id or body', { status: 400, headers: corsHeaders })
+    if (!conversation_id) {
+      return new Response('Missing conversation_id', { status: 400, headers: corsHeaders })
     }
 
-    console.log('Sending WhatsApp message:', { conversation_id, body })
+    // Allow empty body if file is present
+    if (!body && !file_url) {
+      return new Response('Missing body (required when no file)', { status: 400, headers: corsHeaders })
+    }
+
+    console.log('Sending WhatsApp message:', {
+      conversation_id,
+      body: body ? body.substring(0, 100) + (body.length > 100 ? '...' : '') : null,
+      has_file: !!file_url,
+      file_name,
+      file_type
+    })
 
     // Get conversation details
     const { data: conversation, error: conversationError } = await supabase
@@ -46,8 +60,16 @@ serve(async (req) => {
       .single()
 
     if (conversationError || !conversation) {
-      console.error('Conversation not found:', conversationError)
-      return new Response('Conversation not found', { status: 404, headers: corsHeaders })
+      console.error('Conversation lookup error:', conversationError)
+      console.error('Conversation ID:', conversation_id)
+      return new Response(`Conversation not found: ${conversationError?.message || 'Unknown error'}`, { status: 404, headers: corsHeaders })
+    }
+
+    console.log('Found conversation:', { contact_phone: conversation.contact_phone, company_id: conversation.company_id })
+
+    if (!conversation.company_id) {
+      console.error('Conversation has no company_id');
+      return new Response('Conversation has no company_id', { status: 400, headers: corsHeaders })
     }
 
     // Get WhatsApp settings for this company
@@ -63,12 +85,20 @@ serve(async (req) => {
     }
 
     // Send message via Twilio API
+    console.log('Sending to Twilio:', {
+      from: whatsappSettings.whatsapp_number,
+      to: conversation.contact_phone,
+      body_length: body?.length || 0,
+      has_media: !!file_url
+    })
+
     const twilioResponse = await sendTwilioMessage(
       whatsappSettings.twilio_sid,
       whatsappSettings.twilio_auth_token,
       whatsappSettings.whatsapp_number,
       conversation.contact_phone,
-      body
+      body,
+      file_url
     )
 
     if (!twilioResponse.success) {
@@ -76,23 +106,33 @@ serve(async (req) => {
       return new Response(`Twilio API error: ${twilioResponse.error}`, { status: 500, headers: corsHeaders })
     }
 
+    console.log('Twilio message sent successfully:', twilioResponse.messageSid)
+
     // Store the sent message in database
+    const messageDataToInsert = {
+      conversation_id: conversation_id,
+      direction: 'outgoing' as const,
+      body: body || '', // Ensure body is never null
+      status: 'sent' as const,
+      message_sid: twilioResponse.messageSid,
+      company_id: conversation.company_id,
+      ...(file_url && { file_url }),
+      ...(file_name && { file_name }),
+      ...(file_type && { file_type }),
+    }
+
+    console.log('Inserting message data:', messageDataToInsert)
+
     const { data: messageData, error: messageError } = await supabase
       .from('whatsapp_messages')
-      .insert({
-        conversation_id: conversation_id,
-        direction: 'outgoing',
-        body: body,
-        status: 'sent',
-        message_sid: twilioResponse.messageSid,
-        company_id: conversation.company_id,
-      })
+      .insert(messageDataToInsert)
       .select()
       .single()
 
     if (messageError) {
-      console.error('Database error:', messageError)
-      return new Response('Database error', { status: 500, headers: corsHeaders })
+      console.error('Database insertion error:', messageError)
+      console.error('Message data that failed:', messageDataToInsert)
+      return new Response(`Database error: ${messageError.message}`, { status: 500, headers: corsHeaders })
     }
 
     // Update conversation last_message_at
@@ -124,7 +164,8 @@ async function sendTwilioMessage(
   authToken: string,
   fromNumber: string,
   toNumber: string,
-  body: string
+  body: string,
+  mediaUrl?: string
 ): Promise<{ success: boolean; messageSid?: string; error?: string }> {
   try {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
@@ -133,6 +174,11 @@ async function sendTwilioMessage(
     formData.append('From', `whatsapp:${fromNumber}`)
     formData.append('To', `whatsapp:${toNumber}`)
     formData.append('Body', body)
+
+    // Add media URL if provided
+    if (mediaUrl) {
+      formData.append('MediaUrl', mediaUrl)
+    }
 
     const response = await fetch(url, {
       method: 'POST',
