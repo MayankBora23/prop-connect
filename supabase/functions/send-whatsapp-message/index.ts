@@ -10,9 +10,10 @@ const corsHeaders = {
 interface SendMessageRequest {
   conversation_id: string
   body: string
-  file_url?: string
-  file_name?: string
-  file_type?: string
+  file_urls?: string[]
+  file_names?: string[]
+  file_types?: string[]
+  reply_to_message_id?: string
 }
 
 serve(async (req) => {
@@ -33,24 +34,32 @@ serve(async (req) => {
     )
 
     // Get the request body
-    const { conversation_id, body, file_url, file_name, file_type }: SendMessageRequest = await req.json()
+    const { conversation_id, body, file_urls, file_names, file_types, reply_to_message_id }: SendMessageRequest = await req.json()
 
     if (!conversation_id) {
       return new Response('Missing conversation_id', { status: 400, headers: corsHeaders })
     }
 
     // Allow empty body if file is present
-    if (!body && !file_url) {
+    if (!body && !file_urls?.length) {
       return new Response('Missing body (required when no file)', { status: 400, headers: corsHeaders })
     }
 
     console.log('Sending WhatsApp message:', {
       conversation_id,
       body: body ? body.substring(0, 100) + (body.length > 100 ? '...' : '') : null,
-      has_file: !!file_url,
-      file_name,
-      file_type
+      file_count: file_urls?.length || 0,
+      reply_to: reply_to_message_id
     })
+
+    if (!conversation_id) {
+      return new Response('Missing conversation_id', { status: 400, headers: corsHeaders })
+    }
+
+    // Allow empty body if file is present
+    if (!body && !file_urls?.length) {
+      return new Response('Missing body (required when no file)', { status: 400, headers: corsHeaders })
+    }
 
     // Get conversation details
     const { data: conversation, error: conversationError } = await supabase
@@ -84,21 +93,50 @@ serve(async (req) => {
       return new Response('WhatsApp settings not configured', { status: 404, headers: corsHeaders })
     }
 
-    // Send message via Twilio API
+    // Build message body for Twilio, including quoted reply context if provided
+    const twilioBody = body || ''
+
+    let repliedMessageSid = null
+    if (reply_to_message_id) {
+      try {
+        const { data: repliedMsg, error: repliedErr } = await supabase
+          .from('whatsapp_messages')
+          .select('body, file_names, message_sid')
+          .eq('id', reply_to_message_id)
+          .single()
+
+        if (!repliedErr && repliedMsg) {
+          const preview = repliedMsg.body
+            ? repliedMsg.body
+            : (repliedMsg.file_names && repliedMsg.file_names[0]) ? repliedMsg.file_names[0] : ''
+          if (preview) {
+          // Do NOT modify the actual message body for native reply.
+          // We only capture the replied message SID so we can pass it via a supported API later.
+          }
+          repliedMessageSid = repliedMsg.message_sid || null
+        }
+      } catch (e) {
+        console.warn('Failed to fetch replied message for context:', e)
+      }
+    }
+
     console.log('Sending to Twilio:', {
       from: whatsappSettings.whatsapp_number,
       to: conversation.contact_phone,
-      body_length: body?.length || 0,
-      has_media: !!file_url
+      body_length: twilioBody?.length || 0,
+      file_count: file_urls?.length || 0,
+      reply_to_message_id
     })
 
+    // Twilio WhatsApp supports only one media file per message — send first file if any
     const twilioResponse = await sendTwilioMessage(
       whatsappSettings.twilio_sid,
       whatsappSettings.twilio_auth_token,
       whatsappSettings.whatsapp_number,
       conversation.contact_phone,
-      body,
-      file_url
+      twilioBody,
+      file_urls?.[0], // Send only the first file to Twilio
+      repliedMessageSid
     )
 
     if (!twilioResponse.success) {
@@ -109,16 +147,18 @@ serve(async (req) => {
     console.log('Twilio message sent successfully:', twilioResponse.messageSid)
 
     // Store the sent message in database
-    const messageDataToInsert = {
+    const messageDataToInsert: any = {
       conversation_id: conversation_id,
       direction: 'outgoing' as const,
       body: body || '', // Ensure body is never null
       status: 'sent' as const,
       message_sid: twilioResponse.messageSid,
       company_id: conversation.company_id,
-      ...(file_url && { file_url }),
-      ...(file_name && { file_name }),
-      ...(file_type && { file_type }),
+      file_urls: file_urls || null,
+      file_names: file_names || null,
+      file_types: file_types || null,
+      reply_to_message_id: reply_to_message_id || null,
+      reply_to_message_sid: repliedMessageSid || null,
     }
 
     console.log('Inserting message data:', messageDataToInsert)
@@ -165,7 +205,8 @@ async function sendTwilioMessage(
   fromNumber: string,
   toNumber: string,
   body: string,
-  mediaUrl?: string
+  mediaUrl?: string,
+  repliedMessageSid?: string | null
 ): Promise<{ success: boolean; messageSid?: string; error?: string }> {
   try {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
@@ -179,6 +220,8 @@ async function sendTwilioMessage(
     if (mediaUrl) {
       formData.append('MediaUrl', mediaUrl)
     }
+    // Do NOT include unsupported Context field in FormData for Programmable Messaging.
+    // If you want native quoted replies, switch to Twilio Conversations API or WhatsApp Cloud API.
 
     const response = await fetch(url, {
       method: 'POST',

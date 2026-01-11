@@ -58,7 +58,18 @@ serve(async (req) => {
       MediaContentType0: formData.get('MediaContentType0') || '',
     }
 
+    // Log full incoming form data for debugging (includes possible replied SID fields)
     console.log('Received WhatsApp webhook:', payload)
+    // Log raw form entries
+    try {
+      const entries: Record<string, string> = {}
+      for (const [k, v] of formData.entries()) {
+        entries[k] = v
+      }
+      console.log('Webhook form entries:', entries)
+    } catch (e) {
+      console.warn('Failed to log form entries', e)
+    }
 
     // Extract the phone number from the 'To' field (remove whatsapp: prefix if present)
     const whatsappNumber = payload.To.replace('whatsapp:', '')
@@ -158,6 +169,46 @@ serve(async (req) => {
       conversationId = newConversation.id
     }
 
+    // Check for replied-to message SID sent by Twilio (OriginalRepliedMessageSid / QuotedMessageSid variants)
+    // Extract possible replied-message identifiers from webhook payload
+    const originalRepliedSid = formData.get('OriginalRepliedMessageSid') || formData.get('QuotedMessageSid') || formData.get('RepliedMessageSid') || formData.get('Context') || null
+
+    if (!originalRepliedSid) {
+      console.log('No replied-message SID found in webhook payload for MessageSid:', payload.MessageSid)
+    } else {
+      console.log('Webhook contains replied-message identifier:', originalRepliedSid)
+    }
+
+    // Try to resolve replied-message SID to a local DB id (if provided)
+    let reply_to_message_id = null
+    if (originalRepliedSid) {
+      try {
+        // If Context was provided as JSON with message_sid, parse that
+        let sidToFind = originalRepliedSid as string
+        try {
+          const parsed = JSON.parse(String(originalRepliedSid))
+          if (parsed && parsed.message_sid) {
+            sidToFind = parsed.message_sid
+          }
+        } catch {
+          // not JSON, keep as-is
+        }
+
+        const { data: repliedRow, error: findError } = await supabase
+          .from('whatsapp_messages')
+          .select('id')
+          .eq('message_sid', sidToFind)
+          .single()
+        if (!findError && repliedRow) {
+          reply_to_message_id = repliedRow.id
+        } else {
+          console.log('Replied SID not found in DB:', sidToFind)
+        }
+      } catch (e) {
+        console.warn('Error finding replied message by SID:', e)
+      }
+    }
+
     // Insert the message
     const { error: messageError } = await supabase
       .from('whatsapp_messages')
@@ -168,6 +219,8 @@ serve(async (req) => {
         status: 'delivered', // Twilio delivered it to us
         message_sid: payload.MessageSid,
         company_id: whatsappSettings.company_id,
+        reply_to_message_id: reply_to_message_id,
+        reply_to_message_sid: originalRepliedSid || null
       })
 
     if (messageError) {

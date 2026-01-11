@@ -2,10 +2,12 @@
 -- Adds columns for file_url, file_name, and file_type to existing whatsapp_messages table
 
 -- Add file attachment columns to whatsapp_messages table
+-- Support multiple files per message using JSON arrays
 ALTER TABLE public.whatsapp_messages
-ADD COLUMN IF NOT EXISTS file_url TEXT,
-ADD COLUMN IF NOT EXISTS file_name TEXT,
-ADD COLUMN IF NOT EXISTS file_type TEXT;
+ADD COLUMN IF NOT EXISTS file_urls TEXT[], -- Array of file URLs
+ADD COLUMN IF NOT EXISTS file_names TEXT[], -- Array of original filenames
+ADD COLUMN IF NOT EXISTS file_types TEXT[], -- Array of file types
+ADD COLUMN IF NOT EXISTS reply_to_message_id UUID REFERENCES public.whatsapp_messages(id) ON DELETE SET NULL; -- For reply functionality
 
 -- Create storage bucket for WhatsApp attachments if it doesn't exist
 INSERT INTO storage.buckets (id, name, public)
