@@ -16,6 +16,7 @@ interface TwilioWebhookPayload {
   NumMedia?: string
   MediaUrl0?: string
   MediaContentType0?: string
+  ProfileName?: string
 }
 
 serve(async (req) => {
@@ -56,6 +57,7 @@ serve(async (req) => {
       NumMedia: formData.get('NumMedia') || '',
       MediaUrl0: formData.get('MediaUrl0') || '',
       MediaContentType0: formData.get('MediaContentType0') || '',
+      ProfileName: formData.get('ProfileName') || '',
     }
 
     // Log full incoming form data for debugging (includes possible replied SID fields)
@@ -127,6 +129,12 @@ serve(async (req) => {
     // Extract sender's phone number
     const contactPhone = payload.From.replace('whatsapp:', '')
 
+    // Validate contact phone - don't create conversation if phone is empty
+    if (!contactPhone || contactPhone.trim() === '') {
+      console.error('Invalid contact phone number:', contactPhone)
+      return new Response('Invalid contact phone', { status: 400, headers: corsHeaders })
+    }
+
     // Check if conversation already exists, if not create it
     let conversationId: string
 
@@ -156,6 +164,7 @@ serve(async (req) => {
         .insert({
           company_id: whatsappSettings.company_id,
           contact_phone: contactPhone,
+          contact_name: payload.ProfileName || null, // Use ProfileName from Twilio if available
           last_message_at: new Date().toISOString(),
         })
         .select('id')

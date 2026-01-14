@@ -105,11 +105,11 @@ export function PropertyCard({ property }: PropertyCardProps) {
         
         <div className="flex items-center gap-4 text-sm text-foreground mb-4">
           <div className="flex items-center gap-1">
-            <span className="font-medium">{property.bhk}</span>
+            <span className="font-medium">{typeof property.bhk === 'string' ? property.bhk : `${property.bhk} BHK`}</span>
           </div>
           <div className="flex items-center gap-1">
             <Maximize className="w-4 h-4 text-muted-foreground" />
-            <span>{property.area}</span>
+            <span>{typeof (property as any).area === 'string' && ((property as any).area.toLowerCase().includes('sq') || (property as any).area.toLowerCase().includes('ft')) ? (property as any).area : `${(property as any).area} sq.ft`}</span>
           </div>
         </div>
         

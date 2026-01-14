@@ -9,10 +9,12 @@ import { format } from 'date-fns';
 
 import { useProfiles } from '@/hooks/useProfiles';
 import { useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
+import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
+import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditLeadDialog } from './EditLeadDialog';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
@@ -110,6 +112,7 @@ export function LeadsView() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const { data: leads, isLoading } = useLeads();
   const deleteLead = useDeleteLead();
+  const createWhatsAppConversation = useCreateWhatsAppConversation();
 
   const handleEdit = (lead: Lead) => {
     setSelectedLead(lead);
@@ -122,6 +125,88 @@ export function LeadsView() {
       toast.success(`${leadName} has been deleted successfully`);
     } catch (error) {
       toast.error(`Failed to delete ${leadName}`);
+    }
+  };
+
+  const checkExistingConversation = async (phoneNumber: string, companyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_conversations')
+        .select('id, contact_name')
+        .eq('contact_phone', phoneNumber)
+        .eq('company_id', companyId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking existing conversation:', error);
+        return null;
+      }
+
+      return data || null;
+    } catch (error) {
+      console.error('Error in checkExistingConversation:', error);
+      return null;
+    }
+  };
+
+  const updateConversationName = async (conversationId: string, contactName: string) => {
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ contact_name: contactName })
+        .eq('id', conversationId);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error updating conversation name:', error);
+      throw error;
+    }
+  };
+
+  const handleAddToWhatsApp = async (lead: Lead) => {
+    try {
+      // Validate required fields
+      if (!lead.phone || !lead.name) {
+        toast.error('Lead phone and name are required');
+        return;
+      }
+
+      // Validate company_id
+      if (!lead.company_id) {
+        toast.error('Lead company information is missing');
+        return;
+      }
+
+      // Format phone number with +91 country code if not already present
+      const phoneNumber = lead.phone.startsWith('+91') ? lead.phone : `+91${lead.phone}`;
+
+      // Check if conversation with this phone number already exists
+      const existingConversation = await checkExistingConversation(phoneNumber, lead.company_id);
+
+      if (existingConversation) {
+        // If conversation exists but has no name, update it
+        if (!existingConversation.contact_name || existingConversation.contact_name.trim() === '') {
+          await updateConversationName(existingConversation.id, lead.name);
+          toast.success(`Contact name updated for ${phoneNumber}`);
+        } else {
+          // If conversation exists and already has a name, show message
+          toast.info(`Contact ${phoneNumber} already exists in WhatsApp inbox`);
+        }
+        return;
+      }
+
+      // Create new conversation if it doesn't exist
+      await createWhatsAppConversation.mutateAsync({
+        contact_phone: phoneNumber,
+        contact_name: lead.name,
+        company_id: lead.company_id,
+        last_message_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error adding lead to WhatsApp:', error);
+      toast.error('Failed to add lead to WhatsApp');
     }
   };
 
@@ -243,6 +328,18 @@ export function LeadsView() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToWhatsApp(lead);
+                          }}
+                          title="Add to WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"

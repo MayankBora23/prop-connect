@@ -143,6 +143,38 @@ export function useWhatsAppConversation(id: string) {
   })
 }
 
+export function useCreateWhatsAppConversation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (conversation: Omit<WhatsAppConversation, 'id' | 'created_at' | 'updated_at'>) => {
+      // Validate required fields
+      if (!conversation.contact_phone || conversation.contact_phone.trim() === '') {
+        throw new Error('Contact phone number is required')
+      }
+      if (!conversation.company_id || conversation.company_id.trim() === '') {
+        throw new Error('Company ID is required')
+      }
+
+      const { data, error } = await supabase
+        .from('whatsapp_conversations')
+        .insert(conversation)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+      toast.success('Contact added to WhatsApp inbox')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to add contact to WhatsApp inbox')
+    },
+  })
+}
+
 export function useUpdateWhatsAppConversation() {
   const queryClient = useQueryClient()
 
