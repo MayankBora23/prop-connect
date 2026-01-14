@@ -50,15 +50,13 @@ export function WhatsAppInbox() {
 
   // Filter states for bulk send
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>('all');
-  const [cityFilter, setCityFilter] = useState<string>('all');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
-  const [budgetMinFilter, setBudgetMinFilter] = useState<string>('');
-  const [budgetMaxFilter, setBudgetMaxFilter] = useState<string>('');
+  const [budgetFilter, setBudgetFilter] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
-  
+
   const { data: conversations, isLoading: conversationsLoading } = useWhatsAppConversations();
   const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
   const { data: leads } = useLeads();
@@ -254,34 +252,44 @@ export function WhatsAppInbox() {
     }
   };
 
-  // Get unique filter values from leads
-  const getUniqueCities = () => {
-    if (!leads) return [];
-    const cities = leads
-      .map(lead => lead.city)
-      .filter(Boolean)
-      .filter((city, index, arr) => arr.indexOf(city) === index)
-      .sort();
-    return cities;
+  // Helper to parse budget strings with support for units (Cr, L, K) and shorthand (e.g., 90 -> 90L)
+  const parseBudgetString = (budgetString: string | null | undefined): number => {
+    if (!budgetString) return 0;
+    const clean = budgetString.trim().toLowerCase();
+
+    const parsePart = (part: string): number => {
+      // Match numbers and optional units
+      const match = part.match(/^([\d.]+)\s*(l|cr|k|cr\.)?$/);
+      if (!match) {
+        const numericMatch = part.match(/[\d.]+/);
+        return numericMatch ? parseFloat(numericMatch[0]) : 0;
+      }
+
+      const value = parseFloat(match[1]);
+      const unit = match[2];
+
+      if (unit === 'l') return value * 100000;
+      if (unit === 'cr' || unit === 'cr.') return value * 10000000;
+      if (unit === 'k') return value * 1000;
+
+      return value;
+    };
+
+    const parts = clean.split(/[-–—/]/);
+    const values = parts.map(p => parsePart(p.trim()));
+    return Math.max(...values, 0);
   };
 
+  // Get unique filter values from leads
   const getUniquePropertyTypes = () => {
-    if (!leads) return [];
-    const propertyTypes = leads
-      .map(lead => lead.property_type)
-      .filter(Boolean)
-      .filter((type, index, arr) => arr.indexOf(type) === index)
-      .sort();
-    return propertyTypes;
+    return ['1 BHK', '2 BHK', '3 BHK', '4+ BHK', 'Plot', 'Commercial', 'Villa'];
   };
 
   const getActiveFilterCount = () => {
     let count = 0;
     if (leadStatusFilter !== 'all') count++;
-    if (cityFilter !== 'all') count++;
     if (propertyTypeFilter !== 'all') count++;
-    if (budgetMinFilter) count++;
-    if (budgetMaxFilter) count++;
+    if (budgetFilter) count++;
     return count;
   };
 
@@ -306,22 +314,14 @@ export function WhatsAppInbox() {
         return false;
       }
 
-      if (cityFilter !== 'all' && lead.city !== cityFilter) {
-        return false;
-      }
-
       if (propertyTypeFilter !== 'all' && lead.property_type !== propertyTypeFilter) {
         return false;
       }
 
-      const minBudget = budgetMinFilter ? parseInt(budgetMinFilter) : null;
-      const maxBudget = budgetMaxFilter ? parseInt(budgetMaxFilter) : null;
+      const filterBudgetValue = budgetFilter ? parseBudgetString(budgetFilter) : null;
+      const leadBudgetValue = (lead as any).budget ? parseBudgetString((lead as any).budget) : (lead.budget_max || 0);
 
-      if (minBudget !== null && (!lead.budget_min || lead.budget_min < minBudget)) {
-        return false;
-      }
-
-      if (maxBudget !== null && (!lead.budget_max || lead.budget_max > maxBudget)) {
+      if (filterBudgetValue !== null && leadBudgetValue < filterBudgetValue) {
         return false;
       }
 
@@ -349,10 +349,8 @@ export function WhatsAppInbox() {
 
   const clearAllFilters = () => {
     setLeadStatusFilter('all');
-    setCityFilter('all');
     setPropertyTypeFilter('all');
-    setBudgetMinFilter('');
-    setBudgetMaxFilter('');
+    setBudgetFilter('');
   };
 
   const handleSendProperty = async (property: Property) => {
@@ -743,14 +741,14 @@ export function WhatsAppInbox() {
                               />
                             ) : (
                               <div className="flex items-center gap-2 p-2 bg-secondary rounded-lg cursor-pointer hover:bg-secondary/80 transition-colors"
-                                   onClick={() => {
-                                     const link = document.createElement('a');
-                                     link.href = fileUrl;
-                                     link.download = msg.file_names?.[index] || 'download';
-                                     document.body.appendChild(link);
-                                     link.click();
-                                     document.body.removeChild(link);
-                                   }}>
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = fileUrl;
+                                  link.download = msg.file_names?.[index] || 'download';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}>
                                 <FileText className="w-5 h-5" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">{msg.file_names?.[index]}</p>
@@ -1208,21 +1206,7 @@ export function WhatsAppInbox() {
                   </Select>
                 </div>
 
-                {/* City Filter */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">City</label>
-                  <Select value={cityFilter} onValueChange={setCityFilter}>
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="All Cities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Cities</SelectItem>
-                      {getUniqueCities().map(city => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+
 
                 {/* Property Type Filter */}
                 <div className="space-y-1">
@@ -1240,25 +1224,13 @@ export function WhatsAppInbox() {
                   </Select>
                 </div>
 
-                {/* Budget Range Filters */}
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Min Budget (₹)</label>
+                  <label className="text-xs font-medium text-muted-foreground">Budget (₹)</label>
                   <Input
-                    type="number"
-                    placeholder="Min budget"
-                    value={budgetMinFilter}
-                    onChange={(e) => setBudgetMinFilter(e.target.value)}
-                    className="h-8"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Max Budget (₹)</label>
-                  <Input
-                    type="number"
-                    placeholder="Max budget"
-                    value={budgetMaxFilter}
-                    onChange={(e) => setBudgetMaxFilter(e.target.value)}
+                    type="text"
+                    placeholder="e.g. 90 L, 1 Cr, 500 K or 5000000"
+                    value={budgetFilter}
+                    onChange={(e) => setBudgetFilter(e.target.value)}
                     className="h-8"
                   />
                 </div>
@@ -1297,12 +1269,12 @@ export function WhatsAppInbox() {
                         onCheckedChange={() => handleContactToggle(conv.id)}
                       />
                       <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
-                        {(conv.contact_name || conv.contact_phone).split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {getLeadNameForPhone(conv.contact_phone, conv.contact_name)?.split(' ').map(n => n[0]).join('').slice(0, 2) || conv.contact_phone.slice(-2)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-sm truncate">
-                            {conv.contact_name || conv.contact_phone}
+                            {getLeadNameForPhone(conv.contact_phone, conv.contact_name)}
                           </div>
                           {/* Show lead status badge if available */}
                           {(() => {
