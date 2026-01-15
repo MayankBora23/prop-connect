@@ -125,18 +125,22 @@ export interface Database {
       leads: {
         Row: {
           address: string | null
+          assigned_to: string | null
           budget_max: number | null
           budget_min: number | null
           city: string | null
           company_id: string | null
           created_at: string
+          deal_price: string | null
           email: string | null
           id: string
           lead_status: Database["public"]["Enums"]["lead_status"] | null
           name: string
           notes: string | null
           phone: string
+          property_purchased_id: string | null
           property_type: string | null
+          source: string | null
           stage: Database["public"]["Enums"]["lead_stage"]
           state: string | null
           updated_at: string
@@ -144,18 +148,22 @@ export interface Database {
         }
         Insert: {
           address?: string | null
+          assigned_to?: string | null
           budget_max?: number | null
           budget_min?: number | null
           city?: string | null
           company_id?: string | null
           created_at?: string
+          deal_price?: string | null
           email?: string | null
           id?: string
           lead_status?: Database["public"]["Enums"]["lead_status"] | null
           name: string
           notes?: string | null
           phone: string
+          property_purchased_id?: string | null
           property_type?: string | null
+          source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
           state?: string | null
           updated_at?: string
@@ -163,18 +171,22 @@ export interface Database {
         }
         Update: {
           address?: string | null
+          assigned_to?: string | null
           budget_max?: number | null
           budget_min?: number | null
           city?: string | null
           company_id?: string | null
           created_at?: string
+          deal_price?: string | null
           email?: string | null
           id?: string
           lead_status?: Database["public"]["Enums"]["lead_status"] | null
           name?: string
           notes?: string | null
           phone?: string
+          property_purchased_id?: string | null
           property_type?: string | null
+          source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
           state?: string | null
           updated_at?: string

@@ -17,11 +17,15 @@ export function useLeads() {
   return useQuery({
     queryKey: ['leads'],
     queryFn: async () => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+
       const { data, error } = await supabase
         .from('leads')
         .select('*')
+        .eq('company_id', company_id)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data as Lead[];
     },
@@ -32,12 +36,16 @@ export function useLead(id: string) {
   return useQuery({
     queryKey: ['leads', id],
     queryFn: async () => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .eq('id', id)
+        .eq('company_id', company_id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data as Lead | null;
     },

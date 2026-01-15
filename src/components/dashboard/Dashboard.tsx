@@ -1,11 +1,14 @@
-import { Users, TrendingUp, Calendar, CheckCircle2, XCircle, Flame } from 'lucide-react';
+import { Users, TrendingUp, Calendar, CheckCircle2, XCircle, Flame, DollarSign, Wallet, CreditCard, Clock } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { useLeads } from '@/hooks/useLeads';
 import { useFollowUps } from '@/hooks/useFollowUps';
 import { useSiteVisits } from '@/hooks/useSiteVisits';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+import { format, startOfWeek, startOfMonth, startOfYear, isWithinInterval } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { parsePriceToNumber, calculateCommission } from '@/lib/utils';
+import { useState } from 'react';
 
 const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
 
@@ -15,6 +18,9 @@ export function Dashboard() {
   const { data: siteVisits, isLoading: visitsLoading } = useSiteVisits();
 
   const isLoading = leadsLoading || followUpsLoading || visitsLoading;
+
+  // Time filter for real estate metrics
+  const [timeFilter, setTimeFilter] = useState<'all' | 'week' | 'month' | 'year'>('all');
 
   // Calculate stats from real data
   const totalLeads = leads?.length || 0;
@@ -48,6 +54,47 @@ export function Dashboard() {
 
   const leadsByStageData = Object.entries(leadsByStage)
     .map(([stage, count]) => ({ stage: stage.replace('-', ' '), count }));
+
+  // Real Estate Metrics with time filtering
+  const getDateFilter = () => {
+    const now = new Date();
+    switch (timeFilter) {
+      case 'week':
+        return { start: startOfWeek(now), end: now };
+      case 'month':
+        return { start: startOfMonth(now), end: now };
+      case 'year':
+        return { start: startOfYear(now), end: now };
+      default:
+        return null;
+    }
+  };
+
+  const dateFilter = getDateFilter();
+
+  // Filter closed-won deals based on time filter (for all closed deals, not just completed payments)
+  const closedWonDeals = leads?.filter(lead => {
+    const isClosedWon = lead.stage === 'closed-won';
+    if (!isClosedWon) return false;
+    if (!dateFilter) return true;
+    const dealClosedAt = (lead as any).deal_closed_at;
+    if (!dealClosedAt) return false;
+    return isWithinInterval(new Date(dealClosedAt), dateFilter);
+  }) || [];
+
+  // Calculate real estate metrics from ALL closed-won deals
+  const totalCommission = closedWonDeals.reduce((sum, lead) => {
+    const dealPrice = parsePriceToNumber(lead.deal_price);
+    const buyerCommission = calculateCommission(dealPrice, (lead as any).buyer_commission_pct);
+    const sellerCommission = calculateCommission(dealPrice, (lead as any).seller_commission_pct);
+    return sum + (buyerCommission || 0) + (sellerCommission || 0);
+  }, 0);
+
+  const totalCollected = closedWonDeals.reduce((sum, lead) => {
+    return sum + ((lead as any).buyer_paid || 0) + ((lead as any).seller_paid || 0);
+  }, 0);
+
+  const totalPending = totalCommission - totalCollected;
 
   if (isLoading) {
     return (
@@ -109,6 +156,49 @@ export function Dashboard() {
           icon={Calendar}
           iconBg="gradient-info"
         />
+      </div>
+
+      {/* Real Estate Metrics */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Real Estate Performance</h2>
+          <Select value={timeFilter} onValueChange={(value: 'all' | 'week' | 'month' | 'year') => setTimeFilter(value)}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Select time period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="year">This Year</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard
+            title="Total Commission"
+            value={`₹${totalCommission.toLocaleString()}`}
+            change="Expected earnings"
+            icon={Wallet}
+            iconBg="gradient-warning"
+          />
+          <StatCard
+            title="Total Collected"
+            value={`₹${totalCollected.toLocaleString()}`}
+            change="Commission received"
+            icon={CreditCard}
+            iconBg="gradient-info"
+          />
+          <StatCard
+            title="Total Pending"
+            value={`₹${totalPending.toLocaleString()}`}
+            change={totalPending > 0 ? "Outstanding payments" : "All paid"}
+            changeType={totalPending > 0 ? "negative" : "positive"}
+            icon={Clock}
+            iconBg={totalPending > 0 ? "gradient-warning" : "gradient-success"}
+          />
+        </div>
       </div>
 
       {/* Charts Row */}
@@ -202,7 +292,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-sm truncate">{lead.name}</p>
-                  <p className="text-xs text-muted-foreground">{lead.property_type || 'Unknown'} • {lead.budget || 'No budget'}</p>
+                  <p className="text-xs text-muted-foreground">{lead.property_type || 'Unknown'} • {lead.budget_max ? `₹${lead.budget_max.toLocaleString()}` : 'No budget'}</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                   lead.stage === 'new' ? 'bg-info/10 text-info' :

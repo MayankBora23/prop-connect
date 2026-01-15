@@ -17,11 +17,15 @@ export function useProperties() {
   return useQuery({
     queryKey: ['properties'],
     queryFn: async () => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+
       const { data, error } = await supabase
         .from('properties')
         .select('*')
+        .eq('company_id', company_id)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data as Property[];
     },
@@ -32,12 +36,16 @@ export function useProperty(id: string) {
   return useQuery({
     queryKey: ['properties', id],
     queryFn: async () => {
+      const company_id = await getUserCompanyId();
+      if (!company_id) throw new Error('No company found');
+
       const { data, error } = await supabase
         .from('properties')
         .select('*')
         .eq('id', id)
+        .eq('company_id', company_id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data as Property | null;
     },

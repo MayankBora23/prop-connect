@@ -3,10 +3,10 @@ import { useProperties } from '@/hooks/useProperties';
 import { useSiteVisits } from '@/hooks/useSiteVisits';
 import { useFollowUps } from '@/hooks/useFollowUps';
 import { useProfiles } from '@/hooks/useProfiles';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { TrendingUp, Users, Target, Share2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
+import { TrendingUp, Users, Target, Share2, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format, subDays, isAfter } from 'date-fns';
+import { format, subDays, isAfter, startOfMonth, endOfMonth } from 'date-fns';
 
 const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
 
@@ -86,6 +86,28 @@ export function AnalyticsView() {
       property: p.title,
       visits: siteVisits?.filter(v => v.property_id === p.id).length || 0,
     }));
+
+  // Deals Closed per Month (last 12 months)
+  const dealsClosedPerMonth = Array.from({ length: 12 }).map((_, i) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (11 - i));
+    const monthStart = startOfMonth(date);
+    const monthEnd = endOfMonth(date);
+
+    const dealsClosed = leads?.filter(lead => {
+      if (lead.stage !== 'closed-won') return false;
+      const dealClosedAt = (lead as any).deal_closed_at;
+      if (!dealClosedAt) return false;
+      const closedDate = new Date(dealClosedAt);
+      return closedDate >= monthStart && closedDate <= monthEnd;
+    }).length || 0;
+
+    return {
+      month: format(date, 'MMM yyyy'),
+      deals: dealsClosed,
+    };
+  });
+
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -274,6 +296,50 @@ export function AnalyticsView() {
               No properties available
             </div>
           )}
+        </div>
+      </div>
+
+      {/* New Real Estate Charts */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Deals Closed per Month */}
+        <div className="card-elevated p-6">
+          <h3 className="font-semibold text-foreground mb-4">Deals Closed per Month</h3>
+          <div className="h-72">
+            {dealsClosedPerMonth.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dealsClosedPerMonth}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="month"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="deals"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                No deal data available
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

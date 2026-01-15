@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
-import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode } from 'lucide-react';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -30,6 +30,9 @@ const realEstateMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
   { id: 'leads', label: 'Leads', icon: Users, badge: undefined },
   { id: 'properties', label: 'Properties', icon: Building2, badge: undefined },
+  { id: 'employees', label: 'Employees', icon: UserCheck, badge: undefined },
+  { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
+  { id: 'purchased', label: 'Purchased', icon: CheckCircle, badge: undefined },
   { id: 'inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: 3 },
   { id: 'visits', label: 'Site Visits', icon: Calendar, badge: undefined },
   { id: 'followups', label: 'Follow-ups', icon: Clock, badge: 5 },

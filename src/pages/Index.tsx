@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { LeadsView } from '@/components/leads/LeadsView';
 import { PropertiesView } from '@/components/properties/PropertiesView';
+import { PurchasedView } from '@/components/purchased/PurchasedView';
 import { WhatsAppInbox } from '@/components/inbox/WhatsAppInbox';
 import { EducationWhatsAppInbox } from '@/components/education/WhatsAppInbox';
 import { AutomobileWhatsAppInbox } from '@/components/automobile/WhatsAppInbox';
@@ -73,11 +74,17 @@ import { ReturnsView } from '@/components/online-business/ReturnsView';
 import { DiscountsView } from '@/components/online-business/DiscountsView';
 import { SuppliersView } from '@/components/online-business/SuppliersView';
 import { BarcodeGenerator } from '@/components/online-business/BarcodeGenerator';
+import { EmployeesView } from '@/components/employees/EmployeesView';
+import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
+import { AttendanceView as EmployeeAttendanceView } from '@/components/employee-attendance/AttendanceView';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
   leads: { title: 'Lead Management', subtitle: 'Manage your sales pipeline', addLabel: 'Add Lead' },
   properties: { title: 'Properties', subtitle: 'Your property inventory', addLabel: 'Add Property' },
+  employees: { title: 'Employee Management', subtitle: 'Manage your employee profiles', addLabel: 'Add Employee' },
+  'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track employee attendance and working hours', addLabel: 'Mark Attendance' },
+  purchased: { title: 'Purchased', subtitle: 'Closed won deals and property purchases' },
   inbox: { title: 'WhatsApp Inbox', subtitle: 'Customer conversations' },
   visits: { title: 'Site Visits', subtitle: 'Scheduled property visits', addLabel: 'Schedule Visit' },
   followups: { title: 'Follow-ups', subtitle: 'Track your tasks', addLabel: 'Add Follow-up' },
@@ -177,6 +184,7 @@ const Index = () => {
   const [addPaymentOpen, setAddPaymentOpen] = useState(false);
   const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [addReturnOpen, setAddReturnOpen] = useState(false);
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   
 const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
 if (industryLoading || !isLoaded) {
@@ -207,6 +215,11 @@ const tabConfig = isEducation ? educationTabConfig :
         break;
       case 'properties':
         setAddPropertyOpen(true);
+        break;
+      case 'employees':
+        if (!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness) {
+          setAddEmployeeOpen(true);
+        }
         break;
       case 'visits':
         setAddVisitOpen(true);
@@ -434,6 +447,12 @@ const tabConfig = isEducation ? educationTabConfig :
           return <LeadsView />;
         case 'properties':
           return <PropertiesView />;
+        case 'employees':
+          return <EmployeesView />;
+        case 'employee-attendance':
+          return <EmployeeAttendanceView />;
+        case 'purchased':
+          return <PurchasedView />;
         case 'inbox':
           return <WhatsAppInbox />;
         case 'visits':
@@ -503,7 +522,8 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddPaymentDialog open={addPaymentOpen} onOpenChange={setAddPaymentOpen} />
       <AddDiscountDialog open={addDiscountOpen} onOpenChange={setAddDiscountOpen} />
       <AddReturnDialog open={addReturnOpen} onOpenChange={setAddReturnOpen} />
-      
+      <AddEmployeeDialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen} />
+
       {!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness && <AIChatAssistant />}
     </div>
   );
