@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
-import { LayoutGrid, List, Filter, Download, Upload } from 'lucide-react';
+import { LayoutGrid, List, Filter, Download, Upload, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,7 +12,13 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
+import { supabase } from '@/integrations/supabase/client';
+import { EditAutoLeadDialog } from './EditAutoLeadDialog';
 import type { AutoLead } from '@/hooks/useAutoLeads';
+
+// Cast supabase to any to bypass type checking for automobile tables
+const supabaseAny = supabase as any;
 
 function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?: string }) {
   const { data: profiles, isLoading } = useProfiles();
@@ -75,6 +81,9 @@ export function AutoLeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const { data: leads, isLoading } = useAutoLeads();
   const deleteLead = useDeleteAutoLead();
+  const createWhatsAppConversation = useCreateWhatsAppConversation();
+  const [editLeadOpen, setEditLeadOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<AutoLead | null>(null);
 
   const handleDelete = async (leadId: string, leadName: string) => {
     try {
@@ -82,6 +91,79 @@ export function AutoLeadsView() {
       toast.success(`${leadName} has been deleted successfully`);
     } catch (error) {
       toast.error(`Failed to delete ${leadName}`);
+    }
+  };
+
+  const handleEditLead = (lead: AutoLead) => {
+    setSelectedLead(lead);
+    setEditLeadOpen(true);
+  };
+
+  const checkExistingConversation = async (phoneNumber: string, companyId: string) => {
+    const { data, error } = await supabaseAny
+      .from('whatsapp_conversations')
+      .select('*')
+      .eq('contact_phone', phoneNumber)
+      .eq('company_id', companyId)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  };
+
+  const updateConversationName = async (conversationId: string, name: string) => {
+    const { error } = await supabaseAny
+      .from('whatsapp_conversations')
+      .update({ contact_name: name })
+      .eq('id', conversationId);
+
+    if (error) throw error;
+  };
+
+  const handleAddToWhatsApp = async (lead: AutoLead) => {
+    try {
+      // Validate required fields
+      if (!lead.phone || !lead.name) {
+        toast.error('Lead phone and name are required');
+        return;
+      }
+
+      // Validate company_id
+      if (!lead.company_id) {
+        toast.error('Lead company information is missing');
+        return;
+      }
+
+      // Format phone number with +91 country code if not already present
+      const phoneNumber = lead.phone.startsWith('+91') ? lead.phone : `+91${lead.phone}`;
+
+      // Check if conversation with this phone number already exists
+      const existingConversation = await checkExistingConversation(phoneNumber, lead.company_id);
+
+      if (existingConversation) {
+        // If conversation exists but has no name, update it
+        if (!existingConversation.contact_name || existingConversation.contact_name.trim() === '') {
+          await updateConversationName(existingConversation.id, lead.name);
+          toast.success(`Contact name updated for ${phoneNumber}`);
+        } else {
+          // If conversation exists and already has a name, show message
+          toast.info(`Contact ${phoneNumber} already exists in WhatsApp inbox`);
+        }
+        return;
+      }
+
+      // Create new conversation if it doesn't exist
+      await createWhatsAppConversation.mutateAsync({
+        contact_phone: phoneNumber,
+        contact_name: lead.name,
+        company_id: lead.company_id,
+        last_message_at: new Date().toISOString(),
+      });
+
+      toast.success(`Lead ${lead.name} added to WhatsApp inbox`);
+    } catch (error) {
+      console.error('Error adding lead to WhatsApp:', error);
+      toast.error('Failed to add lead to WhatsApp');
     }
   };
 
@@ -206,7 +288,24 @@ export function AutoLeadsView() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToWhatsApp(lead);
+                          }}
+                          title="Add to WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditLead(lead);
+                          }}
+                          title="Edit Lead"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -247,6 +346,16 @@ export function AutoLeadsView() {
           </table>
         </div>
       )}
+
+      {/* Edit Auto Lead Dialog */}
+      <EditAutoLeadDialog
+        lead={selectedLead}
+        open={editLeadOpen}
+        onOpenChange={(open) => {
+          setEditLeadOpen(open);
+          if (!open) setSelectedLead(null);
+        }}
+      />
     </div>
   );
 }

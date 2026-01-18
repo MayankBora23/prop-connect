@@ -77,6 +77,9 @@ import { BarcodeGenerator } from '@/components/online-business/BarcodeGenerator'
 import { EmployeesView } from '@/components/employees/EmployeesView';
 import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
 import { AttendanceView as EmployeeAttendanceView } from '@/components/employee-attendance/AttendanceView';
+import { AttendanceView as StudentAttendanceView } from '@/components/education/AttendanceView';
+import { AutomobileEmployeesView } from '@/components/automobile/AutomobileEmployeesView';
+import { AutomobileAttendanceView } from '@/components/automobile/AutomobileAttendanceView';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -103,6 +106,8 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   teachers: { title: 'Teachers', subtitle: 'Faculty management', addLabel: 'Add Teacher' },
   enrollments: { title: 'Enrollments', subtitle: 'Student enrollments' },
   attendance: { title: 'Attendance', subtitle: 'Track attendance' },
+  employees: { title: 'Employee Management', subtitle: 'Manage your employee profiles', addLabel: 'Add Employee' },
+  'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track employee attendance and working hours', addLabel: 'Mark Attendance' },
   fees: { title: 'Fees', subtitle: 'Fee management' },
   'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Student conversations' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
@@ -133,6 +138,8 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   deals: { title: 'Deals', subtitle: 'Closed deals and sales', addLabel: 'Add Deal' },
   finance: { title: 'Finance', subtitle: 'Finance applications', addLabel: 'Add Finance Application' },
   insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
+  employees: { title: 'Employees', subtitle: 'Manage your automobile dealership staff', addLabel: 'Add Employee' },
+  'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track staff attendance and working hours' },
   'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Auto lead conversations' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
@@ -217,7 +224,7 @@ const tabConfig = isEducation ? educationTabConfig :
         setAddPropertyOpen(true);
         break;
       case 'employees':
-        if (!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness) {
+        if (!isHealthcare && !isOnlineBusiness) {
           setAddEmployeeOpen(true);
         }
         break;
@@ -241,6 +248,9 @@ const tabConfig = isEducation ? educationTabConfig :
         break;
       case 'teachers':
         setAddTeacherOpen(true);
+        break;
+      case 'employee-attendance':
+        // This will be handled by the AttendanceView component itself
         break;
       case 'patients':
         setAddPatientOpen(true);
@@ -334,7 +344,11 @@ const tabConfig = isEducation ? educationTabConfig :
         case 'enrollments':
           return <EnrollmentsView />;
         case 'attendance':
-          return <AttendanceView />;
+          return <StudentAttendanceView />;
+        case 'employees':
+          return <EmployeesView />;
+        case 'employee-attendance':
+          return <EmployeeAttendanceView />;
         case 'fees':
           return <div className="card-elevated p-6"><p className="text-muted-foreground">Fees view coming soon</p></div>;
         case 'whatsapp-inbox':
@@ -393,6 +407,10 @@ const tabConfig = isEducation ? educationTabConfig :
           return <FinanceView />;
         case 'insurance':
           return <InsuranceView />;
+        case 'employees':
+          return <AutomobileEmployeesView />;
+        case 'employee-attendance':
+          return <AutomobileAttendanceView />;
         case 'whatsapp-inbox':
           return <AutomobileWhatsAppInbox />;
         case 'workspace':
