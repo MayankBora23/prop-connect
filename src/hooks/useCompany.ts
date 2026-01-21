@@ -10,7 +10,7 @@ export type Company = {
   state: string | null;
   zip_code: string | null;
   phone: string | null;
-  industry_type: 'real_estate' | 'education' | 'healthcare' | 'automobile_dealers' | 'online_business';
+  industry_type: 'real_estate' | 'education' | 'automobile_dealers';
   created_at: string;
   updated_at: string;
 };
@@ -62,7 +62,7 @@ export function useCreateCompanyWithUser() {
       userName: string;
       userEmail: string;
       password: string;
-      industry: 'real_estate' | 'education';
+      industry: 'real_estate' | 'education' | 'automobile_dealers';
     }) => {
       // Sign up the user with company info in metadata
       // The handle_new_user trigger will create the company

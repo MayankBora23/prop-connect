@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Mail, Lock, User, Briefcase, GraduationCap, Home, Stethoscope, Car, ShoppingBag } from 'lucide-react';
+import { Building2, Mail, Lock, User, Briefcase, GraduationCap, Home, Car } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
 
@@ -31,7 +31,7 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
-  const [industry, setIndustry] = useState<'real_estate' | 'education' | 'healthcare' | 'automobile_dealers' | 'online_business'>('real_estate');
+  const [industry, setIndustry] = useState<'real_estate' | 'education' | 'automobile_dealers'>('real_estate');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   
@@ -220,7 +220,7 @@ export default function Auth() {
 
                   <div className="space-y-2">
                     <Label htmlFor="industry">Industry Type *</Label>
-                    <Select value={industry} onValueChange={(value: 'real_estate' | 'education' | 'healthcare' | 'automobile_dealers' | 'online_business') => setIndustry(value)}>
+                    <Select value={industry} onValueChange={(value: 'real_estate' | 'education' | 'automobile_dealers') => setIndustry(value)}>
                       <SelectTrigger id="industry">
                         <SelectValue placeholder="Select industry" />
                       </SelectTrigger>
@@ -237,24 +237,13 @@ export default function Auth() {
                             <span>Coaching / Education</span>
                           </div>
                         </SelectItem>
-                        <SelectItem value="healthcare">
-                          <div className="flex items-center gap-2">
-                            <Stethoscope className="w-4 h-4" />
-                            <span>Healthcare</span>
-                          </div>
-                        </SelectItem>
                         <SelectItem value="automobile_dealers">
                           <div className="flex items-center gap-2">
                             <Car className="w-4 h-4" />
                             <span>Automobile Dealers</span>
                           </div>
                         </SelectItem>
-                        <SelectItem value="online_business">
-                          <div className="flex items-center gap-2">
-                            <ShoppingBag className="w-4 h-4" />
-                            <span>Online Business</span>
-                          </div>
-                        </SelectItem>
+                        {/* non-target industries removed */}
                       </SelectContent>
                     </Select>
                   </div>

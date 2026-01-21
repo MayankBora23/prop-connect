@@ -190,6 +190,137 @@ export function TestDrivesView() {
     </div>
   );
 
+  const TestDrivesTable = ({ items, showQuickActions = false }: { items: any[]; showQuickActions?: boolean }) => (
+    <div className="overflow-auto bg-card border rounded-md">
+      <table className="w-full">
+        <thead>
+          <tr className="text-left text-xs text-muted-foreground">
+            <th className="px-4 py-3">ID</th>
+            <th className="px-4 py-3">Customer</th>
+            <th className="px-4 py-3">Vehicle</th>
+            <th className="px-4 py-3">Date & Time</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.length > 0 ? (
+            items.map((td) => (
+              <tr key={td.id} className="hover:bg-secondary/50 transition-colors">
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{td.id?.slice(-6) || td.id}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                      {(td.auto_leads?.name || td.driver_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{td.auto_leads?.name || td.driver_name || 'Unknown Customer'}</p>
+                      <p className="text-xs text-muted-foreground">{td.auto_leads?.phone || td.driver_phone}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <p className="text-sm font-medium text-foreground">{td.vehicles?.year} {td.vehicles?.brand} {td.vehicles?.model}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{td.test_drive_date} at {td.test_drive_time}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <Badge className={getStatusColor(td.status)}>{td.status}</Badge>
+                </td>
+                <td className="px-4 py-3">
+                  {showQuickActions ? (
+                    <div className="flex items-center gap-2">
+                      {td.status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800"
+                          onClick={() => handleStatusUpdate(td.id, 'completed', td.auto_leads?.name || td.driver_name || 'Unknown Customer')}
+                          disabled={updateTestDrive.isPending}
+                          title="Mark as Completed"
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {td.status !== 'cancelled' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700 hover:text-red-800"
+                          onClick={() => handleStatusUpdate(td.id, 'cancelled', td.auto_leads?.name || td.driver_name || 'Unknown Customer')}
+                          disabled={updateTestDrive.isPending}
+                          title="Mark as Cancelled"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {td.status !== 'no_show' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700 hover:text-gray-800"
+                          onClick={() => handleStatusUpdate(td.id, 'no_show', td.auto_leads?.name || td.driver_name || 'Unknown Customer')}
+                          disabled={updateTestDrive.isPending}
+                          title="Mark as No Show"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedTestDriveForEdit(td);
+                          setEditTestDriveOpen(true);
+                        }}
+                        title="Edit Details"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="outline" className="text-destructive hover:text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Test Drive</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this test drive for {td.auto_leads?.name || td.driver_name || 'Unknown Customer'}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(td.id, td.auto_leads?.name || td.driver_name || 'Unknown Customer')}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">—</div>
+                  )}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td className="px-4 py-6 text-sm text-muted-foreground" colSpan={6}>No records</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   const handleDelete = async (testDriveId: string, customerName: string) => {
     try {
       await deleteTestDrive.mutateAsync(testDriveId);
@@ -296,15 +427,7 @@ export function TestDrivesView() {
           <span className="w-2 h-2 rounded-full bg-blue-500" />
           Scheduled Test Drives ({scheduledTestDrives.length})
         </h3>
-        {scheduledTestDrives.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scheduledTestDrives.map((testDrive) => (
-              <TestDriveCard key={testDrive.id} testDrive={testDrive} showQuickActions={true} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground py-4">No scheduled test drives</p>
-        )}
+        <TestDrivesTable items={scheduledTestDrives} showQuickActions={true} />
       </div>
 
       {/* Completed Test Drives */}
@@ -313,15 +436,7 @@ export function TestDrivesView() {
           <span className="w-2 h-2 rounded-full bg-green-500" />
           Completed Test Drives ({completedTestDrives.length})
         </h3>
-        {completedTestDrives.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {completedTestDrives.map((testDrive) => (
-              <TestDriveCard key={testDrive.id} testDrive={testDrive} showQuickActions={true} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground py-4">No completed test drives</p>
-        )}
+        <TestDrivesTable items={completedTestDrives} showQuickActions={true} />
       </div>
 
       {/* Cancelled Test Drives */}
@@ -331,11 +446,7 @@ export function TestDrivesView() {
             <span className="w-2 h-2 rounded-full bg-red-500" />
             Cancelled Test Drives ({cancelledTestDrives.length})
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cancelledTestDrives.map((testDrive) => (
-              <TestDriveCard key={testDrive.id} testDrive={testDrive} showQuickActions={true} />
-            ))}
-                      </div>
+          <TestDrivesTable items={cancelledTestDrives} showQuickActions={true} />
                     </div>
       )}
 
@@ -346,11 +457,7 @@ export function TestDrivesView() {
             <span className="w-2 h-2 rounded-full bg-gray-500" />
             No Show Test Drives ({noShowTestDrives.length})
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {noShowTestDrives.map((testDrive) => (
-              <TestDriveCard key={testDrive.id} testDrive={testDrive} showQuickActions={true} />
-            ))}
-      </div>
+          <TestDrivesTable items={noShowTestDrives} showQuickActions={true} />
         </div>
       )}
 

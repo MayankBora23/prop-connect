@@ -35,13 +35,6 @@ import { AddCourseDialog } from '@/components/education/AddCourseDialog';
 import { AddBatchDialog } from '@/components/education/AddBatchDialog';
 import { AddTeacherDialog } from '@/components/education/AddTeacherDialog';
 import { EducationAnalytics } from '@/components/education/EducationAnalytics';
-import { HealthcareDashboard } from '@/components/healthcare/HealthcareDashboard';
-import { PatientsView } from '@/components/healthcare/PatientsView';
-import { AddPatientDialog } from '@/components/healthcare/AddPatientDialog';
-import { AppointmentsView } from '@/components/healthcare/AppointmentsView';
-import { MedicalRecordsView } from '@/components/healthcare/MedicalRecordsView';
-import { PrescriptionsView } from '@/components/healthcare/PrescriptionsView';
-import { BillingView } from '@/components/healthcare/BillingView';
 import { AutomobileDashboard } from '@/components/automobile/AutomobileDashboard';
 import { VehiclesView } from '@/components/automobile/VehiclesView';
 import { AutoLeadsView } from '@/components/automobile/AutoLeadsView';
@@ -57,23 +50,6 @@ import { AddBookingDialog } from '@/components/automobile/AddBookingDialog';
 import { AddDealDialog } from '@/components/automobile/AddDealDialog';
 import { AddFinanceDialog } from '@/components/automobile/AddFinanceDialog';
 import { AddInsuranceDialog } from '@/components/automobile/AddInsuranceDialog';
-import { AddProductDialog } from '@/components/online-business/AddProductDialog';
-import { AddCustomerDialog } from '@/components/online-business/AddCustomerDialog';
-import { AddSupplierDialog } from '@/components/online-business/AddSupplierDialog';
-import { AddOrderDialog } from '@/components/online-business/AddOrderDialog';
-import { AddPaymentDialog } from '@/components/online-business/AddPaymentDialog';
-import { AddDiscountDialog } from '@/components/online-business/AddDiscountDialog';
-import { AddReturnDialog } from '@/components/online-business/AddReturnDialog';
-import { OnlineBusinessDashboard } from '@/components/online-business/OnlineBusinessDashboard';
-import { ProductsView } from '@/components/online-business/ProductsView';
-import { InventoryView } from '@/components/online-business/InventoryView';
-import { OrdersView } from '@/components/online-business/OrdersView';
-import { CustomersView } from '@/components/online-business/CustomersView';
-import { PaymentsView } from '@/components/online-business/PaymentsView';
-import { ReturnsView } from '@/components/online-business/ReturnsView';
-import { DiscountsView } from '@/components/online-business/DiscountsView';
-import { SuppliersView } from '@/components/online-business/SuppliersView';
-import { BarcodeGenerator } from '@/components/online-business/BarcodeGenerator';
 import { EmployeesView } from '@/components/employees/EmployeesView';
 import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
 import { AttendanceView as EmployeeAttendanceView } from '@/components/employee-attendance/AttendanceView';
@@ -116,18 +92,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
-const healthcareTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
-  patients: { title: 'Patients', subtitle: 'Manage your patients', addLabel: 'Add Patient' },
-  appointments: { title: 'Appointments', subtitle: 'Schedule and manage appointments', addLabel: 'Add Appointment' },
-  'medical-records': { title: 'Medical Records', subtitle: 'Patient medical history', addLabel: 'Add Record' },
-  prescriptions: { title: 'Prescriptions', subtitle: 'Manage prescriptions', addLabel: 'Add Prescription' },
-  billing: { title: 'Billing', subtitle: 'Billing and payments', addLabel: 'Add Bill' },
-  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
-  team: { title: 'Team Management', subtitle: 'Your team members' },
-  analytics: { title: 'Analytics', subtitle: 'Performance reports' },
-  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
-};
+/* healthcare removed */
 
 const automobileTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -147,22 +112,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
-const onlineBusinessTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
-  products: { title: 'Products', subtitle: 'Manage your product catalog', addLabel: 'Add Product' },
-  inventory: { title: 'Inventory', subtitle: 'Track stock levels and locations', addLabel: 'Add Inventory' },
-  orders: { title: 'Orders', subtitle: 'Manage sales orders', addLabel: 'Create Order' },
-  customers: { title: 'Customers', subtitle: 'Customer management', addLabel: 'Add Customer' },
-  payments: { title: 'Payments', subtitle: 'Payment processing and tracking', addLabel: 'Add Payment' },
-  returns: { title: 'Returns', subtitle: 'Handle returns and refunds', addLabel: 'Process Return' },
-  discounts: { title: 'Discounts', subtitle: 'Manage promotions and discounts', addLabel: 'Create Discount' },
-  suppliers: { title: 'Suppliers', subtitle: 'Supplier management', addLabel: 'Add Supplier' },
-  'barcode-generator': { title: 'Barcode Generator', subtitle: 'Generate and manage barcodes', addLabel: 'Generate Barcode' },
-  workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
-  team: { title: 'Team Management', subtitle: 'Your team members' },
-  analytics: { title: 'Analytics', subtitle: 'Performance reports' },
-  'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
-};
+/* online business removed */
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -176,7 +126,6 @@ const Index = () => {
   const [addCourseOpen, setAddCourseOpen] = useState(false);
   const [addBatchOpen, setAddBatchOpen] = useState(false);
   const [addTeacherOpen, setAddTeacherOpen] = useState(false);
-  const [addPatientOpen, setAddPatientOpen] = useState(false);
   const [addAutoLeadOpen, setAddAutoLeadOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
   const [addTestDriveOpen, setAddTestDriveOpen] = useState(false);
@@ -184,13 +133,6 @@ const Index = () => {
   const [addDealOpen, setAddDealOpen] = useState(false);
   const [addFinanceOpen, setAddFinanceOpen] = useState(false);
   const [addInsuranceOpen, setAddInsuranceOpen] = useState(false);
-  const [addProductOpen, setAddProductOpen] = useState(false);
-  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
-  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
-  const [addOrderOpen, setAddOrderOpen] = useState(false);
-  const [addPaymentOpen, setAddPaymentOpen] = useState(false);
-  const [addDiscountOpen, setAddDiscountOpen] = useState(false);
-  const [addReturnOpen, setAddReturnOpen] = useState(false);
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   
 const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
@@ -202,13 +144,9 @@ if (industryLoading || !isLoaded) {
   );
 }
 const isEducation = industry === 'education';
-const isHealthcare = industry === 'healthcare';
 const isAutomobileDealers = industry === 'automobile_dealers';
-const isOnlineBusiness = industry === 'online_business';
 const tabConfig = isEducation ? educationTabConfig :
-  isHealthcare ? healthcareTabConfig :
   isAutomobileDealers ? automobileTabConfig :
-  isOnlineBusiness ? onlineBusinessTabConfig :
   realEstateTabConfig;
 
   const handleAddNew = () => {
@@ -224,9 +162,7 @@ const tabConfig = isEducation ? educationTabConfig :
         setAddPropertyOpen(true);
         break;
       case 'employees':
-        if (!isHealthcare && !isOnlineBusiness) {
-          setAddEmployeeOpen(true);
-        }
+        setAddEmployeeOpen(true);
         break;
       case 'visits':
         setAddVisitOpen(true);
@@ -252,9 +188,7 @@ const tabConfig = isEducation ? educationTabConfig :
       case 'employee-attendance':
         // This will be handled by the AttendanceView component itself
         break;
-      case 'patients':
-        setAddPatientOpen(true);
-        break;
+      /* patients (healthcare) removed */
       // Automobile cases
       case 'vehicles':
         if (isAutomobileDealers) {
@@ -286,42 +220,7 @@ const tabConfig = isEducation ? educationTabConfig :
           setAddInsuranceOpen(true);
         }
         break;
-      // Online Business cases
-      case 'products':
-        if (isOnlineBusiness) {
-          setAddProductOpen(true);
-        }
-        break;
-      case 'customers':
-        if (isOnlineBusiness) {
-          setAddCustomerOpen(true);
-        }
-        break;
-      case 'suppliers':
-        if (isOnlineBusiness) {
-          setAddSupplierOpen(true);
-        }
-        break;
-      case 'orders':
-        if (isOnlineBusiness) {
-          setAddOrderOpen(true);
-        }
-        break;
-      case 'payments':
-        if (isOnlineBusiness) {
-          setAddPaymentOpen(true);
-        }
-        break;
-      case 'discounts':
-        if (isOnlineBusiness) {
-          setAddDiscountOpen(true);
-        }
-        break;
-      case 'returns':
-        if (isOnlineBusiness) {
-          setAddReturnOpen(true);
-        }
-        break;
+      /* online business actions removed */
       // More healthcare cases can be added here when dialogs are created
     }
   };
@@ -364,31 +263,6 @@ const tabConfig = isEducation ? educationTabConfig :
         default:
           return <EducationDashboard />;
       }
-    } else if (isHealthcare) {
-      switch (activeTab) {
-        case 'dashboard':
-          return <HealthcareDashboard />;
-        case 'patients':
-          return <PatientsView />;
-        case 'appointments':
-          return <AppointmentsView />;
-        case 'medical-records':
-          return <MedicalRecordsView />;
-        case 'prescriptions':
-          return <PrescriptionsView />;
-        case 'billing':
-          return <BillingView />;
-        case 'workspace':
-          return <PersonalWorkspace />;
-        case 'team':
-          return <TeamView />;
-        case 'analytics':
-          return <AnalyticsView />;
-        case 'company-settings':
-          return <CompanySettingsView />;
-        default:
-          return <HealthcareDashboard />;
-      }
     } else if (isAutomobileDealers) {
       switch (activeTab) {
         case 'dashboard':
@@ -423,39 +297,6 @@ const tabConfig = isEducation ? educationTabConfig :
           return <CompanySettingsView />;
         default:
           return <AutomobileDashboard />;
-      }
-    } else if (isOnlineBusiness) {
-      switch (activeTab) {
-        case 'dashboard':
-          return <OnlineBusinessDashboard />;
-        case 'products':
-          return <ProductsView />;
-        case 'inventory':
-          return <InventoryView />;
-        case 'orders':
-          return <OrdersView />;
-        case 'customers':
-          return <CustomersView />;
-        case 'payments':
-          return <PaymentsView />;
-        case 'returns':
-          return <ReturnsView />;
-        case 'discounts':
-          return <DiscountsView />;
-        case 'suppliers':
-          return <SuppliersView />;
-        case 'barcode-generator':
-          return <BarcodeGenerator />;
-        case 'workspace':
-          return <PersonalWorkspace />;
-        case 'team':
-          return <TeamView />;
-        case 'analytics':
-          return <AnalyticsView />;
-        case 'company-settings':
-          return <CompanySettingsView />;
-        default:
-          return <OnlineBusinessDashboard />;
       }
     } else {
       switch (activeTab) {
@@ -523,7 +364,6 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddCourseDialog open={addCourseOpen} onOpenChange={setAddCourseOpen} />
       <AddBatchDialog open={addBatchOpen} onOpenChange={setAddBatchOpen} />
       <AddTeacherDialog open={addTeacherOpen} onOpenChange={setAddTeacherOpen} />
-      <AddPatientDialog open={addPatientOpen} onOpenChange={setAddPatientOpen} />
       <AddAutoLeadDialog open={addAutoLeadOpen} onOpenChange={setAddAutoLeadOpen} />
       <AddVehicleDialog open={addVehicleOpen} onOpenChange={setAddVehicleOpen} />
       <AddTestDriveDialog open={addTestDriveOpen} onOpenChange={setAddTestDriveOpen} />
@@ -532,17 +372,9 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddFinanceDialog open={addFinanceOpen} onOpenChange={setAddFinanceOpen} />
       <AddInsuranceDialog open={addInsuranceOpen} onOpenChange={setAddInsuranceOpen} />
 
-      {/* Online Business Dialogs */}
-      <AddProductDialog open={addProductOpen} onOpenChange={setAddProductOpen} />
-      <AddCustomerDialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen} />
-      <AddSupplierDialog open={addSupplierOpen} onOpenChange={setAddSupplierOpen} />
-      <AddOrderDialog open={addOrderOpen} onOpenChange={setAddOrderOpen} />
-      <AddPaymentDialog open={addPaymentOpen} onOpenChange={setAddPaymentOpen} />
-      <AddDiscountDialog open={addDiscountOpen} onOpenChange={setAddDiscountOpen} />
-      <AddReturnDialog open={addReturnOpen} onOpenChange={setAddReturnOpen} />
       <AddEmployeeDialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen} />
 
-      {!isEducation && !isHealthcare && !isAutomobileDealers && !isOnlineBusiness && <AIChatAssistant />}
+      {!isEducation && !isAutomobileDealers && <AIChatAssistant />}
     </div>
   );
 };

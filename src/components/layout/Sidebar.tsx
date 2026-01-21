@@ -61,18 +61,7 @@ const educationMenuItems = [
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
-const healthcareMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
-  { id: 'patients', label: 'Patients', icon: User, badge: undefined },
-  { id: 'appointments', label: 'Appointments', icon: Calendar, badge: undefined },
-  { id: 'medical-records', label: 'Medical Records', icon: File, badge: undefined },
-  { id: 'prescriptions', label: 'Prescriptions', icon: Pill, badge: undefined },
-  { id: 'billing', label: 'Billing', icon: CreditCard, badge: undefined },
-  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
-  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
-  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
-];
+/* healthcare removed */
 
 const automobileMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
@@ -92,22 +81,7 @@ const automobileMenuItems = [
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
-const onlineBusinessMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
-  { id: 'products', label: 'Products', icon: Package, badge: undefined },
-  { id: 'inventory', label: 'Inventory', icon: Archive, badge: undefined },
-  { id: 'orders', label: 'Orders', icon: ClipboardList, badge: undefined },
-  { id: 'customers', label: 'Customers', icon: Users, badge: undefined },
-  { id: 'payments', label: 'Payments', icon: Receipt, badge: undefined },
-  { id: 'returns', label: 'Returns', icon: RotateCcw, badge: undefined },
-  { id: 'discounts', label: 'Discounts', icon: Tag, badge: undefined },
-  { id: 'suppliers', label: 'Suppliers', icon: Truck, badge: undefined },
-  { id: 'barcode-generator', label: 'Barcode Generator', icon: QrCode, badge: undefined },
-  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
-  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
-  { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
-];
+/* online business removed */
 
 export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -123,9 +97,7 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
   const isSuperAdmin = profile?.role === 'super_admin';
 
   const menuItems = industry === 'education' ? educationMenuItems :
-    industry === 'healthcare' ? healthcareMenuItems :
     industry === 'automobile_dealers' ? automobileMenuItems :
-    industry === 'online_business' ? onlineBusinessMenuItems :
     realEstateMenuItems;
   
   const visibleMenuItems = menuItems.filter(item => 

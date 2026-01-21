@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentCompany } from './useCompany';
 
-export type Industry = 'real_estate' | 'education' | 'healthcare' | 'automobile_dealers' | 'online_business';
+export type Industry = 'real_estate' | 'education' | 'automobile_dealers';
 
 export function useIndustry() {
   const { data: company, isLoading: companyLoading } = useCurrentCompany();
@@ -27,18 +27,8 @@ export function useIsEducation() {
   return industry === 'education';
 }
 
-export function useIsHealthcare() {
-  const { data: industry } = useIndustry();
-  return industry === 'healthcare';
-}
-
 export function useIsAutomobileDealers() {
   const { data: industry } = useIndustry();
   return industry === 'automobile_dealers';
-}
-
-export function useIsOnlineBusiness() {
-  const { data: industry } = useIndustry();
-  return industry === 'online_business';
 }
 

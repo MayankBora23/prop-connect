@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useFees, useCreateFee, useUpdateFee } from '@/hooks/useFees';
 import { useEnrollments } from '@/hooks/useEnrollments';
 import { Button } from '@/components/ui/button';
