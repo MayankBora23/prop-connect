@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.team_chat_messages (
   content TEXT NOT NULL,
   message_type TEXT NOT NULL DEFAULT 'text',
   company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  reply_to_message_id UUID REFERENCES public.team_chat_messages(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 

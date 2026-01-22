@@ -11,6 +11,7 @@ export interface TeamChatMessage {
   message_type: string;
   company_id: string;
   industry: string;
+  reply_to_message_id: string | null;
   created_at: string;
 }
 
@@ -20,6 +21,7 @@ export interface TeamChatMessageInsert {
   message_type?: string;
   company_id: string;
   industry: string;
+  reply_to_message_id?: string | null;
 }
 
 // Cache company_id to avoid repeated queries
@@ -181,6 +183,41 @@ export function useSendChatMessage() {
         // Avoid duplicates
         if (oldData.some(m => m.id === newMessage.id)) return oldData;
         return [...oldData, newMessage];
+      });
+    },
+    onError: () => {
+      // Invalidate on error to refetch correct data
+      queryClient.invalidateQueries({ queryKey: ['team_chat_messages'] });
+    },
+  });
+}
+
+export function useDeleteTeamChatMessage() {
+  const queryClient = useQueryClient();
+  const { data: industry } = useIndustry();
+
+  return useMutation({
+    mutationFn: async (messageId: string) => {
+      const { error } = await (supabase as any)
+        .from('team_chat_messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) {
+        // If table doesn't exist, provide helpful error message
+        if (error.code === '42P01') {
+          throw new Error('Team chat is not available. Please contact your administrator to set up the chat feature.');
+        }
+        throw error;
+      }
+
+      return messageId;
+    },
+    onSuccess: (deletedMessageId) => {
+      // Remove the deleted message from cache
+      queryClient.setQueryData(['team_chat_messages', 50, industry], (oldData: TeamChatMessage[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.filter(msg => msg.id !== deletedMessageId);
       });
     },
     onError: () => {

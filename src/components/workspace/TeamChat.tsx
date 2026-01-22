@@ -1,20 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTeamChatMessages, useSendChatMessage, useTeamChatRealtime } from '@/hooks/useTeamChat';
+import { useTeamChatMessages, useSendChatMessage, useTeamChatRealtime, useDeleteTeamChatMessage, TeamChatMessage } from '@/hooks/useTeamChat';
 import { useProfiles, useCurrentProfile } from '@/hooks/useProfiles';
 import { cn } from '@/lib/utils';
-import { Send, Users, UserCheck, UserX, RefreshCw, AlertCircle } from 'lucide-react';
+import { Send, Users, UserCheck, UserX, RefreshCw, AlertCircle, Reply, Trash2, MoreVertical, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 export function TeamChat() {
   const [newMessage, setNewMessage] = useState('');
+  const [replyToMessage, setReplyToMessage] = useState<TeamChatMessage | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -23,6 +31,7 @@ export function TeamChat() {
   const { data: profiles, isLoading: profilesLoading } = useProfiles();
   const { data: currentProfile } = useCurrentProfile();
   const sendMessage = useSendChatMessage();
+  const deleteMessage = useDeleteTeamChatMessage();
   const { toast } = useToast();
 
   const handleRefresh = async () => {
@@ -41,6 +50,28 @@ export function TeamChat() {
     }
   };
 
+  const clearReply = () => {
+    setReplyToMessage(null);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message?')) return;
+
+    try {
+      await deleteMessage.mutateAsync(messageId);
+      toast({
+        title: 'Message deleted',
+        description: 'The message has been deleted successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Delete failed',
+        description: error?.message || 'Failed to delete message. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const isLoading = messagesLoading || profilesLoading;
 
   // Create a map of profiles for quick lookup
@@ -51,6 +82,15 @@ export function TeamChat() {
     });
     return map;
   }, [profiles]);
+
+  // Create a map of messages for reply lookup
+  const messageMap = React.useMemo(() => {
+    const map = new Map();
+    messages?.forEach(message => {
+      map.set(message.id, message);
+    });
+    return map;
+  }, [messages]);
 
 
   // Set up real-time updates
@@ -73,15 +113,19 @@ export function TeamChat() {
     if (!newMessage.trim()) return;
 
     const messageContent = newMessage.trim();
+    const replyToId = replyToMessage?.id || null;
     setNewMessage(''); // Clear input immediately for better UX
+    setReplyToMessage(null); // Clear reply state
 
     try {
       await sendMessage.mutateAsync({
         content: messageContent,
+        reply_to_message_id: replyToId,
       });
     } catch (error: any) {
       // Restore the message if sending failed
       setNewMessage(messageContent);
+      setReplyToMessage(replyToMessage); // Restore reply state
       toast({
         title: 'Error',
         description: error?.message || 'Failed to send message. Please try again.',
@@ -310,7 +354,7 @@ export function TeamChat() {
                   </Avatar>
 
                   <div className={cn(
-                    'flex flex-col gap-1',
+                    'flex flex-col gap-1 group',
                     isOwnMessage ? 'items-end' : 'items-start'
                   )}>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -322,13 +366,57 @@ export function TeamChat() {
                       <span>{formatMessageTime(message.created_at)}</span>
                     </div>
 
-                      <div className={cn(
-                        'px-3 py-2 rounded-lg max-w-md break-words',
-                        isOwnMessage
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      )}>
-                        {message.content}
+                    {/* Reply Context */}
+                    {message.reply_to_message_id && (
+                      <div className="mb-1 px-3 py-2 bg-secondary/30 rounded-md border-l-2 border-primary/50 max-w-md">
+                        <div className="text-xs text-primary font-medium mb-1">
+                          Replying to {profileMap.get(messageMap.get(message.reply_to_message_id)?.sender_id)?.name || 'Unknown'}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {messageMap.get(message.reply_to_message_id)?.content || 'Message not found'}
+                        </p>
+                      </div>
+                    )}
+
+                      <div className="flex items-start gap-2">
+                        <div className={cn(
+                          'px-3 py-2 rounded-lg max-w-md break-words',
+                          isOwnMessage
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        )}>
+                          {message.content}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreVertical className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setReplyToMessage(message)}>
+                              <Reply className="mr-2 h-4 w-4" />
+                              Reply
+                            </DropdownMenuItem>
+                            {isOwnMessage && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => handleDeleteMessage(message.id)}
+                                  disabled={deleteMessage.isPending}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
@@ -352,6 +440,26 @@ export function TeamChat() {
 
         {/* Message Input */}
         <div className="p-4 border-t border-border">
+          {/* Reply Context */}
+          {replyToMessage && (
+            <div className="mb-3 p-3 bg-secondary/50 rounded-lg border-l-4 border-primary">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-primary">
+                  Replying to {profileMap.get(replyToMessage.sender_id)?.name || 'Unknown'}
+                </span>
+                <button
+                  onClick={clearReply}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Cancel reply"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground truncate">
+                {replyToMessage.content}
+              </p>
+            </div>
+          )}
           <div className="flex gap-2">
             <Input
               placeholder="Type your message..."
