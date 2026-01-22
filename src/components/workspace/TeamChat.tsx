@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTeamChatMessages, useSendChatMessage, useTeamChatRealtime } from '@/hooks/useTeamChat';
 import { useProfiles, useCurrentProfile } from '@/hooks/useProfiles';
 import { cn } from '@/lib/utils';
-import { Send, Users, UserCheck, UserX } from 'lucide-react';
+import { Send, Users, UserCheck, UserX, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,12 +17,29 @@ export function TeamChat() {
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  const { data: messages, isLoading: messagesLoading, error: messagesError } = useTeamChatMessages(50);
+  const { data: messages, isLoading: messagesLoading, error: messagesError, refetch: refetchMessages } = useTeamChatMessages(50);
   const { data: profiles, isLoading: profilesLoading } = useProfiles();
   const { data: currentProfile } = useCurrentProfile();
   const sendMessage = useSendChatMessage();
   const { toast } = useToast();
+
+  const handleRefresh = async () => {
+    try {
+      await refetchMessages();
+      toast({
+        title: 'Refreshed',
+        description: 'Messages have been updated.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Refresh failed',
+        description: 'Failed to refresh messages. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const isLoading = messagesLoading || profilesLoading;
 
@@ -37,6 +55,7 @@ export function TeamChat() {
 
   // Set up real-time updates
   useTeamChatRealtime((newMessage) => {
+    console.log('New message received via real-time:', newMessage.id);
     // Auto-scroll to bottom when new message arrives
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -144,11 +163,16 @@ export function TeamChat() {
     return (
       <div className="flex h-[calc(100vh-200px)] card-elevated animate-fade-in">
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-destructive mb-2">Failed to load messages</div>
-            <p className="text-sm text-muted-foreground">
+          <div className="text-center max-w-md">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+            <div className="text-destructive mb-2 font-semibold">Failed to load messages</div>
+            <p className="text-sm text-muted-foreground mb-4">
               {messagesError?.message || 'Please try refreshing the page'}
             </p>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
           </div>
         </div>
       </div>
@@ -241,8 +265,19 @@ export function TeamChat() {
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             <h2 className="font-semibold">Team Chat</h2>
-            <div className="ml-auto text-sm text-muted-foreground">
-              {messages?.length || 0} messages
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={messagesLoading}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className={cn("w-4 h-4", messagesLoading && "animate-spin")} />
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                {messages?.length || 0} messages
+              </div>
             </div>
           </div>
         </div>

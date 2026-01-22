@@ -1,16 +1,29 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { clearCompanyIdCache } from './useTeamChat';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Clear caches when auth state changes (login/logout/sign in different user)
+        if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+          clearCompanyIdCache();
+          // Clear React Query cache for company and profile data
+          queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
+          queryClient.invalidateQueries({ queryKey: ['currentProfile'] });
+          queryClient.invalidateQueries({ queryKey: ['profiles'] });
+          queryClient.invalidateQueries({ queryKey: ['team_chat_messages'] });
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -25,7 +38,7 @@ export function useAuth() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   const signIn = async (email: string, password: string) => {
     console.log('Attempting sign in for:', email);
@@ -60,6 +73,10 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    // Clear caches before signing out
+    clearCompanyIdCache();
+    queryClient.clear();
+
     const { error } = await supabase.auth.signOut();
     return { error };
   };
