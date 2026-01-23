@@ -3,17 +3,19 @@ import { useEnrolledStudents, useDeleteEnrollment } from '@/hooks/useEnrollments
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { Edit, Trash2, GraduationCap } from 'lucide-react';
+import { Edit, Trash2, GraduationCap, CreditCard } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { EditEnrollmentDialog } from './EditEnrollmentDialog';
 import { AddEnrollmentDialog } from './AddEnrollmentDialog';
+import { InstallmentDialog } from './InstallmentDialog';
 import type { EnrollmentStatus } from '@/hooks/useEnrollments';
 
 function EnrollmentRow({ student, enrollment }: { student: any; enrollment: any }) {
   const deleteEnrollment = useDeleteEnrollment();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
 
   const teacher = enrollment?.teachers?.name || 'Not assigned';
 
@@ -93,6 +95,14 @@ function EnrollmentRow({ student, enrollment }: { student: any; enrollment: any 
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setInstallmentDialogOpen(true)}
+                >
+                  <CreditCard className="h-4 w-4" />
+                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -153,6 +163,16 @@ function EnrollmentRow({ student, enrollment }: { student: any; enrollment: any 
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
       />
+
+      {/* Installment Dialog */}
+      {enrollment && (
+        <InstallmentDialog
+          enrollment={enrollment}
+          studentName={student.name}
+          open={installmentDialogOpen}
+          onOpenChange={setInstallmentDialogOpen}
+        />
+      )}
     </>
   );
 }

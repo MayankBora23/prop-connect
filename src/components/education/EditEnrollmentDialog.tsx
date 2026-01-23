@@ -69,6 +69,20 @@ export function EditEnrollmentDialog({ enrollment, open, onOpenChange }: EditEnr
     }
   }, [enrollment, form]);
 
+  // Auto-populate total_fees when batch is selected
+  useEffect(() => {
+    const selectedBatchId = form.watch('batch_id');
+    if (selectedBatchId && batches) {
+      const selectedBatch = batches.find(batch => batch.id === selectedBatchId);
+      if (selectedBatch?.courses?.price) {
+        const coursePrice = parseFloat(selectedBatch.courses.price);
+        if (!isNaN(coursePrice)) {
+          form.setValue('total_fees', coursePrice);
+        }
+      }
+    }
+  }, [form.watch('batch_id'), batches, form]);
+
   // Auto-calculate fees_pending when total_fees or fees_paid changes
   useEffect(() => {
     const totalFees = form.watch('total_fees') || 0;

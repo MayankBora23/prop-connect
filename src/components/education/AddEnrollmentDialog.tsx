@@ -54,6 +54,20 @@ export function AddEnrollmentDialog({ studentId, studentName, open, onOpenChange
     },
   });
 
+  // Auto-populate total_fees when batch is selected
+  useEffect(() => {
+    const selectedBatchId = form.watch('batch_id');
+    if (selectedBatchId && batches) {
+      const selectedBatch = batches.find(batch => batch.id === selectedBatchId);
+      if (selectedBatch?.courses?.price) {
+        const coursePrice = parseFloat(selectedBatch.courses.price);
+        if (!isNaN(coursePrice)) {
+          form.setValue('total_fees', coursePrice);
+        }
+      }
+    }
+  }, [form.watch('batch_id'), batches, form]);
+
   // Auto-calculate fees_pending when total_fees or fees_paid changes
   useEffect(() => {
     // Note: fees_pending is calculated in the backend or can be derived from total_fees - fees_paid

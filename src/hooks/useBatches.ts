@@ -37,7 +37,8 @@ export function useBatches() {
         .select(`
           *,
           courses:course_id (
-            name
+            name,
+            price
           ),
           teachers:instructor_id (
             name
@@ -47,7 +48,7 @@ export function useBatches() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as (Batch & { courses: { name: string } | null })[];
+      return data as (Batch & { courses: { name: string; price: string } | null })[];
     },
     enabled: !!company?.id,
   });
