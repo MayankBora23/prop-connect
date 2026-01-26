@@ -133,3 +133,152 @@ export interface TestDriveWithRelations {
     variant?: string | null;
   } | null;
 }
+
+export interface DealWithRelations {
+  id: string;
+  lead_id: string;
+  vehicle_id: string;
+  booking_id?: string | null;
+  deal_number?: string | null;
+
+  // Status Tracking
+  deal_status: 'draft' | 'pending' | 'approved' | 'completed' | 'cancelled' | 'delivered';
+  payment_status: 'pending' | 'partial' | 'completed' | 'refunded' | 'overdue';
+  delivery_status: 'pending' | 'ready' | 'delivered' | 'cancelled';
+
+  // Vehicle Details
+  vehicle_brand: string;
+  vehicle_model: string;
+  vehicle_variant?: string | null;
+  vehicle_year: number;
+  vehicle_color?: string | null;
+  chassis_number?: string | null;
+  engine_number?: string | null;
+  vehicle_price: number;
+
+  // Customer Details
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string | null;
+  customer_address?: string | null;
+  customer_city?: string | null;
+  customer_state?: string | null;
+  customer_pincode?: string | null;
+
+  // Price Breakdown
+  ex_showroom_price: number;
+  rto_charges: number;
+  insurance_charges: number;
+  accessories_cost: number;
+  other_charges: number;
+  discount_amount: number;
+  total_on_road_price: number;
+
+  // Payment Information
+  token_amount: number;
+  down_payment: number;
+  financed_amount: number;
+  total_paid: number;
+  balance_amount: number;
+
+  // Finance/Loan Details
+  finance_type: 'none' | 'bank_loan' | 'finance_company' | 'dealer_finance';
+  finance_company_name?: string | null;
+  finance_company_address?: string | null;
+  loan_amount?: number | null;
+  loan_tenure_months?: number | null;
+  interest_rate?: number | null;
+  emi_amount?: number | null;
+  processing_fee?: number | null;
+  finance_approval_date?: string | null;
+  disbursement_date?: string | null;
+  finance_invoice_number?: string | null;
+
+  // Invoice Information
+  customer_invoice_number?: string | null;
+  customer_invoice_date?: string | null;
+  finance_invoice_date?: string | null;
+
+  // GST Information
+  cgst_rate?: number | null;
+  sgst_rate?: number | null;
+  igst_rate?: number | null;
+  cgst_amount?: number | null;
+  sgst_amount?: number | null;
+  igst_amount?: number | null;
+  total_gst_amount?: number | null;
+
+  // Delivery Information
+  delivery_date?: string | null;
+  delivery_location?: string | null;
+  delivery_notes?: string | null;
+  delivery_challan_number?: string | null;
+
+  // Additional Information
+  special_conditions?: string | null;
+  payment_terms?: string | null;
+  remarks?: string | null;
+
+  // Metadata
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  company_id: string;
+
+  // Joined relations
+  auto_leads?: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string | null;
+  } | null;
+  vehicles?: {
+    id: string;
+    brand: string;
+    model: string;
+    year: number;
+    fuel_type: string;
+    variant?: string | null;
+    color?: string | null;
+  } | null;
+  bookings?: {
+    id: string;
+    booking_number?: string | null;
+    total_amount: number;
+    vehicle_price: number;
+    discount_amount: number;
+    accessories_cost: number;
+    registration_cost: number;
+    insurance_cost: number;
+    finance_cost: number;
+  } | null;
+}
+
+export interface DealInvoiceWithRelations {
+  id: string;
+  deal_id: string;
+  invoice_type: 'customer_invoice' | 'finance_invoice' | 'delivery_note';
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number;
+  gst_amount?: number | null;
+  invoice_data?: any;
+  pdf_url?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  company_id: string;
+}
+
+export interface DealPaymentWithRelations {
+  id: string;
+  deal_id: string;
+  payment_date: string;
+  payment_type: string;
+  amount: number;
+  payment_method?: string | null;
+  reference_number?: string | null;
+  remarks?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  company_id: string;
+}

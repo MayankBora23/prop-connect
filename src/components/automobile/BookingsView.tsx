@@ -4,13 +4,14 @@ import { useAutoLeads } from '@/hooks/useAutoLeads';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Filter, Download, Upload, Check, X, Edit, Trash2, FileText, Printer } from 'lucide-react';
+import { Filter, Download, Upload, Check, X, Edit, Trash2, FileText, Printer, Briefcase } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useDeleteBooking, useUpdateBooking } from '@/hooks/useBookings';
 import { useUpdateAutoLead } from '@/hooks/useAutoLeads';
 import { ScheduleBookingDialog } from './ScheduleBookingDialog';
 import { EditBookingDialog } from './EditBookingDialog';
 import { BookingBillDialog } from './BookingBillDialog';
+import { AddDealDialog } from './AddDealDialog';
 import { toast } from 'sonner';
 import type { BookingWithRelations } from '@/hooks/useAutoTypes';
 
@@ -24,6 +25,7 @@ export function BookingsView() {
   const [scheduleBookingOpen, setScheduleBookingOpen] = useState(false);
   const [editBookingOpen, setEditBookingOpen] = useState(false);
   const [billBookingOpen, setBillBookingOpen] = useState(false);
+  const [dealBookingOpen, setDealBookingOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingWithRelations | null>(null);
   const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<{ id: string; name: string; phone?: string; email?: string } | null>(null);
 
@@ -119,6 +121,11 @@ export function BookingsView() {
   const handleGenerateBill = (booking: BookingWithRelations) => {
     setSelectedBooking(booking);
     setBillBookingOpen(true);
+  };
+
+  const handleCreateDeal = (booking: BookingWithRelations) => {
+    setSelectedBooking(booking);
+    setDealBookingOpen(true);
   };
 
   return (
@@ -342,6 +349,15 @@ export function BookingsView() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                        onClick={() => handleCreateDeal(booking)}
+                        title="Create Deal"
+                      >
+                        <Briefcase className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                         onClick={() => handleGenerateBill(booking)}
                         title="Generate Bill"
@@ -532,6 +548,15 @@ export function BookingsView() {
         open={editBookingOpen}
         onOpenChange={(open) => {
           setEditBookingOpen(open);
+          if (!open) setSelectedBooking(null);
+        }}
+      />
+
+      <AddDealDialog
+        booking={selectedBooking}
+        open={dealBookingOpen}
+        onOpenChange={(open) => {
+          setDealBookingOpen(open);
           if (!open) setSelectedBooking(null);
         }}
       />

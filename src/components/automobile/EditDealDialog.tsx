@@ -10,21 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useCreateDeal } from '@/hooks/useDeals';
+import { useUpdateDeal } from '@/hooks/useDeals';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
 import { useVehicles } from '@/hooks/useVehicles';
-import { useBookings } from '@/hooks/useBookings';
-import { useCreateDealPayment } from '@/hooks/useDealPayments';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Calculator, FileText, CreditCard, Truck, Receipt } from 'lucide-react';
-import type { BookingWithRelations } from '@/hooks/useAutoTypes';
+import type { DealWithRelations } from '@/hooks/useAutoTypes';
 
-const dealSchema = z.object({
+const editDealSchema = z.object({
   // Basic Deal Information
-  lead_id: z.string().min(1, 'Lead is required'),
-  vehicle_id: z.string().min(1, 'Vehicle is required'),
   deal_number: z.string().optional(),
 
   // Deal Status
@@ -79,10 +74,10 @@ const dealSchema = z.object({
   remarks: z.string().optional(),
 });
 
-type DealFormData = z.infer<typeof dealSchema>;
+type EditDealFormData = z.infer<typeof editDealSchema>;
 
-interface AddDealDialogProps {
-  booking?: BookingWithRelations | null;
+interface EditDealDialogProps {
+  deal?: DealWithRelations | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -103,19 +98,15 @@ const dealStatuses = [
   { value: 'delivered', label: 'Delivered' },
 ];
 
-export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProps) {
+export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps) {
   const { toast } = useToast();
-  const createDeal = useCreateDeal();
-  const createPayment = useCreateDealPayment();
+  const updateDeal = useUpdateDeal();
   const { data: leads } = useAutoLeads();
   const { data: vehicles } = useVehicles();
-  const { data: bookings } = useBookings();
 
-  const form = useForm<DealFormData>({
-    resolver: zodResolver(dealSchema),
+  const form = useForm<EditDealFormData>({
+    resolver: zodResolver(editDealSchema),
     defaultValues: {
-      lead_id: '',
-      vehicle_id: '',
       deal_number: '',
       deal_status: 'draft',
       chassis_number: '',
@@ -153,30 +144,49 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
     },
   });
 
-  // Auto-fetch data when booking is provided
+  // Populate form when deal is provided
   useEffect(() => {
-    if (booking && open) {
-      // Auto-fill from booking data
-      form.setValue('lead_id', booking.lead_id || '');
-      form.setValue('vehicle_id', booking.vehicle_id);
-
-      // Auto-fill price breakdown from booking
-      form.setValue('ex_showroom_price', booking.vehicle_price);
-      form.setValue('rto_charges', booking.registration_cost);
-      form.setValue('insurance_charges', booking.insurance_cost);
-      form.setValue('accessories_cost', booking.accessories_cost);
-      form.setValue('discount_amount', booking.discount_amount);
-      form.setValue('down_payment', booking.down_payment);
-      form.setValue('token_amount', booking.booking_amount);
-
-      // Calculate financed amount
-      const totalOnRoad = calculateTotalOnRoad(form.getValues());
-      const financedAmount = Math.max(0, totalOnRoad - booking.down_payment);
-      form.setValue('loan_amount', financedAmount > 0 ? financedAmount : undefined);
+    if (deal && open) {
+      form.reset({
+        deal_number: deal.deal_number || '',
+        deal_status: deal.deal_status,
+        chassis_number: deal.chassis_number || '',
+        engine_number: deal.engine_number || '',
+        vehicle_color: deal.vehicle_color || '',
+        customer_address: deal.customer_address || '',
+        customer_city: deal.customer_city || '',
+        customer_state: deal.customer_state || '',
+        customer_pincode: deal.customer_pincode || '',
+        ex_showroom_price: deal.ex_showroom_price,
+        rto_charges: deal.rto_charges,
+        insurance_charges: deal.insurance_charges,
+        accessories_cost: deal.accessories_cost,
+        other_charges: deal.other_charges,
+        discount_amount: deal.discount_amount,
+        token_amount: deal.token_amount,
+        down_payment: deal.down_payment,
+        finance_type: deal.finance_type,
+        finance_company_name: deal.finance_company_name || '',
+        finance_company_address: deal.finance_company_address || '',
+        loan_amount: deal.loan_amount || undefined,
+        loan_tenure_months: deal.loan_tenure_months || undefined,
+        interest_rate: deal.interest_rate || undefined,
+        emi_amount: deal.emi_amount || undefined,
+        processing_fee: deal.processing_fee || 0,
+        cgst_rate: deal.cgst_rate || 0,
+        sgst_rate: deal.sgst_rate || 0,
+        igst_rate: deal.igst_rate || 0,
+        delivery_date: deal.delivery_date || '',
+        delivery_location: deal.delivery_location || '',
+        delivery_notes: deal.delivery_notes || '',
+        special_conditions: deal.special_conditions || '',
+        payment_terms: deal.payment_terms || '',
+        remarks: deal.remarks || '',
+      });
     }
-  }, [booking, open, form]);
+  }, [deal, open, form]);
 
-  const calculateTotalOnRoad = (values: DealFormData) => {
+  const calculateTotalOnRoad = (values: EditDealFormData) => {
     return (
       values.ex_showroom_price +
       values.rto_charges +
@@ -187,7 +197,7 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
     );
   };
 
-  const calculateGST = (values: DealFormData) => {
+  const calculateGST = (values: EditDealFormData) => {
     const totalOnRoad = calculateTotalOnRoad(values);
     const cgstAmount = (totalOnRoad * values.cgst_rate) / 100;
     const sgstAmount = (totalOnRoad * values.sgst_rate) / 100;
@@ -224,41 +234,24 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
     }
   }, [watchedValues.loan_amount, watchedValues.interest_rate, watchedValues.loan_tenure_months, form]);
 
-  const onSubmit = async (data: DealFormData) => {
+  const onSubmit = async (data: EditDealFormData) => {
+    if (!deal) return;
+
     try {
       const totalOnRoad = calculateTotalOnRoad(data);
       const gst = calculateGST(data);
 
-      // Create the deal
-      const dealData = await createDeal.mutateAsync({
-        lead_id: data.lead_id,
-        vehicle_id: data.vehicle_id,
-        booking_id: booking?.id || null,
+      await updateDeal.mutateAsync({
+        id: deal.id,
         deal_number: data.deal_number || null,
         deal_status: data.deal_status,
-        payment_status: 'pending',
-        delivery_status: 'pending',
-
-        // Vehicle details
-        vehicle_brand: vehicles?.find(v => v.id === data.vehicle_id)?.brand || '',
-        vehicle_model: vehicles?.find(v => v.id === data.vehicle_id)?.model || '',
-        vehicle_variant: vehicles?.find(v => v.id === data.vehicle_id)?.variant || null,
-        vehicle_year: vehicles?.find(v => v.id === data.vehicle_id)?.year || new Date().getFullYear(),
-        vehicle_color: data.vehicle_color || null,
         chassis_number: data.chassis_number || null,
         engine_number: data.engine_number || null,
-        vehicle_price: data.ex_showroom_price,
-
-        // Customer details
-        customer_name: leads?.find(l => l.id === data.lead_id)?.name || '',
-        customer_phone: leads?.find(l => l.id === data.lead_id)?.phone || '',
-        customer_email: leads?.find(l => l.id === data.lead_id)?.email || null,
+        vehicle_color: data.vehicle_color || null,
         customer_address: data.customer_address || null,
         customer_city: data.customer_city || null,
         customer_state: data.customer_state || null,
         customer_pincode: data.customer_pincode || null,
-
-        // Price breakdown
         ex_showroom_price: data.ex_showroom_price,
         rto_charges: data.rto_charges,
         insurance_charges: data.insurance_charges,
@@ -266,15 +259,9 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
         other_charges: data.other_charges,
         discount_amount: data.discount_amount,
         total_on_road_price: totalOnRoad,
-
-        // Payment info
         token_amount: data.token_amount,
         down_payment: data.down_payment,
         financed_amount: financedAmount,
-        total_paid: data.token_amount + data.down_payment,
-        balance_amount: totalOnRoad - (data.token_amount + data.down_payment),
-
-        // Finance details
         finance_type: data.finance_type,
         finance_company_name: data.finance_type !== 'none' ? data.finance_company_name : null,
         finance_company_address: data.finance_type !== 'none' ? data.finance_company_address : null,
@@ -283,8 +270,6 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
         interest_rate: data.finance_type !== 'none' ? data.interest_rate : null,
         emi_amount: data.finance_type !== 'none' ? data.emi_amount : null,
         processing_fee: data.finance_type !== 'none' ? data.processing_fee : 0,
-
-        // GST
         cgst_rate: data.cgst_rate || null,
         sgst_rate: data.sgst_rate || null,
         igst_rate: data.igst_rate || null,
@@ -292,69 +277,33 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
         sgst_amount: gst.sgstAmount || null,
         igst_amount: gst.igstAmount || null,
         total_gst_amount: gst.totalGST || null,
-
-        // Delivery
         delivery_date: data.delivery_date || null,
         delivery_location: data.delivery_location || null,
         delivery_notes: data.delivery_notes || null,
-
-        // Additional
         special_conditions: data.special_conditions || null,
         payment_terms: data.payment_terms || null,
         remarks: data.remarks || null,
       });
 
-      // Note: Invoices are now generated manually from the DealsView
-      // to avoid duplicate key constraint issues
-
-      // Record initial payments
-      const payments = [];
-      if (data.token_amount > 0) {
-        payments.push({
-          deal_id: dealData.id,
-          payment_date: new Date().toISOString().split('T')[0],
-          payment_type: 'token',
-          amount: data.token_amount,
-          payment_method: 'cash', // Default, can be updated later
-        });
-      }
-      if (data.down_payment > 0) {
-        payments.push({
-          deal_id: dealData.id,
-          payment_date: new Date().toISOString().split('T')[0],
-          payment_type: 'down_payment',
-          amount: data.down_payment,
-          payment_method: 'cash', // Default, can be updated later
-        });
-      }
-
-      // Create payment records
-      for (const payment of payments) {
-        try {
-          await createPayment.mutateAsync(payment);
-        } catch (paymentError) {
-          console.warn('Failed to record payment:', paymentError);
-        }
-      }
-
       toast({
-        title: 'Deal created',
-        description: `Deal has been created successfully. You can now generate invoices from the deals list.`,
+        title: 'Deal updated',
+        description: `Deal ${data.deal_number || `D-${deal.id.slice(-6)}`} has been updated successfully.`,
       });
 
-      form.reset();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Create deal error:', error);
+      console.error('Update deal error:', error);
       const description =
-        error?.message || error?.error || JSON.stringify(error) || 'Failed to create deal. Please try again.';
+        error?.message || error?.error || JSON.stringify(error) || 'Failed to update deal. Please try again.';
       toast({
-        title: 'Error creating deal',
+        title: 'Error updating deal',
         description,
         variant: 'destructive',
       });
     }
   };
+
+  if (!deal) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -362,10 +311,10 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Create Deal {booking ? `(from Booking ${booking.booking_number || booking.id.slice(-6)})` : ''}
+            Edit Deal - {deal.deal_number || `D-${deal.id.slice(-6)}`}
           </DialogTitle>
           <DialogDescription>
-            Create a comprehensive vehicle deal with pricing, finance, and delivery details.
+            Update deal information, pricing, finance details, and delivery information.
           </DialogDescription>
         </DialogHeader>
 
@@ -401,58 +350,6 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
                     <CardTitle className="text-lg">Basic Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="lead_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Customer *</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={!!booking}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select customer" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {(leads || []).map((lead) => (
-                                  <SelectItem key={lead.id} value={lead.id}>
-                                    {lead.name} - {lead.phone}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="vehicle_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Vehicle *</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={!!booking}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select vehicle" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {(vehicles || []).map((vehicle) => (
-                                  <SelectItem key={vehicle.id} value={vehicle.id}>
-                                    {vehicle.year} {vehicle.brand} {vehicle.model} {vehicle.variant && `(${vehicle.variant})`}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -538,6 +435,23 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
                           </FormItem>
                         )}
                       />
+                    </div>
+
+                    <div className="bg-secondary p-4 rounded-lg">
+                      <h4 className="font-medium mb-2">Customer Information</h4>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p><strong>Name:</strong> {deal.customer_name}</p>
+                        <p><strong>Phone:</strong> {deal.customer_phone}</p>
+                        <p><strong>Email:</strong> {deal.customer_email || 'Not provided'}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-secondary p-4 rounded-lg">
+                      <h4 className="font-medium mb-2">Vehicle Information</h4>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p><strong>Vehicle:</strong> {deal.vehicle_year} {deal.vehicle_brand} {deal.vehicle_model} {deal.vehicle_variant || ''}</p>
+                        <p><strong>Price:</strong> ₹{deal.vehicle_price.toLocaleString()}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1161,9 +1075,9 @@ export function AddDealDialog({ booking, open, onOpenChange }: AddDealDialogProp
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createDeal.isPending} className="gradient-primary border-0">
-                {createDeal.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create Deal
+              <Button type="submit" disabled={updateDeal.isPending} className="gradient-primary border-0">
+                {updateDeal.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Update Deal
               </Button>
             </div>
           </form>
