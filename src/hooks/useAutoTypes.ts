@@ -73,6 +73,7 @@ export interface BookingWithRelations {
   finance_cost: number;
   total_amount: number;
   down_payment: number;
+  token_amount: number;
   remaining_balance: number;
   payment_status: 'pending' | 'partial' | 'completed';
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
@@ -154,6 +155,7 @@ export interface DealWithRelations {
   vehicle_color?: string | null;
   chassis_number?: string | null;
   engine_number?: string | null;
+  rc_number?: string | null;
   vehicle_price: number;
 
   // Customer Details

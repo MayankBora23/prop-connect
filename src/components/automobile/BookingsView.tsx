@@ -128,6 +128,77 @@ export function BookingsView() {
     setDealBookingOpen(true);
   };
 
+  const BookingLeadsTable = ({ items, title }: { items: any[]; title: string }) => (
+    <div className="card-elevated overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
+        <h3 className="font-semibold text-foreground flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500" />
+          {title} ({items.length})
+        </h3>
+      </div>
+      <table className="w-full">
+        <thead className="bg-secondary">
+          <tr>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ID</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preferred Vehicle</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget Range</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.length > 0 ? (
+            items.map((lead) => (
+              <tr key={lead.id} className="hover:bg-secondary/50 transition-colors">
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{lead.id?.slice(-6) || lead.id}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                      {lead.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{lead.name}</p>
+                      <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <p className="text-sm font-medium text-foreground">{lead.preferred_brand || 'Not specified'} {lead.preferred_model || ''}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">
+                    ₹{lead.budget_min?.toLocaleString() || 'N/A'} - ₹{lead.budget_max?.toLocaleString() || 'N/A'}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{lead.email || 'No email'}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <Button
+                    size="sm"
+                    className="gradient-primary border-0"
+                    onClick={() => handleCreateBooking(lead)}
+                  >
+                    Create Booking
+                  </Button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                No leads ready for booking
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Toolbar */}
@@ -154,44 +225,7 @@ export function BookingsView() {
 
       {/* Leads Ready for Booking */}
       {bookingDoneLeads.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Check className="w-5 h-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-blue-900">Leads Ready for Booking</h3>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-              {bookingDoneLeads.length}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bookingDoneLeads.map((lead) => (
-              <div key={lead.id} className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-                    {lead.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
-                    <p className="text-xs text-muted-foreground">{lead.phone}</p>
-                  </div>
-                </div>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>📧 {lead.email || 'No email'}</p>
-                  <p>🚗 {lead.preferred_brand || 'No preference'} {lead.preferred_model || ''}</p>
-                  <p>💰 ₹{lead.budget_min?.toLocaleString()} - ₹{lead.budget_max?.toLocaleString()}</p>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1 gradient-primary border-0"
-                    onClick={() => handleCreateBooking(lead)}
-                  >
-                    Create Booking
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <BookingLeadsTable items={bookingDoneLeads} title="Leads Ready for Booking" />
       )}
 
       {/* Confirmed Bookings */}

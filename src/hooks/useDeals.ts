@@ -22,6 +22,7 @@ export interface Deal {
   vehicle_color?: string | null;
   chassis_number?: string | null;
   engine_number?: string | null;
+  rc_number?: string | null;
   vehicle_price: number;
   customer_name: string;
   customer_phone: string;

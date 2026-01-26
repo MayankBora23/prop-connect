@@ -24,12 +24,7 @@ const bookingSchema = z.object({
   delivery_location: z.string().trim().max(200, 'Delivery location must be less than 200 characters').optional().or(z.literal('')),
   special_requests: z.string().trim().max(1000, 'Special requests must be less than 1000 characters').optional().or(z.literal('')),
   vehicle_price: z.number().min(0, 'Vehicle price must be positive'),
-  discount_amount: z.number().min(0, 'Discount cannot be negative').default(0),
-  accessories_cost: z.number().min(0, 'Accessories cost cannot be negative').default(0),
-  registration_cost: z.number().min(0, 'Registration cost cannot be negative').default(0),
-  insurance_cost: z.number().min(0, 'Insurance cost cannot be negative').default(0),
-  finance_cost: z.number().min(0, 'Finance cost cannot be negative').default(0),
-  down_payment: z.number().min(0, 'Down payment cannot be negative').default(0),
+  token_amount: z.number().min(0, 'Token amount cannot be negative').default(0),
   notes: z.string().trim().max(1000, 'Notes must be less than 1000 characters').optional().or(z.literal('')),
   terms_conditions: z.string().trim().max(2000, 'Terms must be less than 2000 characters').optional().or(z.literal('')),
 });
@@ -59,12 +54,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
       delivery_location: '',
       special_requests: '',
       vehicle_price: 0,
-      discount_amount: 0,
-      accessories_cost: 0,
-      registration_cost: 0,
-      insurance_cost: 0,
-      finance_cost: 0,
-      down_payment: 0,
+      token_amount: 0,
       notes: '',
       terms_conditions: '',
     },
@@ -82,12 +72,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         delivery_location: booking.delivery_location || '',
         special_requests: booking.special_requests || '',
         vehicle_price: booking.vehicle_price,
-        discount_amount: booking.discount_amount,
-        accessories_cost: booking.accessories_cost,
-        registration_cost: booking.registration_cost,
-        insurance_cost: booking.insurance_cost,
-        finance_cost: booking.finance_cost,
-        down_payment: booking.down_payment,
+        token_amount: booking.token_amount || 0,
         notes: booking.notes || '',
         terms_conditions: booking.terms_conditions || '',
       });
@@ -96,15 +81,9 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
 
   // Calculate total amount and remaining balance
   const watchedValues = form.watch();
-  const totalAmount =
-    (watchedValues.vehicle_price || 0) +
-    (watchedValues.accessories_cost || 0) +
-    (watchedValues.registration_cost || 0) +
-    (watchedValues.insurance_cost || 0) +
-    (watchedValues.finance_cost || 0) -
-    (watchedValues.discount_amount || 0);
+  const totalAmount = watchedValues.vehicle_price || 0;
 
-  const remainingBalance = totalAmount - (watchedValues.down_payment || 0);
+  const remainingBalance = totalAmount - (watchedValues.token_amount || 0);
 
   const onSubmit = async (data: BookingFormData) => {
     if (!booking) return;
@@ -120,15 +99,10 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         delivery_location: data.delivery_location || null,
         special_requests: data.special_requests || null,
         vehicle_price: data.vehicle_price,
-        discount_amount: data.discount_amount,
-        accessories_cost: data.accessories_cost,
-        registration_cost: data.registration_cost,
-        insurance_cost: data.insurance_cost,
-        finance_cost: data.finance_cost,
+        token_amount: data.token_amount,
         total_amount: totalAmount,
-        down_payment: data.down_payment,
         remaining_balance: remainingBalance,
-        payment_status: data.down_payment >= totalAmount ? 'completed' : data.down_payment > 0 ? 'partial' : 'pending',
+        payment_status: (data.token_amount || 0) >= totalAmount ? 'completed' : (data.token_amount || 0) > 0 ? 'partial' : 'pending',
         notes: data.notes || null,
         terms_conditions: data.terms_conditions || null,
       });
@@ -297,37 +271,17 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-foreground">Pricing Details</h4>
 
-              <FormField
-                control={form.control}
-                name="vehicle_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vehicle Price (₹) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Base vehicle price"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        value={field.value || ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="discount_amount"
+                  name="vehicle_price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Discount Amount (₹)</FormLabel>
+                      <FormLabel>Vehicle Price (₹) *</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="0"
+                          placeholder="Base vehicle price"
                           {...field}
                           onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                           value={field.value || ''}
@@ -340,10 +294,10 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
 
                 <FormField
                   control={form.control}
-                  name="accessories_cost"
+                  name="token_amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Accessories Cost (₹)</FormLabel>
+                      <FormLabel>Token Amount (₹)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -358,97 +312,15 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                   )}
                 />
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="registration_cost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Registration (₹)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="insurance_cost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Insurance (₹)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="finance_cost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Finance Cost (₹)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="down_payment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Down Payment (₹)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        value={field.value || ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <div className="bg-secondary p-4 rounded-lg space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-foreground">Total Amount:</span>
+                  <span className="text-sm font-medium text-foreground">Vehicle Price:</span>
                   <span className="text-lg font-bold text-primary">₹{totalAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-foreground">Down Payment:</span>
-                  <span className="text-sm font-medium text-foreground">-₹{(watchedValues.down_payment || 0).toLocaleString()}</span>
+                  <span className="text-sm font-medium text-foreground">Token Amount Paid:</span>
+                  <span className="text-sm font-medium text-green-600">-₹{(watchedValues.token_amount || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center border-t pt-2">
                   <span className="text-sm font-medium text-foreground">Remaining Balance:</span>

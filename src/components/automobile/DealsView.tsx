@@ -1,17 +1,29 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useDeals, useUpdateDeal } from '@/hooks/useDeals';
 import { useGenerateInvoice } from '@/hooks/useDealInvoices';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Filter, Download, Upload, Briefcase, DollarSign, Edit, Trash2, FileText, Truck, CreditCard, Receipt, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDeleteDeal } from '@/hooks/useDeals';
 import { EditDealDialog } from './EditDealDialog';
 import { DealInvoiceDialog } from './DealInvoiceDialog';
 import { toast } from 'sonner';
 import type { DealWithRelations } from '@/hooks/useAutoTypes';
+
+const paymentSchema = z.object({
+  amount_received: z.number().min(0, 'Amount cannot be negative'),
+});
+
+type PaymentFormData = z.infer<typeof paymentSchema>;
 
 export function DealsView() {
   const { data: deals, isLoading, error } = useDeals();
@@ -23,6 +35,15 @@ export function DealsView() {
   const [selectedDealForEdit, setSelectedDealForEdit] = useState<DealWithRelations | null>(null);
   const [invoiceDealOpen, setInvoiceDealOpen] = useState(false);
   const [selectedDealForInvoice, setSelectedDealForInvoice] = useState<DealWithRelations | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedDealForPayment, setSelectedDealForPayment] = useState<DealWithRelations | null>(null);
+
+  const paymentForm = useForm<PaymentFormData>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      amount_received: 0,
+    },
+  });
 
 
   const handleDelete = async (dealId: string, dealNumber: string) => {
@@ -61,6 +82,48 @@ export function DealsView() {
     } catch (error: any) {
       console.error('Update delivery status error:', error);
       toast.error(`Failed to update delivery status: ${error?.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleMarkAsPaid = (deal: DealWithRelations) => {
+    setSelectedDealForPayment(deal);
+    paymentForm.reset({ amount_received: 0 });
+    setPaymentDialogOpen(true);
+  };
+
+  const handlePaymentSubmit = async (data: PaymentFormData) => {
+    if (!selectedDealForPayment) return;
+
+    const deal = selectedDealForPayment;
+    const additionalAmount = data.amount_received;
+    const totalAmount = deal.total_on_road_price;
+    const currentTotalPaid = deal.total_paid || 0;
+    const newTotalPaid = currentTotalPaid + additionalAmount;
+    const newBalance = totalAmount - newTotalPaid;
+
+    // Determine payment status based on new total paid
+    let newPaymentStatus: 'pending' | 'partial' | 'completed';
+    if (newTotalPaid >= totalAmount) {
+      newPaymentStatus = 'completed';
+    } else if (newTotalPaid > 0) {
+      newPaymentStatus = 'partial';
+    } else {
+      newPaymentStatus = 'pending';
+    }
+
+    try {
+      await updateDeal.mutateAsync({
+        id: deal.id,
+        payment_status: newPaymentStatus,
+        total_paid: newTotalPaid,
+        balance_amount: newBalance,
+      });
+      toast.success(`Payment of ₹${additionalAmount.toLocaleString()} added to deal ${deal.deal_number || `D-${deal.id.slice(-6)}`}`);
+      setPaymentDialogOpen(false);
+      setSelectedDealForPayment(null);
+    } catch (error: any) {
+      console.error('Payment update error:', error);
+      toast.error(`Failed to update payment: ${error?.message || 'Unknown error'}`);
     }
   };
 
@@ -263,19 +326,42 @@ export function DealsView() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="space-y-1">
-                      <Badge className={getDealStatusColor(deal.deal_status)}>
-                        {deal.deal_status}
-                      </Badge>
+                      {deal.finance_type !== 'none' ? (
+                        <Badge className={getPaymentStatusColor(deal.payment_status)}>
+                          {deal.payment_status}
+                        </Badge>
+                      ) : (
+                        <Badge className={getDealStatusColor(deal.deal_status)}>
+                          {deal.deal_status}
+                        </Badge>
+                      )}
                       {deal.finance_type !== 'none' && (
                         <div className="text-xs text-blue-600 flex items-center gap-1">
                           <CreditCard className="w-3 h-3" />
                           {deal.finance_type.replace('_', ' ')}
                         </div>
                       )}
+                      {deal.finance_type !== 'none' && deal.finance_company_name && (
+                        <div className="text-xs text-blue-600 ml-4">
+                          {deal.finance_company_name}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      {(deal.payment_status === 'pending' || deal.payment_status === 'partial') && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          title="Mark as Paid"
+                          onClick={() => handleMarkAsPaid(deal)}
+                          disabled={updateDeal.isPending}
+                        >
+                          <DollarSign className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -364,6 +450,89 @@ export function DealsView() {
           if (!open) setSelectedDealForInvoice(null);
         }}
       />
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Record Additional Payment</DialogTitle>
+            <DialogDescription>
+              Enter additional payment amount for deal {selectedDealForPayment?.deal_number || `D-${selectedDealForPayment?.id.slice(-6)}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...paymentForm}>
+            <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+              <FormField
+                control={paymentForm.control}
+                name="amount_received"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Additional Payment Amount (₹)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Enter additional payment amount"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {selectedDealForPayment && (
+                <div className="bg-secondary p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-foreground">Total Amount:</span>
+                    <span className="text-sm font-bold text-primary">₹{selectedDealForPayment.total_on_road_price.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-foreground">Currently Paid:</span>
+                    <span className="text-sm font-medium text-blue-600">₹{(selectedDealForPayment.total_paid || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-foreground">Additional Payment:</span>
+                    <span className="text-sm font-bold text-green-600">₹{(paymentForm.watch('amount_received') || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2">
+                    <span className="text-sm font-medium text-foreground">New Total Paid:</span>
+                    <span className="text-sm font-bold text-green-700">
+                      ₹{((selectedDealForPayment.total_paid || 0) + (paymentForm.watch('amount_received') || 0)).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-foreground">Remaining Balance:</span>
+                    <span className="text-sm font-bold text-orange-600">
+                      ₹{(selectedDealForPayment.total_on_road_price - ((selectedDealForPayment.total_paid || 0) + (paymentForm.watch('amount_received') || 0))).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPaymentDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateDeal.isPending}
+                  className="gradient-primary border-0"
+                >
+                  {updateDeal.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Add Payment
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

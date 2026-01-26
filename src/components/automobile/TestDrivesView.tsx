@@ -190,17 +190,23 @@ export function TestDrivesView() {
     </div>
   );
 
-  const TestDrivesTable = ({ items, showQuickActions = false }: { items: any[]; showQuickActions?: boolean }) => (
-    <div className="overflow-auto bg-card border rounded-md">
+  const TestDrivesTable = ({ items, showQuickActions = false, title, dotColor }: { items: any[]; showQuickActions?: boolean; title: string; dotColor: string }) => (
+    <div className="card-elevated overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
+        <h3 className="font-semibold text-foreground flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+          {title} ({items.length})
+        </h3>
+      </div>
       <table className="w-full">
-        <thead>
-          <tr className="text-left text-xs text-muted-foreground">
-            <th className="px-4 py-3">ID</th>
-            <th className="px-4 py-3">Customer</th>
-            <th className="px-4 py-3">Vehicle</th>
-            <th className="px-4 py-3">Date & Time</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Actions</th>
+        <thead className="bg-secondary">
+          <tr>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ID</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vehicle</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -313,7 +319,88 @@ export function TestDrivesView() {
             ))
           ) : (
             <tr>
-              <td className="px-4 py-6 text-sm text-muted-foreground" colSpan={6}>No records</td>
+              <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                No records
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const ScheduledLeadsTable = ({ items, title }: { items: any[]; title: string }) => (
+    <div className="card-elevated overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
+        <h3 className="font-semibold text-foreground flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-orange-500" />
+          {title} ({items.length})
+        </h3>
+      </div>
+      <table className="w-full">
+        <thead className="bg-secondary">
+          <tr>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ID</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customer</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preferred Vehicle</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget Range</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.length > 0 ? (
+            items.map((lead) => (
+              <tr key={lead.id} className="hover:bg-secondary/50 transition-colors">
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{lead.id?.slice(-6) || lead.id}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
+                      {lead.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{lead.name}</p>
+                      <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <p className="text-sm font-medium text-foreground">{lead.preferred_brand || 'Not specified'} {lead.preferred_model || ''}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">
+                    ₹{lead.budget_min?.toLocaleString() || 'N/A'} - ₹{lead.budget_max?.toLocaleString() || 'N/A'}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">{lead.email || 'No email'}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <Button
+                    size="sm"
+                    className="gradient-primary border-0"
+                    onClick={() => {
+                      setSelectedLeadForScheduling({
+                        id: lead.id,
+                        name: lead.name,
+                        phone: lead.phone,
+                        email: lead.email
+                      });
+                      setScheduleTestDriveOpen(true);
+                    }}
+                  >
+                    Schedule Test Drive
+                  </Button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                No scheduled leads
+              </td>
             </tr>
           )}
         </tbody>
@@ -372,93 +459,44 @@ export function TestDrivesView() {
 
       {/* Pipeline Leads Section */}
       {scheduledLeads.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-orange-600" />
-            <h3 className="text-lg font-semibold text-orange-900">Leads Scheduled for Test Drive</h3>
-            <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-              {scheduledLeads.length}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scheduledLeads.map((lead) => (
-              <div key={lead.id} className="bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-                    {lead.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div>
-                    <h4 className="font-semibold text-foreground text-sm">{lead.name}</h4>
-                    <p className="text-xs text-muted-foreground">{lead.phone}</p>
-                      </div>
-                    </div>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>📧 {lead.email || 'No email'}</p>
-                  <p>🚗 {lead.preferred_brand || 'No preference'} {lead.preferred_model || ''}</p>
-                  <p>💰 ₹{lead.budget_min?.toLocaleString()} - ₹{lead.budget_max?.toLocaleString()}</p>
-                      </div>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1 gradient-primary border-0"
-                    onClick={() => {
-                      setSelectedLeadForScheduling({
-                        id: lead.id,
-                        name: lead.name,
-                        phone: lead.phone,
-                        email: lead.email
-                      });
-                      setScheduleTestDriveOpen(true);
-                    }}
-                  >
-                    Schedule Test Drive
-                  </Button>
-                      </div>
-                    </div>
-            ))}
-                      </div>
-                    </div>
+        <ScheduledLeadsTable items={scheduledLeads} title="Leads Scheduled for Test Drive" />
       )}
 
       {/* Test Drives List */}
       {/* Scheduled Test Drives */}
-      <div>
-        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-500" />
-          Scheduled Test Drives ({scheduledTestDrives.length})
-        </h3>
-        <TestDrivesTable items={scheduledTestDrives} showQuickActions={true} />
-      </div>
+      <TestDrivesTable
+        items={scheduledTestDrives}
+        showQuickActions={true}
+        title="Scheduled Test Drives"
+        dotColor="bg-blue-500"
+      />
 
       {/* Completed Test Drives */}
-      <div>
-        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          Completed Test Drives ({completedTestDrives.length})
-        </h3>
-        <TestDrivesTable items={completedTestDrives} showQuickActions={true} />
-      </div>
+      <TestDrivesTable
+        items={completedTestDrives}
+        showQuickActions={true}
+        title="Completed Test Drives"
+        dotColor="bg-green-500"
+      />
 
       {/* Cancelled Test Drives */}
       {cancelledTestDrives.length > 0 && (
-                      <div>
-          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-            Cancelled Test Drives ({cancelledTestDrives.length})
-          </h3>
-          <TestDrivesTable items={cancelledTestDrives} showQuickActions={true} />
-                    </div>
+        <TestDrivesTable
+          items={cancelledTestDrives}
+          showQuickActions={true}
+          title="Cancelled Test Drives"
+          dotColor="bg-red-500"
+        />
       )}
 
       {/* No Show Test Drives */}
       {noShowTestDrives.length > 0 && (
-        <div>
-          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-gray-500" />
-            No Show Test Drives ({noShowTestDrives.length})
-          </h3>
-          <TestDrivesTable items={noShowTestDrives} showQuickActions={true} />
-        </div>
+        <TestDrivesTable
+          items={noShowTestDrives}
+          showQuickActions={true}
+          title="No Show Test Drives"
+          dotColor="bg-gray-500"
+        />
       )}
 
       {/* Schedule Test Drive Dialog */}

@@ -21,9 +21,8 @@ import type { DealWithRelations } from '@/hooks/useAutoTypes';
 const editDealSchema = z.object({
   // Basic Deal Information
   deal_number: z.string().optional(),
+  rc_number: z.string().min(1, 'RC Number is required'),
 
-  // Deal Status
-  deal_status: z.enum(['draft', 'pending', 'approved', 'completed', 'cancelled', 'delivered']).default('draft'),
 
   // Vehicle Details
   chassis_number: z.string().optional(),
@@ -41,7 +40,7 @@ const editDealSchema = z.object({
   rto_charges: z.number().min(0, 'RTO charges cannot be negative').default(0),
   insurance_charges: z.number().min(0, 'Insurance charges cannot be negative').default(0),
   accessories_cost: z.number().min(0, 'Accessories cost cannot be negative').default(0),
-  other_charges: z.number().min(0, 'Other charges cannot be negative').default(0),
+  gst_and_other_charges: z.number().min(0, 'GST and other charges cannot be negative').default(0),
   discount_amount: z.number().min(0, 'Discount cannot be negative').default(0),
 
   // Payment Information
@@ -58,10 +57,6 @@ const editDealSchema = z.object({
   emi_amount: z.number().optional(),
   processing_fee: z.number().min(0, 'Processing fee cannot be negative').default(0),
 
-  // GST Information
-  cgst_rate: z.number().min(0).max(100).default(0),
-  sgst_rate: z.number().min(0).max(100).default(0),
-  igst_rate: z.number().min(0).max(100).default(0),
 
   // Delivery Information
   delivery_date: z.string().optional(),
@@ -89,14 +84,6 @@ const financeTypes = [
   { value: 'dealer_finance', label: 'Dealer Finance' },
 ];
 
-const dealStatuses = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'delivered', label: 'Delivered' },
-];
 
 export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps) {
   const { toast } = useToast();
@@ -108,7 +95,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
     resolver: zodResolver(editDealSchema),
     defaultValues: {
       deal_number: '',
-      deal_status: 'draft',
+      rc_number: '',
       chassis_number: '',
       engine_number: '',
       vehicle_color: '',
@@ -120,7 +107,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
       rto_charges: 0,
       insurance_charges: 0,
       accessories_cost: 0,
-      other_charges: 0,
+      gst_and_other_charges: 0,
       discount_amount: 0,
       token_amount: 0,
       down_payment: 0,
@@ -132,9 +119,6 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
       interest_rate: undefined,
       emi_amount: undefined,
       processing_fee: 0,
-      cgst_rate: 0,
-      sgst_rate: 0,
-      igst_rate: 0,
       delivery_date: '',
       delivery_location: '',
       delivery_notes: '',
@@ -149,7 +133,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
     if (deal && open) {
       form.reset({
         deal_number: deal.deal_number || '',
-        deal_status: deal.deal_status,
+        rc_number: deal.rc_number || '',
         chassis_number: deal.chassis_number || '',
         engine_number: deal.engine_number || '',
         vehicle_color: deal.vehicle_color || '',
@@ -161,7 +145,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
         rto_charges: deal.rto_charges,
         insurance_charges: deal.insurance_charges,
         accessories_cost: deal.accessories_cost,
-        other_charges: deal.other_charges,
+        gst_and_other_charges: deal.other_charges || 0, // Use existing other_charges field
         discount_amount: deal.discount_amount,
         token_amount: deal.token_amount,
         down_payment: deal.down_payment,
@@ -173,9 +157,6 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
         interest_rate: deal.interest_rate || undefined,
         emi_amount: deal.emi_amount || undefined,
         processing_fee: deal.processing_fee || 0,
-        cgst_rate: deal.cgst_rate || 0,
-        sgst_rate: deal.sgst_rate || 0,
-        igst_rate: deal.igst_rate || 0,
         delivery_date: deal.delivery_date || '',
         delivery_location: deal.delivery_location || '',
         delivery_notes: deal.delivery_notes || '',
@@ -192,21 +173,16 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
       values.rto_charges +
       values.insurance_charges +
       values.accessories_cost +
-      values.other_charges -
+      values.gst_and_other_charges -
       values.discount_amount
     );
   };
 
   const calculateGST = (values: EditDealFormData) => {
-    const totalOnRoad = calculateTotalOnRoad(values);
-    const cgstAmount = (totalOnRoad * values.cgst_rate) / 100;
-    const sgstAmount = (totalOnRoad * values.sgst_rate) / 100;
-    const igstAmount = (totalOnRoad * values.igst_rate) / 100;
+    // GST and other charges is now included in the gst_and_other_charges field
     return {
-      cgstAmount,
-      sgstAmount,
-      igstAmount,
-      totalGST: cgstAmount + sgstAmount + igstAmount,
+      gstAndOtherCharges: values.gst_and_other_charges,
+      totalGST: values.gst_and_other_charges,
     };
   };
 
@@ -244,7 +220,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
       await updateDeal.mutateAsync({
         id: deal.id,
         deal_number: data.deal_number || null,
-        deal_status: data.deal_status,
+        rc_number: data.rc_number,
         chassis_number: data.chassis_number || null,
         engine_number: data.engine_number || null,
         vehicle_color: data.vehicle_color || null,
@@ -256,7 +232,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
         rto_charges: data.rto_charges,
         insurance_charges: data.insurance_charges,
         accessories_cost: data.accessories_cost,
-        other_charges: data.other_charges,
+        other_charges: data.gst_and_other_charges, // Using existing other_charges field but with GST content
         discount_amount: data.discount_amount,
         total_on_road_price: totalOnRoad,
         token_amount: data.token_amount,
@@ -270,13 +246,7 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
         interest_rate: data.finance_type !== 'none' ? data.interest_rate : null,
         emi_amount: data.finance_type !== 'none' ? data.emi_amount : null,
         processing_fee: data.finance_type !== 'none' ? data.processing_fee : 0,
-        cgst_rate: data.cgst_rate || null,
-        sgst_rate: data.sgst_rate || null,
-        igst_rate: data.igst_rate || null,
-        cgst_amount: gst.cgstAmount || null,
-        sgst_amount: gst.sgstAmount || null,
-        igst_amount: gst.igstAmount || null,
-        total_gst_amount: gst.totalGST || null,
+        total_gst_amount: gst.totalGST,
         delivery_date: data.delivery_date || null,
         delivery_location: data.delivery_location || null,
         delivery_notes: data.delivery_notes || null,
@@ -367,28 +337,21 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
 
                       <FormField
                         control={form.control}
-                        name="deal_status"
+                        name="rc_number"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Deal Status</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {dealStatuses.map((status) => (
-                                  <SelectItem key={status.value} value={status.value}>
-                                    {status.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <FormLabel>RC Number *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter RC Number" {...field} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div></div>
                     </div>
 
                     <Separator />
@@ -550,10 +513,10 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="other_charges"
+                        name="gst_and_other_charges"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Other Charges (₹)</FormLabel>
+                            <FormLabel>GST and Other Charges (₹)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -915,94 +878,6 @@ export function EditDealDialog({ deal, open, onOpenChange }: EditDealDialogProps
               </TabsContent>
 
               <TabsContent value="invoice" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">GST Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="cgst_rate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>CGST Rate (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="sgst_rate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>SGST Rate (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="igst_rate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>IGST Rate (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="bg-secondary p-4 rounded-lg">
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <div className="text-sm text-muted-foreground">CGST Amount</div>
-                          <div className="text-lg font-semibold">₹{gstBreakdown.cgstAmount.toLocaleString()}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">SGST Amount</div>
-                          <div className="text-lg font-semibold">₹{gstBreakdown.sgstAmount.toLocaleString()}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">IGST Amount</div>
-                          <div className="text-lg font-semibold">₹{gstBreakdown.igstAmount.toLocaleString()}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
 
                 <Card>
                   <CardHeader>
