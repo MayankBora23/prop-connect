@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useWhatsAppConversations,
@@ -57,7 +57,7 @@ export function WhatsAppInbox() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: conversations, isLoading: conversationsLoading } = useWhatsAppConversations();
+  const { data: conversations, isLoading: conversationsLoading, refetch: refetchConversations } = useWhatsAppConversations();
   const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
   const { data: leads } = useLeads();
   const createMessage = useCreateWhatsAppMessage();
@@ -65,6 +65,29 @@ export function WhatsAppInbox() {
   const clearChat = useClearWhatsAppChat();
   const deleteMessage = useDeleteWhatsAppMessage();
   const { toast } = useToast();
+
+  // Subscribe to conversation changes for realtime updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel('whatsapp-conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+        },
+        () => {
+          console.log('Conversations updated, refetching...');
+          refetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refetchConversations]);
 
   // Prepare conversations list with search filtering
   const conversationList = (conversations || []).filter(conv =>

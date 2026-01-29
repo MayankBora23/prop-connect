@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useWhatsAppConversations,
@@ -58,7 +58,7 @@ export function EducationWhatsAppInbox() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: conversations, isLoading: conversationsLoading } = useWhatsAppConversations();
+  const { data: conversations, isLoading: conversationsLoading, refetch: refetchConversations } = useWhatsAppConversations();
   const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
   const createMessage = useCreateWhatsAppMessage();
   const deleteConversation = useDeleteWhatsAppConversation();
@@ -67,20 +67,66 @@ export function EducationWhatsAppInbox() {
   const { data: students } = useStudents();
   const { toast } = useToast();
 
-  // Filter conversations to only show those that match student phone numbers
-  const studentPhones = new Set((students || []).map(student => student.phone));
-  const studentConversations = (conversations || []).filter(conv =>
-    studentPhones.has(conv.contact_phone) &&
-    (conv.contact_name || conv.contact_phone).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conv.contact_phone.includes(searchTerm)
-  );
+  // Subscribe to conversation changes for realtime updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel('education-whatsapp-conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+        },
+        () => {
+          console.log('Education conversations updated, refetching...');
+          refetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refetchConversations]);
+
+  // Filter conversations to show those that match student phone numbers OR are AI conversations
+  const normalizePhone = (phone: string) => phone.replace(/^\+91/, '').replace(/\D/g, '');
+  const formatPhoneNumber = (phone: string) => {
+    // Remove any non-numeric characters except +
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    // If it starts with country code, format it
+    if (cleaned.startsWith('+91')) {
+      const number = cleaned.slice(3);
+      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
+    } else if (cleaned.startsWith('91') && cleaned.length === 12) {
+      const number = cleaned.slice(2);
+      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
+    } else if (cleaned.length === 10) {
+      // Assume Indian number without country code
+      return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
+    }
+    return phone; // Return original if can't format
+  };
+  const studentPhones = new Set((students || []).map(student => normalizePhone(student.phone)));
+  const studentConversations = (conversations || []).filter(conv => {
+    const normalizedConvPhone = normalizePhone(conv.contact_phone);
+    const matchesStudent = studentPhones.has(normalizedConvPhone);
+    const isAiConversation = conv.is_new_user === true || conv.ai_enabled === true;
+    const isCompletedAiLead = !conv.is_new_user && !conv.ai_enabled && (conv.interest || conv.course || conv.study_mode || conv.budget);
+    const matchesSearch = searchTerm === '' ||
+      (conv.contact_name || conv.contact_phone).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conv.contact_phone.includes(searchTerm);
+
+    return (matchesStudent || isAiConversation || isCompletedAiLead) && matchesSearch;
+  });
 
   const activeConversation = selectedConversationId ? conversations?.find(c => c.id === selectedConversationId) : null;
   const activeMessages = messagesData?.data || [];
   const [missingOriginals, setMissingOriginals] = useState<Record<string, boolean>>({});
 
   // Get student info for the active conversation
-  const activeStudent = students?.find(student => student.phone === activeConversation?.contact_phone);
+  const activeStudent = students?.find(student => normalizePhone(student.phone) === normalizePhone(activeConversation?.contact_phone || ''));
 
   const handleFileSelect = (files: FileList | null) => {
     if (files) {

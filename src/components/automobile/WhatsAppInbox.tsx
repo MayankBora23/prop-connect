@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useWhatsAppConversations,
@@ -58,7 +58,7 @@ export function AutomobileWhatsAppInbox() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: conversations, isLoading: conversationsLoading } = useWhatsAppConversations();
+  const { data: conversations, isLoading: conversationsLoading, refetch: refetchConversations } = useWhatsAppConversations();
   const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
   const createMessage = useCreateWhatsAppMessage();
   const deleteConversation = useDeleteWhatsAppConversation();
@@ -67,18 +67,59 @@ export function AutomobileWhatsAppInbox() {
   const { data: autoLeads } = useAutoLeads();
   const { toast } = useToast();
 
-  // Filter conversations to only show those that match auto lead phone numbers
+  // Subscribe to conversation changes for realtime updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel('automobile-whatsapp-conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+        },
+        () => {
+          console.log('Automobile conversations updated, refetching...');
+          refetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refetchConversations]);
+
+  // Filter conversations to show those that match auto lead phone numbers OR are AI conversations
   // Normalize phone numbers to ensure consistent comparison
   const normalizePhone = (phone: string) => phone.replace(/^\+91/, '').replace(/\D/g, '');
+  const formatPhoneNumber = (phone: string) => {
+    // Remove any non-numeric characters except +
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    // If it starts with country code, format it
+    if (cleaned.startsWith('+91')) {
+      const number = cleaned.slice(3);
+      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
+    } else if (cleaned.startsWith('91') && cleaned.length === 12) {
+      const number = cleaned.slice(2);
+      return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
+    } else if (cleaned.length === 10) {
+      // Assume Indian number without country code
+      return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
+    }
+    return phone; // Return original if can't format
+  };
   const leadPhones = new Set((autoLeads || []).map(lead => normalizePhone(lead.phone)));
   const leadConversations = (conversations || []).filter(conv => {
     const normalizedConvPhone = normalizePhone(conv.contact_phone);
     const matchesLead = leadPhones.has(normalizedConvPhone);
+    const isAiConversation = conv.is_new_user === true || conv.ai_enabled === true;
+    const isCompletedAiLead = !conv.is_new_user && !conv.ai_enabled && (conv.purpose || conv.vehicle_type || conv.brand || conv.budget);
     const matchesSearch = searchTerm === '' ||
       (conv.contact_name || conv.contact_phone).toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.contact_phone.includes(searchTerm);
 
-    return matchesLead && matchesSearch;
+    return (matchesLead || isAiConversation || isCompletedAiLead) && matchesSearch;
   });
 
   const activeConversation = selectedConversationId ? conversations?.find(c => c.id === selectedConversationId) : null;
@@ -86,7 +127,7 @@ export function AutomobileWhatsAppInbox() {
   const [missingOriginals, setMissingOriginals] = useState<Record<string, boolean>>({});
 
   // Get auto lead info for the active conversation
-  const activeLead = autoLeads?.find(lead => lead.phone === activeConversation?.contact_phone);
+  const activeLead = autoLeads?.find(lead => normalizePhone(lead.phone) === normalizePhone(activeConversation?.contact_phone || ''));
 
   const handleFileSelect = (files: FileList | null) => {
     if (files) {
@@ -533,7 +574,7 @@ export function AutomobileWhatsAppInbox() {
             <div className="flex-1 overflow-y-auto">
               {leadConversations.length > 0 ? (
                 leadConversations.map((conv) => {
-                  const lead = autoLeads?.find(l => l.phone === conv.contact_phone);
+                  const lead = autoLeads?.find(l => normalizePhone(l.phone) === normalizePhone(conv.contact_phone));
                   return (
                     <div
                       key={conv.id}
@@ -561,7 +602,7 @@ export function AutomobileWhatsAppInbox() {
                           </div>
                           <div className="flex items-center gap-2">
                             <p className="text-xs text-muted-foreground truncate">
-                              {lead ? `${lead.preferred_brand || 'Lead'} • ${lead.preferred_vehicle_type || 'Vehicle'}` : conv.contact_phone}
+                              {lead ? `${lead.preferred_brand || 'Lead'} • ${lead.preferred_vehicle_type || 'Vehicle'}` : formatPhoneNumber(conv.contact_phone)}
                             </p>
                             {lead && (
                               <Badge variant="outline" className="text-xs">
@@ -600,7 +641,7 @@ export function AutomobileWhatsAppInbox() {
                     <h3 className="font-medium text-foreground">
                       {activeLead?.name || activeConversation.contact_name || activeConversation.contact_phone}
                     </h3>
-                    <p className="text-xs text-muted-foreground">{activeConversation.contact_phone}</p>
+                    <p className="text-xs text-muted-foreground">{formatPhoneNumber(activeConversation.contact_phone)}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {activeLead?.preferred_vehicle_type && (
                         <Badge variant="outline" className="text-xs">
@@ -1227,16 +1268,16 @@ export function AutomobileWhatsAppInbox() {
                         onCheckedChange={() => handleContactToggle(conv.id)}
                       />
                       <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
-                        {autoLeads?.find(l => l.phone === conv.contact_phone)?.name.split(' ').map(n => n[0]).join('').slice(0, 2) || conv.contact_phone.slice(-2)}
+                        {autoLeads?.find(l => normalizePhone(l.phone) === normalizePhone(conv.contact_phone))?.name.split(' ').map(n => n[0]).join('').slice(0, 2) || conv.contact_phone.slice(-2)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-sm truncate">
-                            {autoLeads?.find(l => l.phone === conv.contact_phone)?.name || conv.contact_name}
+                            {autoLeads?.find(l => normalizePhone(l.phone) === normalizePhone(conv.contact_phone))?.name || conv.contact_name}
                           </div>
                           {/* Show lead status badge if available */}
                           {(() => {
-                            const lead = autoLeads?.find(l => l.phone === conv.contact_phone);
+                            const lead = autoLeads?.find(l => normalizePhone(l.phone) === normalizePhone(conv.contact_phone));
                             if (lead?.status) {
                               const statusColors = {
                                 new_lead: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -1260,7 +1301,7 @@ export function AutomobileWhatsAppInbox() {
                           })()}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {conv.contact_phone}
+                          {formatPhoneNumber(conv.contact_phone)}
                           {/* TODO: Show vehicle preferences when available */}
                         </div>
                       </div>

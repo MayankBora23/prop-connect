@@ -68,40 +68,40 @@ ALTER TABLE public.whatsapp_messages ENABLE ROW LEVEL SECURITY;
 -- WhatsApp Settings Policies
 CREATE POLICY "Users can view WhatsApp settings in their company"
 ON public.whatsapp_settings FOR SELECT
-USING (company_id = public.get_user_company_id(auth.uid()));
+USING (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 CREATE POLICY "Admins can manage WhatsApp settings"
 ON public.whatsapp_settings FOR ALL
 USING (
-  company_id = public.get_user_company_id(auth.uid())
-  AND public.has_role_level(auth.uid(), 'admin')
+  (company_id = public.get_user_company_id(auth.uid()) AND public.has_role_level(auth.uid(), 'admin'))
+  OR auth.role() = 'service_role'
 );
 
 -- WhatsApp Conversations Policies
 CREATE POLICY "Users can view WhatsApp conversations in their company"
 ON public.whatsapp_conversations FOR SELECT
-USING (company_id = public.get_user_company_id(auth.uid()));
+USING (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 CREATE POLICY "Users can create WhatsApp conversations in their company"
 ON public.whatsapp_conversations FOR INSERT
-WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 CREATE POLICY "Users can update WhatsApp conversations in their company"
 ON public.whatsapp_conversations FOR UPDATE
-USING (company_id = public.get_user_company_id(auth.uid()));
+USING (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 -- WhatsApp Messages Policies
 CREATE POLICY "Users can view WhatsApp messages in their company"
 ON public.whatsapp_messages FOR SELECT
-USING (company_id = public.get_user_company_id(auth.uid()));
+USING (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 CREATE POLICY "Users can create WhatsApp messages in their company"
 ON public.whatsapp_messages FOR INSERT
-WITH CHECK (company_id = public.get_user_company_id(auth.uid()));
+WITH CHECK (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 CREATE POLICY "Users can update WhatsApp messages in their company"
 ON public.whatsapp_messages FOR UPDATE
-USING (company_id = public.get_user_company_id(auth.uid()));
+USING (company_id = public.get_user_company_id(auth.uid()) OR auth.role() = 'service_role');
 
 -- Grant permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.whatsapp_settings TO authenticated;

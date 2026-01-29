@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { handleAiFlow } from './handleAiFlow.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -104,6 +105,21 @@ serve(async (req) => {
       console.log('Routed by whatsapp_number (live mode):', whatsappNumber)
     }
 
+    // Get company industry type for AI flow routing
+    let companyIndustry = 'real_estate' // default fallback
+    if (whatsappSettings?.company_id) {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('industry')
+        .eq('id', whatsappSettings.company_id)
+        .single()
+
+      if (companyData?.industry) {
+        companyIndustry = companyData.industry
+        console.log('Company industry detected:', companyIndustry)
+      }
+    }
+
     if (settingsError || !whatsappSettings) {
       console.error('WhatsApp settings not found for AccountSid:', payload.AccountSid, 'or number:', whatsappNumber)
       return new Response('WhatsApp settings not configured', { status: 404, headers: corsHeaders })
@@ -178,6 +194,44 @@ serve(async (req) => {
       conversationId = newConversation.id
     }
 
+    // GATEKEEPER: Check if we should route to AI flow
+    const { data: conversationData, error: conversationFetchError } = await supabase
+      .from('whatsapp_conversations')
+      .select('is_new_user, ai_enabled, current_step')
+      .eq('id', conversationId)
+      .single()
+
+    if (conversationFetchError) {
+      console.error('Error fetching conversation data:', conversationFetchError)
+      return new Response('Database error', { status: 500, headers: corsHeaders })
+    }
+
+    // Route to AI flow if new user and AI enabled
+    if (conversationData.is_new_user === true && conversationData.ai_enabled === true) {
+      console.log('🎯 Routing to AI Lead Qualification flow')
+      console.log(`🤖 AI Flow trigger: new_user=${conversationData.is_new_user}, ai_enabled=${conversationData.ai_enabled}`)
+      console.log(`📞 Conversation: ${conversationId}, Phone: ${contactPhone}, Industry: ${companyIndustry}`)
+
+      try {
+        const result = await handleAiFlow({
+          payload,
+          conversationId,
+          whatsappSettings,
+          conversationData,
+          supabase,
+          accountSid: payload.AccountSid,
+          industry: companyIndustry
+        })
+        console.log('✅ AI Flow completed successfully')
+        return result
+      } catch (aiError) {
+        console.error('❌ AI Flow failed:', aiError)
+        throw aiError
+      }
+    }
+
+    console.log('Continuing with existing Human Inbox logic')
+
     // Check for replied-to message SID sent by Twilio (OriginalRepliedMessageSid / QuotedMessageSid variants)
     // Extract possible replied-message identifiers from webhook payload
     const originalRepliedSid = formData.get('OriginalRepliedMessageSid') || formData.get('QuotedMessageSid') || formData.get('RepliedMessageSid') || formData.get('Context') || null
@@ -218,24 +272,24 @@ serve(async (req) => {
       }
     }
 
-    // Insert the message
+    // Insert the incoming user message
     const { error: messageError } = await supabase
       .from('whatsapp_messages')
       .insert({
         conversation_id: conversationId,
-        direction: 'incoming',
-        body: payload.Body,
-        status: 'delivered', // Twilio delivered it to us
-        message_sid: payload.MessageSid,
         company_id: whatsappSettings.company_id,
-        reply_to_message_id: reply_to_message_id,
-        reply_to_message_sid: originalRepliedSid || null
+        direction: 'incoming',  // Database ENUM expects lowercase
+        body: payload.Body,
+        status: 'delivered',
+        message_sid: payload.MessageSid
       })
 
     if (messageError) {
-      console.error('Error inserting message:', messageError)
+      console.error('Error inserting incoming message:', messageError)
       return new Response('Database error', { status: 500, headers: corsHeaders })
     }
+
+    console.log('✅ Incoming user message stored in database')
 
     console.log('Successfully processed WhatsApp message')
 

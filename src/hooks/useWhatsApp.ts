@@ -20,6 +20,21 @@ export interface WhatsAppConversation {
   last_message_at: string
   created_at: string
   updated_at: string
+  is_new_user?: boolean
+  ai_enabled?: boolean
+  current_step?: number
+  // Real estate columns
+  purpose?: string
+  property_type?: string
+  budget?: string
+  location?: string
+  // Automobile columns
+  vehicle_type?: string
+  brand?: string
+  // Education columns
+  interest?: string
+  course?: string
+  study_mode?: string
 }
 
 export interface WhatsAppMessage {
