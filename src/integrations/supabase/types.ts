@@ -124,73 +124,103 @@ export interface Database {
       }
       leads: {
         Row: {
-          address: string | null
-          assigned_to: string | null
-          budget_max: number | null
-          budget_min: number | null
-          city: string | null
-          company_id: string | null
-          created_at: string
-          deal_price: string | null
-          email: string | null
           id: string
-          lead_status: Database["public"]["Enums"]["lead_status"] | null
           name: string
-          notes: string | null
           phone: string
-          property_purchased_id: string | null
+          email: string | null
+          location: string | null
           property_type: string | null
+          budget: string | null
           source: string | null
+          notes: string | null
+          tags: string[] | null
           stage: Database["public"]["Enums"]["lead_stage"]
-          state: string | null
+          lead_status: Database["public"]["Enums"]["lead_status"] | null
+          assigned_to: string | null
+          created_by: string | null
+          created_at: string
           updated_at: string
-          zip_code: string | null
+          last_contact: string | null
+          lead_score: number | null
+          score_reasoning: string | null
+          scored_at: string | null
+          company_id: string | null
+          property_purchased_id: string | null
+          deal_price: string | null
+          buyer_commission_pct: number | null
+          seller_commission_pct: number | null
+          buyer_paid: number | null
+          seller_paid: number | null
+          deal_status: string | null
+          deal_closed_at: string | null
+          is_telephony_enabled: boolean | null
+          last_called_at: string | null
         }
         Insert: {
-          address?: string | null
-          assigned_to?: string | null
-          budget_max?: number | null
-          budget_min?: number | null
-          city?: string | null
-          company_id?: string | null
-          created_at?: string
-          deal_price?: string | null
-          email?: string | null
           id?: string
-          lead_status?: Database["public"]["Enums"]["lead_status"] | null
           name: string
-          notes?: string | null
           phone: string
-          property_purchased_id?: string | null
+          email?: string | null
+          location?: string | null
           property_type?: string | null
+          budget?: string | null
           source?: string | null
+          notes?: string | null
+          tags?: string[] | null
           stage?: Database["public"]["Enums"]["lead_stage"]
-          state?: string | null
+          lead_status?: Database["public"]["Enums"]["lead_status"] | null
+          assigned_to?: string | null
+          created_by?: string | null
+          created_at?: string
           updated_at?: string
-          zip_code?: string | null
+          last_contact?: string | null
+          lead_score?: number | null
+          score_reasoning?: string | null
+          scored_at?: string | null
+          company_id?: string | null
+          property_purchased_id?: string | null
+          deal_price?: string | null
+          buyer_commission_pct?: number | null
+          seller_commission_pct?: number | null
+          buyer_paid?: number | null
+          seller_paid?: number | null
+          deal_status?: string | null
+          deal_closed_at?: string | null
+          is_telephony_enabled?: boolean | null
+          last_called_at?: string | null
         }
         Update: {
-          address?: string | null
-          assigned_to?: string | null
-          budget_max?: number | null
-          budget_min?: number | null
-          city?: string | null
-          company_id?: string | null
-          created_at?: string
-          deal_price?: string | null
-          email?: string | null
           id?: string
-          lead_status?: Database["public"]["Enums"]["lead_status"] | null
           name?: string
-          notes?: string | null
           phone?: string
-          property_purchased_id?: string | null
+          email?: string | null
+          location?: string | null
           property_type?: string | null
+          budget?: string | null
           source?: string | null
+          notes?: string | null
+          tags?: string[] | null
           stage?: Database["public"]["Enums"]["lead_stage"]
-          state?: string | null
+          lead_status?: Database["public"]["Enums"]["lead_status"] | null
+          assigned_to?: string | null
+          created_by?: string | null
+          created_at?: string
           updated_at?: string
-          zip_code?: string | null
+          last_contact?: string | null
+          lead_score?: number | null
+          score_reasoning?: string | null
+          scored_at?: string | null
+          company_id?: string | null
+          property_purchased_id?: string | null
+          deal_price?: string | null
+          buyer_commission_pct?: number | null
+          seller_commission_pct?: number | null
+          buyer_paid?: number | null
+          seller_paid?: number | null
+          deal_status?: string | null
+          deal_closed_at?: string | null
+          is_telephony_enabled?: boolean | null
+          last_called_at?: string | null
         }
         Relationships: [
           {
