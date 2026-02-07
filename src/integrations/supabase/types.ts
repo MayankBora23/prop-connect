@@ -234,6 +234,7 @@ export interface Database {
       }
       profiles: {
         Row: {
+          agent_identity: string | null
           company_id: string | null
           created_at: string
           id: string
@@ -243,6 +244,7 @@ export interface Database {
           user_id: string
         }
         Insert: {
+          agent_identity?: string | null
           company_id?: string | null
           created_at?: string
           id?: string
@@ -252,6 +254,7 @@ export interface Database {
           user_id: string
         }
         Update: {
+          agent_identity?: string | null
           company_id?: string | null
           created_at?: string
           id?: string
@@ -904,6 +907,9 @@ export interface Database {
           twilio_sid: string
           twilio_auth_token: string
           whatsapp_number: string
+          twilio_api_key_sid: string | null
+          twilio_api_key_secret: string | null
+          twilio_twiml_app_sid: string | null
           created_at: string
           updated_at: string
         }
@@ -913,6 +919,9 @@ export interface Database {
           twilio_sid: string
           twilio_auth_token: string
           whatsapp_number: string
+          twilio_api_key_sid?: string | null
+          twilio_api_key_secret?: string | null
+          twilio_twiml_app_sid?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -922,6 +931,9 @@ export interface Database {
           twilio_sid?: string
           twilio_auth_token?: string
           whatsapp_number?: string
+          twilio_api_key_sid?: string | null
+          twilio_api_key_secret?: string | null
+          twilio_twiml_app_sid?: string | null
           created_at?: string
           updated_at?: string
         }

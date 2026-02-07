@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, MapPin, Calendar, Zap, Loader2 } from 'lucide-react';
+import { Phone, Mail, MapPin, Calendar, Zap, Loader2, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Lead } from '@/hooks/useLeads';
 import { useScoreLead, useUpdateLead } from '@/hooks/useLeads';
@@ -91,6 +91,7 @@ function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?:
 
 export function LeadCard({ lead, onClick, onDragStart, isDragging = false }: LeadCardProps) {
   const scoreLead = useScoreLead();
+  const updateLead = useUpdateLead();
 
   const handleScore = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -99,6 +100,21 @@ export function LeadCard({ lead, onClick, onDragStart, isDragging = false }: Lea
       toast.success('Lead scored successfully');
     } catch (error) {
       toast.error('Failed to score lead');
+    }
+  };
+
+  const handleAddToTelephony = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const updateLead = useUpdateLead();
+      await updateLead.mutateAsync({
+        id: lead.id,
+        is_telephony_enabled: true
+      });
+      toast.success('Lead successfully added to the Telephony queue.');
+    } catch (error) {
+      console.error('Error adding lead to telephony:', error);
+      toast.error('Failed to add lead to Telephony queue');
     }
   };
 
@@ -222,6 +238,32 @@ export function LeadCard({ lead, onClick, onDragStart, isDragging = false }: Lea
       <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
         <span>Assigned to:</span>
         <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Add WhatsApp functionality here if needed
+          }}
+          title="Add to WhatsApp"
+        >
+          <MessageCircle className="w-3 h-3 mr-1" />
+          WhatsApp
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          onClick={handleAddToTelephony}
+          title="Add to Telephony"
+        >
+          <Phone className="w-3 h-3 mr-1" />
+          Telephony
+        </Button>
       </div>
 
     </div>

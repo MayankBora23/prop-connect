@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditLeadDialog } from './EditLeadDialog';
-import { Edit, Trash2, MessageCircle } from 'lucide-react';
+import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
@@ -210,6 +210,21 @@ export function LeadsView() {
     }
   };
 
+  const updateLead = useUpdateLead();
+
+  const handleAddToTelephony = async (lead: Lead) => {
+    try {
+      await updateLead.mutateAsync({
+        id: lead.id,
+        is_telephony_enabled: true
+      });
+      toast.success('Lead successfully added to the Telephony queue.');
+    } catch (error) {
+      console.error('Error adding lead to telephony:', error);
+      toast.error('Failed to add lead to Telephony queue');
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -339,6 +354,18 @@ export function LeadsView() {
                           title="Add to WhatsApp"
                         >
                           <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToTelephony(lead);
+                          }}
+                          title="Add to Telephony"
+                        >
+                          <Phone className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"

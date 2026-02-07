@@ -1,0 +1,189 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+serve(async (req) => {
+  console.log('🚨 VOICE-ROUTER FUNCTION INVOKED - METHOD:', req.method)
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    // Only accept POST requests
+    if (req.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Parse the form data from Twilio webhook (application/x-www-form-urlencoded)
+    console.log('🔍 Parsing Twilio webhook form data...')
+    const formData = await req.formData()
+
+    // Extract parameters correctly
+    const callSid = formData.get('CallSid') as string
+    const direction = formData.get('Direction') as string
+    const from = formData.get('From') as string
+
+    // CORRECT PARAMETER KEY: Check for 'To' OR 'params.To' (Twilio nests parameters from JS SDK)
+    let to = formData.get('To') as string
+    if (!to) {
+      to = formData.get('params.To') as string
+    }
+
+    const agentIdentity = formData.get('agent_identity') as string // Custom parameter for outgoing calls
+
+    console.log('📋 Extracted form parameters:')
+    console.log('   CallSid:', callSid)
+    console.log('   Direction:', direction)
+    console.log('   From:', from)
+    console.log('   To (direct):', formData.get('To'))
+    console.log('   params.To (nested):', formData.get('params.To'))
+    console.log('   Final To:', to)
+    console.log('   AgentIdentity:', agentIdentity)
+
+    // DEBUG: Log all form data entries
+    console.log('🔍 ALL FORM DATA ENTRIES:')
+    for (const [key, value] of formData.entries()) {
+      console.log(`   ${key}: ${value}`)
+    }
+
+    console.log('🎯 ===== VOICE ROUTER WEBHOOK CALLED =====')
+    console.log('🔥 CallSid:', callSid)
+    console.log('🔥 Direction:', direction)
+    console.log('🔥 From:', from)
+    console.log('🔥 To:', to)
+    console.log('🔥 AgentIdentity:', agentIdentity)
+    console.log('🔥 Timestamp:', new Date().toISOString())
+    console.log('🔥 Raw To parameter:', JSON.stringify(to))
+    console.log('====================================')
+
+    // Log all form data for debugging
+    const allFormData = Object.fromEntries(formData.entries())
+    console.log('📋 Full form data received:', allFormData)
+
+    // Specifically log the To parameter
+    console.log('🎯 To parameter from Twilio:', to)
+
+    if (!callSid) {
+      console.error('❌ Missing CallSid in webhook request')
+      return new Response('Missing CallSid', { status: 400, headers: corsHeaders })
+    }
+
+    console.log('✅ Valid webhook request received')
+
+    let twimlResponse = ''
+
+    // FIX: Check if From contains 'client:' to determine call type
+    // Do NOT check Direction, as Twilio labels SDK calls as 'inbound' by default
+    if (from && from.startsWith('client:')) {
+      // This is an OUTBOUND call from the browser (Twilio SDK)
+      console.log('📞 OUTBOUND CALL: From browser client, dialing phone number')
+      console.log('From:', from)
+      console.log('To:', to)
+
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial callerId="+17656296512">${to}</Dial>
+</Response>`
+
+      console.log('✅ Generated outbound call TwiML - dialing phone number')
+    } else {
+      // This is a REAL INBOUND call from a phone to the browser
+      console.log('📞 INBOUND CALL: From phone number, routing to agent client')
+      console.log('From:', from)
+      console.log('To:', to)
+
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial>
+    <Client>agent_mayank</Client>
+  </Dial>
+</Response>`
+
+      console.log('✅ Generated inbound call TwiML - routing to client')
+    }
+
+    // Log the call to database
+    try {
+      // Try to find company and agent based on the call details
+      let companyId = null
+      let agentId = null
+
+      if (agentIdentity) {
+        // For outgoing calls, find the agent by identity
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, company_id')
+          .eq('agent_identity', agentIdentity)
+          .single()
+
+        if (profile) {
+          agentId = profile.user_id
+          companyId = profile.company_id
+        }
+      }
+
+      // For incoming calls, we might need different logic to determine company
+      // For now, we'll log what we can
+      if (companyId) {
+        const { error: logError } = await supabase
+          .from('call_logs')
+          .insert({
+            company_id: companyId,
+            agent_id: agentId,
+            direction: direction === 'inbound' ? 'incoming' : 'outgoing',
+            status: 'initiated',
+            twilio_call_sid: callSid,
+            twilio_from_number: from,
+            twilio_to_number: to
+          })
+
+        if (logError) {
+          console.error('Error logging call:', logError)
+        } else {
+          console.log('Call logged successfully:', callSid)
+        }
+      }
+    } catch (error) {
+      console.error('Error in call logging:', error)
+      // Don't fail the webhook if logging fails
+    }
+
+    console.log('📤 Returning TwiML response with Content-Type: text/xml')
+
+    return new Response(twimlResponse, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/xml"
+      }
+    })
+
+  } catch (error) {
+    console.error('Unexpected error in voice router:', error)
+
+    // Return error TwiML
+    const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Sorry, there was an error with this call.</Say>
+  <Hangup/>
+</Response>`
+
+    return new Response(errorTwiml, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/xml"
+      }
+    })
+  }
+})

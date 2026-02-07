@@ -27,6 +27,9 @@ const whatsappSchema = z.object({
   twilio_sid: z.string().min(1, 'Twilio SID is required'),
   twilio_auth_token: z.string().min(1, 'Twilio Auth Token is required'),
   whatsapp_number: z.string().min(1, 'WhatsApp number is required'),
+  twilio_api_key_sid: z.string().optional().or(z.literal('')),
+  twilio_api_key_secret: z.string().optional().or(z.literal('')),
+  twilio_twiml_app_sid: z.string().optional().or(z.literal('')),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -60,6 +63,9 @@ export function CompanySettingsView() {
       twilio_sid: '',
       twilio_auth_token: '',
       whatsapp_number: '',
+      twilio_api_key_sid: '',
+      twilio_api_key_secret: '',
+      twilio_twiml_app_sid: '',
     },
   });
 
@@ -82,6 +88,9 @@ export function CompanySettingsView() {
         twilio_sid: whatsappSettings.twilio_sid || '',
         twilio_auth_token: whatsappSettings.twilio_auth_token || '',
         whatsapp_number: whatsappSettings.whatsapp_number || '',
+        twilio_api_key_sid: whatsappSettings.twilio_api_key_sid || '',
+        twilio_api_key_secret: whatsappSettings.twilio_api_key_secret || '',
+        twilio_twiml_app_sid: whatsappSettings.twilio_twiml_app_sid || '',
       });
     }
   }, [whatsappSettings, whatsappForm]);
@@ -118,6 +127,9 @@ export function CompanySettingsView() {
           twilio_sid: data.twilio_sid,
           twilio_auth_token: data.twilio_auth_token,
           whatsapp_number: data.whatsapp_number,
+          twilio_api_key_sid: data.twilio_api_key_sid || null,
+          twilio_api_key_secret: data.twilio_api_key_secret || null,
+          twilio_twiml_app_sid: data.twilio_twiml_app_sid || null,
         });
       } else {
         await createWhatsAppSettings.mutateAsync({
@@ -125,6 +137,9 @@ export function CompanySettingsView() {
           twilio_sid: data.twilio_sid,
           twilio_auth_token: data.twilio_auth_token,
           whatsapp_number: data.whatsapp_number,
+          twilio_api_key_sid: data.twilio_api_key_sid || null,
+          twilio_api_key_secret: data.twilio_api_key_secret || null,
+          twilio_twiml_app_sid: data.twilio_twiml_app_sid || null,
         });
       }
     } catch (error: any) {
@@ -356,6 +371,86 @@ export function CompanySettingsView() {
                   </FormItem>
                 )}
               />
+
+              {/* Telephony Settings Section */}
+              <div className="border-t pt-6 mt-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Phone className="w-5 h-5" />
+                  Voice Telephony Integration
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configure Twilio Voice API for outbound calling capabilities.
+                  These settings are optional and only required if you want to enable voice calling.
+                </p>
+
+                <FormField
+                  control={whatsappForm.control}
+                  name="twilio_api_key_sid"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Twilio API Key SID</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input {...field} placeholder="SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={whatsappForm.control}
+                  name="twilio_api_key_secret"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Twilio API Key Secret</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            type="password"
+                            placeholder="Your Twilio API Key Secret"
+                            className="pl-10 font-mono text-sm"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={whatsappForm.control}
+                  name="twilio_twiml_app_sid"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Twilio TwiML App SID</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input {...field} placeholder="APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg mt-4">
+                  <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Voice Telephony Setup:</h4>
+                  <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
+                    <li>Create an API Key in Twilio Console → Settings → API Keys</li>
+                    <li>Create a TwiML App in Twilio Console → Voice → Manage → TwiML Apps</li>
+                    <li>Set Voice Request URL: <code>https://your-project.supabase.co/functions/v1/voice-router</code></li>
+                    <li>Set Status Callback URL: <code>https://your-project.supabase.co/functions/v1/voice-status</code></li>
+                    <li>Each agent needs an "Agent Identity" set in their profile settings</li>
+                    <li>Enable telephony for leads by checking "Enable Telephony" in lead details</li>
+                  </ol>
+                </div>
+              </div>
 
               <div className="bg-muted p-4 rounded-lg space-y-4">
                 <div>

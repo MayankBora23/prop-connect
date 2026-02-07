@@ -15,6 +15,7 @@ import { TeamView } from '@/components/team/TeamView';
 import { AutomationView } from '@/components/automation/AutomationView';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
 import { CompanySettingsView } from '@/components/settings/CompanySettingsView';
+import { ProfileSettingsView } from '@/components/settings/ProfileSettingsView';
 import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
@@ -56,6 +57,7 @@ import { AttendanceView as EmployeeAttendanceView } from '@/components/employee-
 import { AttendanceView as StudentAttendanceView } from '@/components/education/AttendanceView';
 import { AutomobileEmployeesView } from '@/components/automobile/AutomobileEmployeesView';
 import { AutomobileAttendanceView } from '@/components/automobile/AutomobileAttendanceView';
+import { TelephonyView } from '@/components/telephony/TelephonyView';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -65,12 +67,14 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track employee attendance and working hours', addLabel: 'Mark Attendance' },
   purchased: { title: 'Purchased', subtitle: 'Closed won deals and property purchases' },
   inbox: { title: 'WhatsApp Inbox', subtitle: 'Customer conversations' },
+  telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
   visits: { title: 'Site Visits', subtitle: 'Scheduled property visits', addLabel: 'Schedule Visit' },
   followups: { title: 'Follow-ups', subtitle: 'Track your tasks', addLabel: 'Add Follow-up' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
@@ -89,6 +93,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
@@ -109,6 +114,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
@@ -293,6 +299,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <TeamView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'profile-settings':
+          return <ProfileSettingsView />;
         case 'company-settings':
           return <CompanySettingsView />;
         default:
@@ -314,6 +322,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <PurchasedView />;
         case 'inbox':
           return <WhatsAppInbox />;
+        case 'telephony':
+          return <TelephonyView />;
         case 'visits':
           return <SiteVisitsView />;
         case 'followups':
@@ -326,6 +336,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <AutomationView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'profile-settings':
+          return <ProfileSettingsView />;
         case 'company-settings':
           return <CompanySettingsView />;
         default:

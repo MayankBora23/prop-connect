@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
-import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck } from 'lucide-react';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -34,12 +34,14 @@ const realEstateMenuItems = [
   { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
   { id: 'purchased', label: 'Purchased', icon: CheckCircle, badge: undefined },
   { id: 'inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: 3 },
+  { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
   { id: 'visits', label: 'Site Visits', icon: Calendar, badge: undefined },
   { id: 'followups', label: 'Follow-ups', icon: Clock, badge: 5 },
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'automation', label: 'Automation', icon: Zap, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
@@ -58,6 +60,7 @@ const educationMenuItems = [
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
@@ -78,6 +81,7 @@ const automobileMenuItems = [
   { id: 'workspace', label: 'Workspace', icon: Home, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 

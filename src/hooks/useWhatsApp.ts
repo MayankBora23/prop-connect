@@ -8,6 +8,9 @@ export interface WhatsAppSettings {
   twilio_sid: string
   twilio_auth_token: string
   whatsapp_number: string
+  twilio_api_key_sid?: string | null
+  twilio_api_key_secret?: string | null
+  twilio_twiml_app_sid?: string | null
   created_at: string
   updated_at: string
 }
