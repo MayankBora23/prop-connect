@@ -947,6 +947,94 @@ export interface Database {
           }
         ]
       }
+      students: {
+        Row: {
+          id: string
+          name: string
+          email: string | null
+          phone: string
+          date_of_birth: string | null
+          address: string | null
+          parent_name: string | null
+          parent_phone: string | null
+          parent_email: string | null
+          notes: string[] | null
+          tags: string[] | null
+          stage: Database["public"]["Enums"]["student_stage"] | null
+          assigned_to: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          company_id: string | null
+          is_telephony_enabled: boolean | null
+          last_called_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          email?: string | null
+          phone: string
+          date_of_birth?: string | null
+          address?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          parent_email?: string | null
+          notes?: string[] | null
+          tags?: string[] | null
+          stage?: Database["public"]["Enums"]["student_stage"] | null
+          assigned_to?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          company_id?: string | null
+          is_telephony_enabled?: boolean | null
+          last_called_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string | null
+          phone?: string
+          date_of_birth?: string | null
+          address?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          parent_email?: string | null
+          notes?: string[] | null
+          tags?: string[] | null
+          stage?: Database["public"]["Enums"]["student_stage"] | null
+          assigned_to?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          company_id?: string | null
+          is_telephony_enabled?: boolean | null
+          last_called_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "students_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -970,6 +1058,7 @@ export interface Database {
       message_type: "text" | "image" | "document"
       property_status: "available" | "sold" | "upcoming"
       site_visit_status: "scheduled" | "completed" | "cancelled"
+      student_stage: "new_students" | "contacted" | "demo_scheduled" | "demo_attended" | "interested" | "fees_discussed" | "enrolled" | "lost"
       workflow_status: "active" | "inactive"
     }
     CompositeTypes: {

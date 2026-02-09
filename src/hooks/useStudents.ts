@@ -20,6 +20,8 @@ export type Student = {
   created_at: string;
   updated_at: string;
   company_id: string | null;
+  is_telephony_enabled: boolean;
+  last_called_at: string | null;
   // Relations
   profiles?: {
     name: string;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
-import { LayoutGrid, List, Filter, Download, Upload, MessageCircle } from 'lucide-react';
+import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -167,6 +167,21 @@ export function AutoLeadsView() {
     }
   };
 
+  const updateLeadMutation = useUpdateAutoLead();
+
+  const handleAddToTelephony = async (lead: AutoLead) => {
+    try {
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        is_telephony_enabled: true
+      });
+      toast.success('Lead enabled for telephony');
+    } catch (error) {
+      console.error('Error enabling telephony for lead:', error);
+      toast.error('Failed to enable telephony for lead');
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -296,6 +311,18 @@ export function AutoLeadsView() {
                           title="Add to WhatsApp"
                         >
                           <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToTelephony(lead);
+                          }}
+                          title="Add to Telephony"
+                        >
+                          <Phone className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"

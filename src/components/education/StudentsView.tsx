@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditStudentDialog } from './EditStudentDialog';
-import { Edit, Trash2, MessageCircle } from 'lucide-react';
+import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Student } from '@/hooks/useStudents';
 
@@ -180,6 +180,21 @@ export function StudentsView() {
     }
   };
 
+  const updateStudentMutation = useUpdateStudent();
+
+  const handleAddToTelephony = async (student: Student) => {
+    try {
+      await updateStudentMutation.mutateAsync({
+        id: student.id,
+        is_telephony_enabled: true
+      });
+      toast.success('Student enabled for telephony');
+    } catch (error) {
+      console.error('Error enabling telephony for student:', error);
+      toast.error('Failed to enable telephony for student');
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -309,6 +324,18 @@ export function StudentsView() {
                           title="Add to WhatsApp"
                         >
                           <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToTelephony(student);
+                          }}
+                          title="Add to Telephony"
+                        >
+                          <Phone className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"

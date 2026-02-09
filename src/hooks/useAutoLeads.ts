@@ -30,6 +30,8 @@ export interface AutoLead {
   updated_at: string;
   last_contact?: string | null;
   company_id: string;
+  is_telephony_enabled: boolean;
+  last_called_at: string | null;
 }
 
 export type AutoLeadInsert = Omit<AutoLead, 'id' | 'created_at' | 'updated_at' | 'company_id'>;

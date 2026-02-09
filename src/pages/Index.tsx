@@ -89,6 +89,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   employees: { title: 'Employee Management', subtitle: 'Manage your employee profiles', addLabel: 'Add Employee' },
   'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track employee attendance and working hours', addLabel: 'Mark Attendance' },
   fees: { title: 'Fees', subtitle: 'Fee management' },
+  telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
   'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Student conversations' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
@@ -110,6 +111,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
   employees: { title: 'Employees', subtitle: 'Manage your automobile dealership staff', addLabel: 'Add Employee' },
   'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track staff attendance and working hours' },
+  telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
   'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Auto lead conversations' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
@@ -264,6 +266,10 @@ const tabConfig = isEducation ? educationTabConfig :
           return <TeamView />;
         case 'analytics':
           return <EducationAnalytics />;
+        case 'telephony':
+          return <TelephonyView />;
+        case 'profile-settings':
+          return <ProfileSettingsView />;
         case 'company-settings':
           return <CompanySettingsView />;
         default:
@@ -291,6 +297,8 @@ const tabConfig = isEducation ? educationTabConfig :
           return <AutomobileEmployeesView />;
         case 'employee-attendance':
           return <AutomobileAttendanceView />;
+        case 'telephony':
+          return <TelephonyView />;
         case 'whatsapp-inbox':
           return <AutomobileWhatsAppInbox />;
         case 'workspace':

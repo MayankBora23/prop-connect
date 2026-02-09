@@ -49,7 +49,15 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TelephonyProvider>
+    <AppContent />
+  </QueryClientProvider>
+);
+
+const AppContent = () => {
+  const { user } = useAuth();
+
+  return (
+    <TelephonyProvider key={user?.id || 'no-user'}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -62,7 +70,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </TelephonyProvider>
-  </QueryClientProvider>
-);
+  );
+};
 
 export default App;

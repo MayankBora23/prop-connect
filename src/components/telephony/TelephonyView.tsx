@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useTelephony } from '@/hooks/useTelephony';
+import { useIndustry } from '@/hooks/useIndustry';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -10,37 +11,82 @@ import { Phone, Clock, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useUpdateLead } from '@/hooks/useLeads';
+import { useUpdateStudent } from '@/hooks/useStudents';
+import { useUpdateAutoLead } from '@/hooks/useAutoLeads';
+import { TelephonyContact } from '@/hooks/useTelephony';
 import type { Lead } from '@/hooks/useLeads';
+import type { Student } from '@/hooks/useStudents';
 
 export function TelephonyView() {
   const { data: profile } = useCurrentProfile();
+  const { data: industry } = useIndustry();
   const { callStatus, currentLead, startCall, endCall, isDeviceReady, initializeDevice, device } = useTelephony();
-  const updateLead = useUpdateLead();
 
-  const { data: telephonyLeads, isLoading } = useQuery({
-    queryKey: ['telephony-leads', profile?.company_id],
+  console.log('TelephonyView render:', {
+    companyId: profile?.company_id,
+    industry,
+    isDeviceReady,
+    hasDevice: !!device,
+    callStatus,
+    userAgentIdentity: profile?.agent_identity
+  });
+
+  const updateLead = useUpdateLead();
+  const updateStudent = useUpdateStudent();
+  const updateAutoLead = useUpdateAutoLead();
+
+  const isEducation = industry === 'education';
+  const isAutomobile = industry === 'automobile_dealers';
+
+  const { data: telephonyContacts, isLoading } = useQuery({
+    queryKey: ['telephony-contacts', profile?.company_id, industry],
     queryFn: async () => {
       if (!profile?.company_id) return [];
 
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .eq('is_telephony_enabled', true)
-        .order('created_at', { ascending: false });
+      if (isEducation) {
+        // For education industry, fetch students
+        const { data, error } = await (supabase as any)
+          .from('students')
+          .select('*')
+          .eq('company_id', profile.company_id)
+          .eq('is_telephony_enabled', true)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as Lead[];
+        if (error) throw error;
+        return data as Student[];
+      } else if (isAutomobile) {
+        // For automobile industry, fetch auto_leads
+        const { data, error } = await (supabase as any)
+          .from('auto_leads')
+          .select('*')
+          .eq('company_id', profile.company_id)
+          .eq('is_telephony_enabled', true)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data as Lead[];
+      } else {
+        // For real estate industry, fetch leads
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('company_id', profile.company_id)
+          .eq('is_telephony_enabled', true)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data as Lead[];
+      }
     },
     enabled: !!profile?.company_id,
   });
 
-  const handleCall = async (lead: Lead) => {
+  const handleCall = async (contact: Lead | Student) => {
     if (!isDeviceReady) {
       toast.error('Telephony not configured. Please ensure your company has Twilio Voice credentials and you have set your agent identity.');
       return;
     }
-    await startCall(lead);
+    await startCall(contact);
   };
 
   const handleEndCall = () => {
@@ -54,16 +100,28 @@ export function TelephonyView() {
     console.log('After manual initialize:', { device: !!device, isDeviceReady });
   };
 
-  const handleRemoveFromTelephony = async (lead: Lead) => {
+  const handleRemoveFromTelephony = async (contact: Lead | Student) => {
     try {
-      await updateLead.mutateAsync({
-        id: lead.id,
-        is_telephony_enabled: false
-      });
-      toast.success(`${lead.name} has been removed from the Telephony queue.`);
+      if (isEducation) {
+        await updateStudent.mutateAsync({
+          id: contact.id,
+          is_telephony_enabled: false
+        });
+      } else if (isAutomobile) {
+        await updateAutoLead.mutateAsync({
+          id: contact.id,
+          is_telephony_enabled: false
+        });
+      } else {
+        await updateLead.mutateAsync({
+          id: contact.id,
+          is_telephony_enabled: false
+        });
+      }
+      toast.success(`${contact.name} has been removed from the Telephony queue.`);
     } catch (error) {
-      console.error('Error removing lead from telephony:', error);
-      toast.error('Failed to remove lead from Telephony queue');
+      console.error('Error removing contact from telephony:', error);
+      toast.error('Failed to remove contact from Telephony queue');
     }
   };
 
@@ -119,7 +177,7 @@ export function TelephonyView() {
               <p className={`text-sm font-semibold ${
                 isDeviceReady ? 'text-success' : 'text-destructive'
               }`}>
-                {isDeviceReady ? 'Ready' : 'Not Ready'}
+                {isDeviceReady ? 'Ready' : 'Not Ready - Configure Twilio settings and initialize'}
               </p>
               {!isDeviceReady && (
                 <Button
@@ -151,41 +209,47 @@ export function TelephonyView() {
         <table className="w-full">
           <thead className="bg-secondary">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead Name</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {isEducation ? 'Student Name' : isAutomobile ? 'Lead Name' : 'Lead Name'}
+              </th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phone Number</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Last Called At</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {telephonyLeads && telephonyLeads.length === 0 ? (
+            {telephonyContacts && telephonyContacts.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  No leads in telephony queue. Add leads to telephony from the Leads section.
+                  No {isEducation ? 'students' : isAutomobile ? 'leads' : 'leads'} in telephony queue. Add {isEducation ? 'students' : isAutomobile ? 'leads' : 'leads'} to telephony from the {isEducation ? 'Students' : isAutomobile ? 'Leads' : 'Leads'} section.
                 </td>
               </tr>
             ) : (
-              telephonyLeads?.map((lead) => (
-                <tr key={lead.id} className="hover:bg-secondary/50 transition-colors">
+              telephonyContacts?.map((contact) => (
+                <tr key={contact.id} className="hover:bg-secondary/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-xs">
-                        {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
-                        <p className="font-medium text-foreground text-sm">{lead.name}</p>
-                        <p className="text-xs text-muted-foreground">{lead.source || 'Unknown'}</p>
+                        <p className="font-medium text-foreground text-sm">{contact.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isEducation ? (contact as Student).stage?.replace('_', ' ') || 'Unknown' :
+                           isAutomobile ? (contact as any).status || 'Unknown' :
+                           (contact as Lead).source || 'Unknown'}
+                        </p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-sm text-foreground">{lead.phone}</p>
+                    <p className="text-sm text-foreground">{contact.phone}</p>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm text-foreground">
-                        {lead.last_called_at ? format(new Date(lead.last_called_at), 'MMM d, yyyy HH:mm') : 'Never'}
+                        {contact.last_called_at ? format(new Date(contact.last_called_at), 'MMM d, yyyy HH:mm') : 'Never'}
                       </span>
                     </div>
                   </td>
@@ -194,7 +258,7 @@ export function TelephonyView() {
                       <Button
                         size="sm"
                         className="h-8"
-                        onClick={() => handleCall(lead)}
+                        onClick={() => handleCall(contact)}
                         disabled={callStatus !== 'Idle'}
                       >
                         <Phone className="w-4 h-4 mr-2" />
@@ -215,13 +279,13 @@ export function TelephonyView() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Remove from Telephony</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to remove {lead.name} from the Telephony queue? They will no longer appear in this list.
+                              Are you sure you want to remove {contact.name} from the Telephony queue? They will no longer appear in this list.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleRemoveFromTelephony(lead)}
+                              onClick={() => handleRemoveFromTelephony(contact)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               Remove
@@ -241,7 +305,7 @@ export function TelephonyView() {
       {/* Dialer Overlay */}
       {callStatus !== 'Idle' && currentLead && (
         <DialerOverlay
-          lead={currentLead}
+          contact={currentLead}
           callStatus={callStatus}
           onEndCall={handleEndCall}
           onMute={() => console.log('Mute toggled')}
@@ -252,13 +316,13 @@ export function TelephonyView() {
 }
 
 interface DialerOverlayProps {
-  lead: Lead;
+  contact: TelephonyContact | null;
   callStatus: 'Idle' | 'Dialing' | 'Connected' | 'Disconnected';
   onEndCall: () => void;
   onMute: () => void;
 }
 
-function DialerOverlay({ lead, callStatus, onEndCall, onMute }: DialerOverlayProps) {
+function DialerOverlay({ contact, callStatus, onEndCall, onMute }: DialerOverlayProps) {
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -277,6 +341,8 @@ function DialerOverlay({ lead, callStatus, onEndCall, onMute }: DialerOverlayPro
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  if (!contact) return null;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-background rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -284,13 +350,13 @@ function DialerOverlay({ lead, callStatus, onEndCall, onMute }: DialerOverlayPro
           <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mx-auto mb-4">
             <div className="w-16 h-16 rounded-full bg-primary-foreground flex items-center justify-center">
               <span className="text-primary font-bold text-xl">
-                {lead.name.split(' ').map(n => n[0]).join('')}
+                {contact.name.split(' ').map(n => n[0]).join('')}
               </span>
             </div>
           </div>
 
-          <h3 className="text-xl font-semibold text-foreground mb-2">{lead.name}</h3>
-          <p className="text-muted-foreground mb-4">{lead.phone}</p>
+          <h3 className="text-xl font-semibold text-foreground mb-2">{contact.name}</h3>
+          <p className="text-muted-foreground mb-4">{contact.phone}</p>
 
           <div className="mb-6">
             {callStatus === 'Dialing' && (
