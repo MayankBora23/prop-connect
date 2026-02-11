@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTeachers } from '@/hooks/useTeachers';
+import { useTeachers, useDeleteTeacher, type Teacher } from '@/hooks/useTeachers';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
@@ -9,13 +9,13 @@ import { toast } from 'sonner';
 import { EditTeacherDialog } from './EditTeacherDialog';
 import type { TeacherStatus } from '@/hooks/useTeachers';
 
-function TeacherRow({ teacher }: { teacher: any }) {
-  const deleteTeacher = useTeachers().mutateAsync;
+function TeacherRow({ teacher }: { teacher: Teacher }) {
+  const deleteTeacherMutation = useDeleteTeacher();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleDelete = async () => {
     try {
-      await deleteTeacher(teacher.id);
+      await deleteTeacherMutation.mutateAsync(teacher.id);
       toast.success('Teacher deleted successfully');
     } catch (error) {
       toast.error('Failed to delete teacher');
