@@ -13,6 +13,8 @@ export type Company = {
   industry_type: 'real_estate' | 'education' | 'automobile_dealers';
   created_at: string;
   updated_at: string;
+  // ADDED: optional team member limit per company (NULL means no limit)
+  user_limit: number | null;
 };
 
 export type AppRole = 'super_admin' | 'admin' | 'manager' | 'sales';

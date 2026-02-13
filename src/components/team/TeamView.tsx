@@ -310,6 +310,9 @@ export function TeamView() {
           onOpenChange={setInviteOpen}
           companyId={company.id}
           currentUserRole={currentProfile?.role || null}
+          // ADDED: pass current team size and limit for UI-side enforcement
+          currentMemberCount={users.length}
+          memberLimit={company.user_limit}
         />
       )}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,13 +14,18 @@ interface InviteTeamMemberDialogProps {
   onOpenChange: (open: boolean) => void;
   companyId: string;
   currentUserRole: AppRole | null;
+  // ADDED: current team size and optional member limit
+  currentMemberCount: number;
+  memberLimit?: number | null;
 }
 
 export function InviteTeamMemberDialog({
   open,
   onOpenChange,
   companyId,
-  currentUserRole
+  currentUserRole,
+  currentMemberCount,
+  memberLimit,
 }: InviteTeamMemberDialogProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -32,6 +37,20 @@ export function InviteTeamMemberDialog({
 
   const inviteMember = useInviteTeamMember();
   const { toast } = useToast();
+
+  // ADDED: derived state for team member limit
+  const isAtLimit = typeof memberLimit === 'number' && currentMemberCount >= memberLimit;
+
+  // ADDED: notify user when opening dialog while at limit
+  useEffect(() => {
+    if (open && isAtLimit) {
+      toast({
+        title: 'Team member limit reached',
+        description: `Team member limit reached (${currentMemberCount}/${memberLimit}). Please upgrade your plan or contact support.`,
+        variant: 'destructive',
+      });
+    }
+  }, [open, isAtLimit, currentMemberCount, memberLimit, toast]);
 
   // Generate a secure random password
   const generatePassword = () => {
@@ -84,6 +103,16 @@ export function InviteTeamMemberDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ADDED: prevent submission when team member limit is reached
+    if (isAtLimit) {
+      toast({
+        title: 'Team member limit reached',
+        description: `Team member limit reached (${currentMemberCount}/${memberLimit}). Please upgrade your plan or contact support.`,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (!name.trim() || !email.trim()) {
       toast({
@@ -175,7 +204,24 @@ export function InviteTeamMemberDialog({
         <DialogHeader>
           <DialogTitle>Invite Team Member</DialogTitle>
         </DialogHeader>
-        
+
+        {/* ADDED: inline info about current usage and limit */}
+        {typeof memberLimit === 'number' && (
+          <div
+            className={`mb-2 rounded-md border px-3 py-2 text-sm ${
+              isAtLimit
+                ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                : 'border-muted bg-muted/30 text-muted-foreground'
+            }`}
+          >
+            {isAtLimit ? (
+              <>Team member limit reached ({currentMemberCount}/{memberLimit}). Please upgrade your plan or contact support.</>
+            ) : (
+              <>Team members in use: {currentMemberCount}/{memberLimit}</>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
@@ -323,7 +369,7 @@ export function InviteTeamMemberDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={inviteMember.isPending}>
+            <Button type="submit" disabled={inviteMember.isPending || isAtLimit}>
               {inviteMember.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send Invite
             </Button>
