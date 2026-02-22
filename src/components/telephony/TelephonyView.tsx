@@ -13,9 +13,11 @@ import { toast } from 'sonner';
 import { useUpdateLead } from '@/hooks/useLeads';
 import { useUpdateStudent } from '@/hooks/useStudents';
 import { useUpdateAutoLead } from '@/hooks/useAutoLeads';
+import { useUpdateInternalLead } from '@/hooks/useInternalLeads';
 import { TelephonyContact } from '@/hooks/useTelephony';
 import type { Lead } from '@/hooks/useLeads';
 import type { Student } from '@/hooks/useStudents';
+import type { InternalLead } from '@/hooks/useInternalLeads';
 
 export function TelephonyView() {
   const { data: profile } = useCurrentProfile();
@@ -34,21 +36,23 @@ export function TelephonyView() {
   const updateLead = useUpdateLead();
   const updateStudent = useUpdateStudent();
   const updateAutoLead = useUpdateAutoLead();
+  const updateInternalLead = useUpdateInternalLead();
 
   const isEducation = industry === 'education';
   const isAutomobile = industry === 'automobile_dealers';
+  const isInternalCRM = industry === 'internal_crm';
 
   const { data: telephonyContacts, isLoading } = useQuery({
     queryKey: ['telephony-contacts', profile?.company_id, industry],
     queryFn: async () => {
-      if (!profile?.company_id) return [];
+      if (!profile?.company_id && !isInternalCRM) return [];
 
       if (isEducation) {
         // For education industry, fetch students
         const { data, error } = await (supabase as any)
           .from('students')
           .select('*')
-          .eq('company_id', profile.company_id)
+          .eq('company_id', profile?.company_id)
           .eq('is_telephony_enabled', true)
           .order('created_at', { ascending: false });
 
@@ -59,18 +63,32 @@ export function TelephonyView() {
         const { data, error } = await (supabase as any)
           .from('auto_leads')
           .select('*')
-          .eq('company_id', profile.company_id)
+          .eq('company_id', profile?.company_id)
           .eq('is_telephony_enabled', true)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
         return data as Lead[];
+      } else if (isInternalCRM) {
+        // For internal CRM, fetch internal_leads (global)
+        const { data, error } = await (supabase as any)
+          .from('internal_leads')
+          .select('*')
+          .eq('is_telephony_enabled', true)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data.map((lead: any) => ({
+          ...lead,
+          name: lead.lead_name,
+          phone: lead.phone_no
+        })) as (InternalLead & { name: string, phone: string })[];
       } else {
         // For real estate industry, fetch leads
         const { data, error } = await supabase
           .from('leads')
           .select('*')
-          .eq('company_id', profile.company_id)
+          .eq('company_id', profile?.company_id)
           .eq('is_telephony_enabled', true)
           .order('created_at', { ascending: false });
 
@@ -78,7 +96,7 @@ export function TelephonyView() {
         return data as Lead[];
       }
     },
-    enabled: !!profile?.company_id,
+    enabled: !!profile?.company_id || isInternalCRM,
   });
 
   const handleCall = async (contact: Lead | Student) => {
@@ -109,6 +127,11 @@ export function TelephonyView() {
         });
       } else if (isAutomobile) {
         await updateAutoLead.mutateAsync({
+          id: contact.id,
+          is_telephony_enabled: false
+        });
+      } else if (isInternalCRM) {
+        await updateInternalLead.mutateAsync({
           id: contact.id,
           is_telephony_enabled: false
         });
@@ -174,9 +197,8 @@ export function TelephonyView() {
               ) : (
                 <WifiOff className="w-4 h-4 text-destructive" />
               )}
-              <p className={`text-sm font-semibold ${
-                isDeviceReady ? 'text-success' : 'text-destructive'
-              }`}>
+              <p className={`text-sm font-semibold ${isDeviceReady ? 'text-success' : 'text-destructive'
+                }`}>
                 {isDeviceReady ? 'Ready' : 'Not Ready - Configure Twilio settings and initialize'}
               </p>
               {!isDeviceReady && (
@@ -193,12 +215,11 @@ export function TelephonyView() {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Call Status</p>
-            <p className={`text-lg font-semibold ${
-              callStatus === 'Idle' ? 'text-muted-foreground' :
+            <p className={`text-lg font-semibold ${callStatus === 'Idle' ? 'text-muted-foreground' :
               callStatus === 'Dialing' ? 'text-warning' :
-              callStatus === 'Connected' ? 'text-success' :
-              'text-destructive'
-            }`}>
+                callStatus === 'Connected' ? 'text-success' :
+                  'text-destructive'
+              }`}>
               {callStatus}
             </p>
           </div>
@@ -210,7 +231,7 @@ export function TelephonyView() {
           <thead className="bg-secondary">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {isEducation ? 'Student Name' : isAutomobile ? 'Lead Name' : 'Lead Name'}
+                {isEducation ? 'Student Name' : (isAutomobile || isInternalCRM) ? 'Lead Name' : 'Lead Name'}
               </th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phone Number</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Last Called At</th>
@@ -221,7 +242,7 @@ export function TelephonyView() {
             {telephonyContacts && telephonyContacts.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  No {isEducation ? 'students' : isAutomobile ? 'leads' : 'leads'} in telephony queue. Add {isEducation ? 'students' : isAutomobile ? 'leads' : 'leads'} to telephony from the {isEducation ? 'Students' : isAutomobile ? 'Leads' : 'Leads'} section.
+                  No {isEducation ? 'students' : (isAutomobile || isInternalCRM) ? 'leads' : 'leads'} in telephony queue. Add {isEducation ? 'students' : (isAutomobile || isInternalCRM) ? 'leads' : 'leads'} to telephony from the {isEducation ? 'Students' : (isAutomobile || isInternalCRM) ? 'Leads' : 'Leads'} section.
                 </td>
               </tr>
             ) : (
@@ -236,8 +257,9 @@ export function TelephonyView() {
                         <p className="font-medium text-foreground text-sm">{contact.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {isEducation ? (contact as Student).stage?.replace('_', ' ') || 'Unknown' :
-                           isAutomobile ? (contact as any).status || 'Unknown' :
-                           (contact as Lead).source || 'Unknown'}
+                            isAutomobile ? (contact as any).status || 'Unknown' :
+                              isInternalCRM ? (contact as InternalLead).stage?.replace('_', ' ') || 'Unknown' :
+                                (contact as Lead).source || 'Unknown'}
                         </p>
                       </div>
                     </div>
@@ -350,13 +372,13 @@ function DialerOverlay({ contact, callStatus, onEndCall, onMute }: DialerOverlay
           <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mx-auto mb-4">
             <div className="w-16 h-16 rounded-full bg-primary-foreground flex items-center justify-center">
               <span className="text-primary font-bold text-xl">
-                {contact.name.split(' ').map(n => n[0]).join('')}
+                {((contact as any).name || (contact as any).lead_name || '').split(' ').map((n: string) => n[0]).join('')}
               </span>
             </div>
           </div>
 
-          <h3 className="text-xl font-semibold text-foreground mb-2">{contact.name}</h3>
-          <p className="text-muted-foreground mb-4">{contact.phone}</p>
+          <h3 className="text-xl font-semibold text-foreground mb-2">{(contact as any).name || (contact as any).lead_name}</h3>
+          <p className="text-muted-foreground mb-4">{(contact as any).phone || (contact as any).phone_no}</p>
 
           <div className="mb-6">
             {callStatus === 'Dialing' && (

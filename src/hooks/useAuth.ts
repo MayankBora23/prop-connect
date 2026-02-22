@@ -42,23 +42,56 @@ export function useAuth() {
 
   const signIn = async (email: string, password: string) => {
     console.log('Attempting sign in for:', email);
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      console.error('Sign in error:', error);
-    } else {
-      console.log('Sign in successful:', data.user ? 'user authenticated' : 'no user');
+    if (authError) {
+      console.error('Sign in error:', authError);
+      return { error: authError };
     }
 
-    return { error };
+    if (data.user) {
+      // Security Check: Verify company and user allow_login status
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('allow_login, company_id')
+        .eq('user_id', data.user.id)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        return { error: new Error('Account profile not found.') };
+      }
+
+      if (profile.allow_login === false) {
+        await supabase.auth.signOut();
+        return { error: new Error('Your individual account access has been suspended.') };
+      }
+
+      if (profile.company_id) {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('allow_login')
+          .eq('id', profile.company_id)
+          .maybeSingle();
+
+        if (companyError || (company && company.allow_login === false)) {
+          await supabase.auth.signOut();
+          return { error: new Error('Your company access has been suspended. Please contact your administrator.') };
+        }
+      }
+
+      console.log('Sign in successful and access verified');
+    }
+
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,

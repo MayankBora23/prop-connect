@@ -58,6 +58,12 @@ import { AttendanceView as StudentAttendanceView } from '@/components/education/
 import { AutomobileEmployeesView } from '@/components/automobile/AutomobileEmployeesView';
 import { AutomobileAttendanceView } from '@/components/automobile/AutomobileAttendanceView';
 import { TelephonyView } from '@/components/telephony/TelephonyView';
+import { InternalCRMDashboard } from '@/components/internalcrm/InternalCRMDashboard';
+import { CompaniesView } from '@/components/internalcrm/CompaniesView';
+import { InternalCRMWhatsAppInbox } from '@/components/internalcrm/WhatsAppInbox';
+import { InternalLeadsView } from '@/components/internalcrm/leads/InternalLeadsView';
+import { InternalDemosView } from '@/components/internalcrm/InternalDemosView';
+import { AddInternalLeadDialog } from '@/components/internalcrm/leads/AddInternalLeadDialog';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -120,6 +126,22 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
 
+const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
+  dashboard: { title: 'Internal Dashboard', subtitle: 'Platform overview' },
+  leads: { title: 'Lead Management', subtitle: 'Manage platform leads', addLabel: 'Add Lead' },
+  demos: { title: 'Demo Management', subtitle: 'Scheduled CRM demos', addLabel: 'Schedule Demo' },
+  companies: { title: 'Company Management', subtitle: 'Manage registered companies', addLabel: 'Register Company' },
+  employees: { title: 'Employee Management', subtitle: 'Manage platform staff', addLabel: 'Add Employee' },
+  'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track platform staff attendance', addLabel: 'Mark Attendance' },
+  'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Global conversations' },
+  telephony: { title: 'Telephony', subtitle: 'Call management' },
+  workspace: { title: 'Personal Workspace', subtitle: 'Internal collaboration' },
+  team: { title: 'Team Management', subtitle: 'Platform administrators' },
+  analytics: { title: 'Platform Analytics', subtitle: 'System performance' },
+  'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
+  'company-settings': { title: 'Company Settings', subtitle: 'Manage platform settings' },
+};
+
 /* online business removed */
 
 const Index = () => {
@@ -142,28 +164,33 @@ const Index = () => {
   const [addFinanceOpen, setAddFinanceOpen] = useState(false);
   const [addInsuranceOpen, setAddInsuranceOpen] = useState(false);
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  
-const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
-if (industryLoading || !isLoaded) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full border-4 border-muted w-16 h-16 border-t-primary" />
-    </div>
-  );
-}
-const isEducation = industry === 'education';
-const isAutomobileDealers = industry === 'automobile_dealers';
-const tabConfig = isEducation ? educationTabConfig :
-  isAutomobileDealers ? automobileTabConfig :
-  realEstateTabConfig;
+  const [addInternalLeadOpen, setAddInternalLeadOpen] = useState(false);
+
+  const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
+  if (industryLoading || !isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full border-4 border-muted w-16 h-16 border-t-primary" />
+      </div>
+    );
+  }
+  const isEducation = industry === 'education';
+  const isAutomobileDealers = industry === 'automobile_dealers';
+  const isInternalCRM = industry === 'internal_crm';
+  const tabConfig = isEducation ? educationTabConfig :
+    isAutomobileDealers ? automobileTabConfig :
+      isInternalCRM ? internalCRMTabConfig :
+        realEstateTabConfig;
 
   const handleAddNew = () => {
     switch (activeTab) {
       case 'leads':
         if (isAutomobileDealers) {
           setAddAutoLeadOpen(true);
+        } else if (isInternalCRM) {
+          setAddInternalLeadOpen(true);
         } else {
-        setAddLeadOpen(true);
+          setAddLeadOpen(true);
         }
         break;
       case 'properties':
@@ -236,7 +263,38 @@ const tabConfig = isEducation ? educationTabConfig :
   const config = tabConfig[activeTab] || tabConfig.dashboard;
 
   const renderContent = () => {
-    if (isEducation) {
+    if (isInternalCRM) {
+      switch (activeTab) {
+        case 'dashboard':
+          return <InternalCRMDashboard />;
+        case 'leads':
+          return <InternalLeadsView />;
+        case 'demos':
+          return <InternalDemosView />;
+        case 'companies':
+          return <CompaniesView />;
+        case 'employees':
+          return <EmployeesView />;
+        case 'employee-attendance':
+          return <EmployeeAttendanceView />;
+        case 'whatsapp-inbox':
+          return <InternalCRMWhatsAppInbox />;
+        case 'telephony':
+          return <TelephonyView />;
+        case 'workspace':
+          return <PersonalWorkspace />;
+        case 'team':
+          return <TeamView />;
+        case 'analytics':
+          return <AnalyticsView />;
+        case 'profile-settings':
+          return <ProfileSettingsView />;
+        case 'company-settings':
+          return <CompanySettingsView />;
+        default:
+          return <InternalCRMDashboard />;
+      }
+    } else if (isEducation) {
       switch (activeTab) {
         case 'dashboard':
           return <EducationDashboard />;
@@ -369,7 +427,7 @@ const tabConfig = isEducation ? educationTabConfig :
           onAddNew={config.addLabel ? handleAddNew : undefined}
           addNewLabel={config.addLabel}
         />
-        
+
         <div className="p-6">
           {renderContent()}
         </div>
@@ -391,6 +449,8 @@ const tabConfig = isEducation ? educationTabConfig :
       <AddDealDialog open={addDealOpen} onOpenChange={setAddDealOpen} />
       <AddFinanceDialog open={addFinanceOpen} onOpenChange={setAddFinanceOpen} />
       <AddInsuranceDialog open={addInsuranceOpen} onOpenChange={setAddInsuranceOpen} />
+
+      <AddInternalLeadDialog open={addInternalLeadOpen} onOpenChange={setAddInternalLeadOpen} />
 
       <AddEmployeeDialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen} />
 

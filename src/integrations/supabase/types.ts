@@ -12,39 +12,54 @@ export interface Database {
       companies: {
         Row: {
           address: string | null
-          city: string | null
-          company_name: string
           created_at: string
+          email: string
+          gst_number: string | null
           id: string
-          industry_type: Database["public"]["Enums"]["industry_type"] | null
+          industry: Database["public"]["Enums"]["industry_type"]
+          logo_url: string | null
+          name: string
+          pan_number: string | null
           phone: string | null
-          state: string | null
           updated_at: string
-          zip_code: string | null
+          user_limit: number
+          allow_login: boolean
+          account_status: Database["public"]["Enums"]["company_account_status"]
+          status_notes: string | null
         }
         Insert: {
           address?: string | null
-          city?: string | null
-          company_name: string
           created_at?: string
+          email: string
+          gst_number?: string | null
           id?: string
-          industry_type?: Database["public"]["Enums"]["industry_type"] | null
+          industry?: Database["public"]["Enums"]["industry_type"]
+          logo_url?: string | null
+          name: string
+          pan_number?: string | null
           phone?: string | null
-          state?: string | null
           updated_at?: string
-          zip_code?: string | null
+          user_limit?: number
+          allow_login?: boolean
+          account_status?: Database["public"]["Enums"]["company_account_status"]
+          status_notes?: string | null
         }
         Update: {
           address?: string | null
-          city?: string | null
-          company_name?: string
           created_at?: string
+          email?: string
+          gst_number?: string | null
           id?: string
-          industry_type?: Database["public"]["Enums"]["industry_type"] | null
+          industry?: Database["public"]["Enums"]["industry_type"]
+          logo_url?: string | null
+          name?: string
+          pan_number?: string | null
           phone?: string | null
-          state?: string | null
           updated_at?: string
-          zip_code?: string | null
+          user_limit?: number
+          allow_login?: boolean
+          account_status?: Database["public"]["Enums"]["company_account_status"]
+          status_notes?: string | null
         }
         Relationships: []
       }
@@ -242,6 +257,7 @@ export interface Database {
           role: Database["public"]["Enums"]["app_role"] | null
           updated_at: string
           user_id: string
+          allow_login: boolean
         }
         Insert: {
           agent_identity?: string | null
@@ -252,6 +268,7 @@ export interface Database {
           role?: Database["public"]["Enums"]["app_role"] | null
           updated_at?: string
           user_id: string
+          allow_login?: boolean
         }
         Update: {
           agent_identity?: string | null
@@ -262,6 +279,7 @@ export interface Database {
           role?: Database["public"]["Enums"]["app_role"] | null
           updated_at?: string
           user_id?: string
+          allow_login?: boolean
         }
         Relationships: [
           {
@@ -422,6 +440,38 @@ export interface Database {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          user_id: string
+          company_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          company_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          company_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           }
         ]
@@ -1045,11 +1095,12 @@ export interface Database {
     Enums: {
       app_role: "super_admin" | "admin" | "manager" | "sales"
       attendance_status: "present" | "absent"
+      company_account_status: "active" | "suspended"
       teacher_attendance_status: "present" | "half_day" | "absent"
       enrollment_status: "active" | "completed" | "cancelled" | "on_hold"
       follow_up_status: "pending" | "completed" | "missed"
       follow_up_type: "call" | "whatsapp" | "meeting" | "email"
-      industry_type: "real_estate" | "education" | "healthcare" | "automobile_dealers" | "online_business"
+      industry_type: "real_estate" | "education" | "healthcare" | "automobile_dealers" | "online_business" | "internal_crm"
       lead_stage: "new" | "contacted" | "follow-up" | "site-visit" | "negotiation" | "closed-won" | "closed-lost"
       lead_status: "hot" | "warm" | "cold"
       patient_stage: "new_patient_inquiry" | "appointment_scheduled" | "checked_in_visit_started" | "consultation_treatment_completed" | "billing_payment_pending" | "payment_completed" | "follow_up_scheduled"
@@ -1071,78 +1122,78 @@ type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
   PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-    | { schema: keyof Database },
+  | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+  | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never
+  ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+    Database[PublicTableNameOrOptions["schema"]]["Views"])
+  : never = never
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-      PublicSchema["Views"])
+    PublicSchema["Views"])
   ? (PublicSchema["Tables"] &
-      PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+    PublicSchema["Views"])[PublicTableNameOrOptions] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : never
 
 export type TablesInsert<
   PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
+  | keyof PublicSchema["Tables"]
+  | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
+  ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  : never = never
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
   ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : never
 
 export type TablesUpdate<
   PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
+  | keyof PublicSchema["Tables"]
+  | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
+  ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  : never = never
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
   ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : never
 
 export type Enums<
   PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
-    | { schema: keyof Database },
+  | keyof PublicSchema["Enums"]
+  | { schema: keyof Database },
   EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-    : never = never
+  ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  : never = never
 > = PublicEnumNameOrOptions extends { schema: keyof Database }
   ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]

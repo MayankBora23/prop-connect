@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
-import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone } from 'lucide-react';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone, Video } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -89,6 +90,22 @@ const automobileMenuItems = [
 
 /* online business removed */
 
+const internalCRMMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined },
+  { id: 'leads', label: 'Leads', icon: Users, badge: undefined },
+  { id: 'demos', label: 'Demo Scheduled', icon: Video, badge: undefined },
+  { id: 'companies', label: 'Companies', icon: Building2, badge: undefined },
+  { id: 'employees', label: 'Employees', icon: UserCheck, badge: undefined },
+  { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
+  { id: 'whatsapp-inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: undefined },
+  { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
+  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
+  { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
+  { id: 'company-settings', label: 'Platform Settings', icon: Settings, superAdminOnly: true, badge: undefined },
+];
+
 export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { data: profile } = useCurrentProfile();
@@ -104,9 +121,10 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
 
   const menuItems = industry === 'education' ? educationMenuItems :
     industry === 'automobile_dealers' ? automobileMenuItems :
-    realEstateMenuItems;
-  
-  const visibleMenuItems = menuItems.filter(item => 
+      industry === 'internal_crm' ? internalCRMMenuItems :
+        realEstateMenuItems;
+
+  const visibleMenuItems = menuItems.filter(item =>
     !item.superAdminOnly || isSuperAdmin
   );
 

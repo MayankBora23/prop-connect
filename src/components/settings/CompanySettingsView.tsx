@@ -44,7 +44,7 @@ export function CompanySettingsView() {
   const { data: whatsappSettings, isLoading: whatsappLoading } = useWhatsAppSettings();
   const createWhatsAppSettings = useCreateWhatsAppSettings();
   const updateWhatsAppSettings = useUpdateWhatsAppSettings();
-  
+
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
     defaultValues: {
@@ -72,12 +72,9 @@ export function CompanySettingsView() {
   useEffect(() => {
     if (company) {
       form.reset({
-        company_name: company.company_name || '',
+        company_name: company.name || '',
         phone: company.phone || '',
         address: company.address || '',
-        city: company.city || '',
-        state: company.state || '',
-        zip_code: company.zip_code || '',
       });
     }
   }, [company, form]);
@@ -104,12 +101,9 @@ export function CompanySettingsView() {
     try {
       await updateCompany.mutateAsync({
         id: company.id,
-        company_name: data.company_name,
+        name: data.company_name,
         phone: data.phone || null,
         address: data.address || null,
-        city: data.city || null,
-        state: data.state || null,
-        zip_code: data.zip_code || null,
       });
       toast.success('Company settings updated successfully');
     } catch (error: any) {
@@ -243,50 +237,6 @@ export function CompanySettingsView() {
                         <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                         <Textarea {...field} placeholder="Enter company address" className="pl-10 min-h-[80px]" />
                       </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter city" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter state" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="zip_code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ZIP Code</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter ZIP code" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -480,8 +430,8 @@ export function CompanySettingsView() {
                       https://your-project.supabase.co/functions/v1/whatsapp-webhook
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Replace <code>your-project</code> with your actual Supabase project URL.<br/>
-                      <strong>⚠️ DO NOT use the cloudflared tunnel URL here!</strong><br/>
+                      Replace <code>your-project</code> with your actual Supabase project URL.<br />
+                      <strong>⚠️ DO NOT use the cloudflared tunnel URL here!</strong><br />
                       Twilio webhooks must point to Supabase, not your local tunnel.
                     </p>
                   </div>

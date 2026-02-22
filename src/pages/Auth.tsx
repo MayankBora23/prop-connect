@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateCompanyWithUser } from '@/hooks/useCompany';
+import { Industry } from '@/hooks/useIndustry';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,10 +32,10 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
-  const [industry, setIndustry] = useState<'real_estate' | 'education' | 'automobile_dealers'>('real_estate');
+  const [industry, setIndustry] = useState<Industry>('real_estate');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-  
+
   const { signIn } = useAuth();
   const createCompanyWithUser = useCreateCompanyWithUser();
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function Auth() {
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
-    
+
     try {
       emailSchema.parse(email);
     } catch (e) {
@@ -91,9 +92,9 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setLoading(true);
 
     try {
@@ -124,7 +125,7 @@ export default function Auth() {
           password,
           industry,
         });
-        
+
         toast({
           title: 'Success',
           description: 'Company registered successfully! You are now the Super Admin.',
@@ -170,12 +171,12 @@ export default function Auth() {
               {isLogin ? 'Welcome back' : 'Register your company'}
             </CardTitle>
             <CardDescription>
-              {isLogin 
-                ? 'Sign in to access your CRM dashboard' 
+              {isLogin
+                ? 'Sign in to access your CRM dashboard'
                 : 'Create your company account and become the Super Admin'}
             </CardDescription>
           </CardHeader>
-          
+
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               {!isLogin && (
@@ -243,6 +244,12 @@ export default function Auth() {
                             <span>Automobile Dealers</span>
                           </div>
                         </SelectItem>
+                        <SelectItem value="internal_crm">
+                          <div className="flex items-center gap-2">
+                            <Briefcase className="w-4 h-4" />
+                            <span>Internal CRM (Admin Only)</span>
+                          </div>
+                        </SelectItem>
                         {/* non-target industries removed */}
                       </SelectContent>
                     </Select>
@@ -271,7 +278,7 @@ export default function Auth() {
                   </div>
                 </>
               )}
-              
+
               <div className="space-y-2">
                 <Label htmlFor="email">{isLogin ? 'Email' : 'Your Email'}</Label>
                 <div className="relative">
@@ -289,7 +296,7 @@ export default function Auth() {
                   <p className="text-xs text-destructive">{errors.email}</p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -308,16 +315,16 @@ export default function Auth() {
                 )}
               </div>
             </CardContent>
-            
+
             <CardFooter className="flex flex-col gap-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full gradient-primary border-0"
                 disabled={loading}
               >
                 {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Register Company')}
               </Button>
-              
+
               <p className="text-sm text-center text-muted-foreground">
                 {isLogin ? "Don't have a company account? " : "Already have an account? "}
                 <button

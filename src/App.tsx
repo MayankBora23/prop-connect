@@ -5,6 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { TelephonyProvider } from "@/hooks/useTelephony";
+import { useCurrentProfile } from "@/hooks/useProfiles";
+import { useCurrentCompany } from "@/hooks/useCompany";
+import { toast } from "sonner";
+import { useEffect } from "react";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -12,26 +16,40 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
+  const { user, loading, signOut } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
+  const { data: company, isLoading: companyLoading } = useCurrentCompany();
+
+  useEffect(() => {
+    if (!loading && user && !profileLoading && profile) {
+      if (profile.allow_login === false) {
+        toast.error("Your account has been suspended.");
+        signOut();
+      } else if (!companyLoading && company && company.allow_login === false) {
+        toast.error("Your company account has been suspended.");
+        signOut();
+      }
+    }
+  }, [user, loading, profile, profileLoading, company, companyLoading, signOut]);
+
+  if (loading || (user && (profileLoading || companyLoading))) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 function AuthRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -39,11 +57,11 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (user) {
     return <Navigate to="/" replace />;
   }
-  
+
   return <>{children}</>;
 }
 

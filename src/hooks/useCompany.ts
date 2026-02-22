@@ -4,17 +4,20 @@ import type { TablesUpdate } from '@/integrations/supabase/types';
 
 export type Company = {
   id: string;
-  company_name: string;
+  name: string;
+  email: string;
   address: string | null;
-  city: string | null;
-  state: string | null;
-  zip_code: string | null;
   phone: string | null;
-  industry_type: 'real_estate' | 'education' | 'automobile_dealers';
+  logo_url: string | null;
+  industry: 'real_estate' | 'education' | 'automobile_dealers' | 'internal_crm';
   created_at: string;
   updated_at: string;
-  // ADDED: optional team member limit per company (NULL means no limit)
-  user_limit: number | null;
+  user_limit: number;
+  pan_number: string | null;
+  gst_number: string | null;
+  allow_login?: boolean;
+  account_status?: 'active' | 'suspended';
+  status_notes?: string | null;
 };
 
 export type AppRole = 'super_admin' | 'admin' | 'manager' | 'sales';
@@ -51,20 +54,20 @@ export function useCreateCompanyWithUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      companyName, 
+    mutationFn: async ({
+      companyName,
       companyEmail,
-      userName, 
-      userEmail, 
+      userName,
+      userEmail,
       password,
       industry
-    }: { 
+    }: {
       companyName: string;
       companyEmail: string;
       userName: string;
       userEmail: string;
       password: string;
-      industry: 'real_estate' | 'education' | 'automobile_dealers';
+      industry: 'real_estate' | 'education' | 'automobile_dealers' | 'internal_crm';
     }) => {
       // Sign up the user with company info in metadata
       // The handle_new_user trigger will create the company
@@ -113,6 +116,62 @@ export function useUpdateCompany() {
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
+      queryClient.invalidateQueries({ queryKey: ['allCompanies'] });
+    },
+  });
+}
+
+export function useCompanyTeamCount(companyId: string) {
+  return useQuery({
+    queryKey: ['companyTeamCount', companyId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', companyId);
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!companyId,
+  });
+}
+
+export function useUpdateCompanySettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      allow_login,
+      account_status,
+      user_limit,
+      status_notes
+    }: {
+      id: string;
+      allow_login: boolean;
+      account_status: 'active' | 'suspended';
+      user_limit: number;
+      status_notes?: string | null;
+    }) => {
+      const { data, error } = await supabase
+        .from('companies')
+        .update({
+          allow_login,
+          account_status,
+          user_limit,
+          status_notes
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allCompanies'] });
       queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
     },
   });
@@ -320,51 +379,37 @@ async function sendWelcomeEmail(email: string, name: string, password: string, r
 
       Please log in at ${window.location.origin}/auth and change your password immediately.
 
-      Best regards,
+      best regards,
       RealCRM Team
     `
   });
 
   // TODO: Integrate with email service like SendGrid, Mailgun, etc.
-  // Example with a hypothetical email service:
-  /*
-  const response = await fetch('/api/send-email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      to: email,
-      subject: 'Welcome to RealCRM - Your Account Details',
-      html: `
-        <h1>Welcome to RealCRM!</h1>
-        <p>Hi ${name},</p>
-        <p>Your account has been created successfully.</p>
-        <div style="background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px;">
-          <h3>Login Details:</h3>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Password:</strong> ${password}</p>
-          <p><strong>Role:</strong> ${role.replace('_', ' ')}</p>
-        </div>
-        <p>Please <a href="${window.location.origin}/auth">log in here</a> and change your password immediately.</p>
-        <p>Best regards,<br>RealCRM Team</p>
-      `
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to send welcome email');
-  }
-  */
 }
 
+export function useAllCompanies() {
+  return useQuery({
+    queryKey: ['allCompanies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as Company[];
+    },
+  });
+}
 export function useUpdateTeamMemberRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      userId, 
-      companyId, 
-      role 
-    }: { 
+    mutationFn: async ({
+      userId,
+      companyId,
+      role
+    }: {
       userId: string;
       companyId: string;
       role: AppRole;
@@ -382,6 +427,27 @@ export function useUpdateTeamMemberRole() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+}
+
+
+export function useDeleteCompany() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (companyId: string) => {
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', companyId);
+
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allCompanies'] });
+      queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
     },
   });
 }

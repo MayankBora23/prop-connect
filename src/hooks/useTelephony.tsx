@@ -6,10 +6,11 @@ import { useIndustry } from './useIndustry';
 import { toast } from 'sonner';
 import type { Lead } from './useLeads';
 import type { Student } from './useStudents';
+import type { InternalLead } from './useInternalLeads';
 
 export type CallStatus = 'Idle' | 'Dialing' | 'Connected' | 'Disconnected';
 
-export type TelephonyContact = Lead | Student;
+export type TelephonyContact = Lead | Student | InternalLead;
 
 interface TelephonyContextType {
   callStatus: CallStatus;
@@ -136,7 +137,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
 
         // Check if it's a configuration error (missing credentials)
         if (error.message?.includes('Missing Twilio credentials') ||
-            error.message?.includes('WhatsApp/Twilio settings not configured')) {
+          error.message?.includes('WhatsApp/Twilio settings not configured')) {
           console.log('Configuration error detected');
           toast.error('Telephony not configured. Please ask your admin to set up Twilio Voice credentials in Company Settings.');
           setIsDeviceReady(false);
@@ -277,9 +278,10 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       setCallStatus('Dialing');
 
       // Make outbound call
+      const phoneNumber = (contact as any).phone || (contact as any).phone_no;
       const connection = await device.connect({
         params: {
-          To: contact.phone,
+          To: phoneNumber,
           agent_identity: profile?.agent_identity || 'unknown_agent'
         }
       });

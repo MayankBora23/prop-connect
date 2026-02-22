@@ -42,7 +42,7 @@ CREATE TYPE public.workflow_status AS ENUM ('active','inactive');
 
 -- industry_type: keep only the target industries
 DROP TYPE IF EXISTS public.industry_type CASCADE;
-CREATE TYPE public.industry_type AS ENUM ('real_estate', 'education', 'automobile_dealers');
+CREATE TYPE public.industry_type AS ENUM ('real_estate', 'education', 'automobile_dealers', 'internal_crm');
 
 DROP TYPE IF EXISTS public.enrollment_status CASCADE;
 CREATE TYPE public.enrollment_status AS ENUM ('active', 'completed', 'cancelled', 'on_hold');
