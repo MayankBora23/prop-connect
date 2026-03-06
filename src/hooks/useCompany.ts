@@ -18,6 +18,10 @@ export type Company = {
   allow_login?: boolean;
   account_status?: 'active' | 'suspended';
   status_notes?: string | null;
+  webhook_token?: string | null;
+  meta_verify_token?: string | null;
+  enable_meta_leads?: boolean | null;
+  meta_access_token?: string | null;
 };
 
 export type AppRole = 'super_admin' | 'admin' | 'manager' | 'sales';

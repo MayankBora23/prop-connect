@@ -26,6 +26,10 @@ export interface Database {
           allow_login: boolean
           account_status: Database["public"]["Enums"]["company_account_status"]
           status_notes: string | null
+          webhook_token: string | null
+          meta_verify_token: string | null
+          enable_meta_leads: boolean | null
+          meta_access_token: string | null
         }
         Insert: {
           address?: string | null
@@ -43,6 +47,10 @@ export interface Database {
           allow_login?: boolean
           account_status?: Database["public"]["Enums"]["company_account_status"]
           status_notes?: string | null
+          webhook_token?: string | null
+          meta_verify_token?: string | null
+          enable_meta_leads?: boolean | null
+          meta_access_token?: string | null
         }
         Update: {
           address?: string | null
@@ -60,6 +68,10 @@ export interface Database {
           allow_login?: boolean
           account_status?: Database["public"]["Enums"]["company_account_status"]
           status_notes?: string | null
+          webhook_token?: string | null
+          meta_verify_token?: string | null
+          enable_meta_leads?: boolean | null
+          meta_access_token?: string | null
         }
         Relationships: []
       }
@@ -170,6 +182,7 @@ export interface Database {
           deal_closed_at: string | null
           is_telephony_enabled: boolean | null
           last_called_at: string | null
+          raw_payload: Json | null
         }
         Insert: {
           id?: string
@@ -203,6 +216,7 @@ export interface Database {
           deal_closed_at?: string | null
           is_telephony_enabled?: boolean | null
           last_called_at?: string | null
+          raw_payload?: Json | null
         }
         Update: {
           id?: string
@@ -236,6 +250,7 @@ export interface Database {
           deal_closed_at?: string | null
           is_telephony_enabled?: boolean | null
           last_called_at?: string | null
+          raw_payload?: Json | null
         }
         Relationships: [
           {
@@ -1018,6 +1033,8 @@ export interface Database {
           company_id: string | null
           is_telephony_enabled: boolean | null
           last_called_at: string | null
+          raw_payload: Json | null
+          source: string | null
         }
         Insert: {
           id?: string
@@ -1039,6 +1056,8 @@ export interface Database {
           company_id?: string | null
           is_telephony_enabled?: boolean | null
           last_called_at?: string | null
+          raw_payload?: Json | null
+          source?: string | null
         }
         Update: {
           id?: string
@@ -1060,6 +1079,8 @@ export interface Database {
           company_id?: string | null
           is_telephony_enabled?: boolean | null
           last_called_at?: string | null
+          raw_payload?: Json | null
+          source?: string | null
         }
         Relationships: [
           {
