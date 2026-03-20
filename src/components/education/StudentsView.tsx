@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditStudentDialog } from './EditStudentDialog';
-import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
+import { Edit, Trash2, MessageCircle, Phone, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Student } from '@/hooks/useStudents';
 
@@ -79,6 +79,7 @@ function StageSelect({ studentId, stage }: { studentId: string, stage: string })
 export function StudentsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editDialogInitialTab, setEditDialogInitialTab] = useState<'details' | 'history'>('details');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const { data: students, isLoading } = useStudents();
   const deleteStudent = useDeleteStudent();
@@ -86,6 +87,13 @@ export function StudentsView() {
 
   const handleEdit = (student: Student) => {
     setSelectedStudent(student);
+    setEditDialogInitialTab('details');
+    setEditDialogOpen(true);
+  };
+
+  const handleHistory = (student: Student) => {
+    setSelectedStudent(student);
+    setEditDialogInitialTab('history');
     setEditDialogOpen(true);
   };
 
@@ -348,6 +356,18 @@ export function StudentsView() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHistory(student);
+                          }}
+                          title="History"
+                        >
+                          <Clock3 className="h-4 w-4" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -392,6 +412,7 @@ export function StudentsView() {
         student={selectedStudent}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+        initialTab={editDialogInitialTab}
       />
     </div>
   );

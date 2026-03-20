@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
-import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone } from 'lucide-react';
+import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone, Clock3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,6 +83,7 @@ export function AutoLeadsView() {
   const deleteLead = useDeleteAutoLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
   const [editLeadOpen, setEditLeadOpen] = useState(false);
+  const [editLeadInitialTab, setEditLeadInitialTab] = useState<'details' | 'history'>('details');
   const [selectedLead, setSelectedLead] = useState<AutoLead | null>(null);
 
   const handleDelete = async (leadId: string, leadName: string) => {
@@ -96,6 +97,13 @@ export function AutoLeadsView() {
 
   const handleEditLead = (lead: AutoLead) => {
     setSelectedLead(lead);
+    setEditLeadInitialTab('details');
+    setEditLeadOpen(true);
+  };
+
+  const handleHistoryLead = (lead: AutoLead) => {
+    setSelectedLead(lead);
+    setEditLeadInitialTab('history');
     setEditLeadOpen(true);
   };
 
@@ -336,6 +344,18 @@ export function AutoLeadsView() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHistoryLead(lead);
+                          }}
+                          title="History"
+                        >
+                          <Clock3 className="h-4 w-4" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -382,6 +402,7 @@ export function AutoLeadsView() {
           setEditLeadOpen(open);
           if (!open) setSelectedLead(null);
         }}
+        initialTab={editLeadInitialTab}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import {
   Trash2,
   Download,
   Upload,
+  Clock3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,7 @@ export function InternalLeadsView() {
   const [stageFilter, setStageFilter] = useState<'all' | string>('all');
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editDialogInitialTab, setEditDialogInitialTab] = useState<'details' | 'history'>('details');
   const [selectedLead, setSelectedLead] = useState<InternalLead | null>(null);
   const [leadToDelete, setLeadToDelete] = useState<InternalLead | null>(null);
 
@@ -110,6 +112,13 @@ export function InternalLeadsView() {
 
   const handleEdit = (lead: InternalLead) => {
     setSelectedLead(lead);
+    setEditDialogInitialTab('details');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleHistory = (lead: InternalLead) => {
+    setSelectedLead(lead);
+    setEditDialogInitialTab('history');
     setIsEditDialogOpen(true);
   };
 
@@ -321,6 +330,15 @@ export function InternalLeadsView() {
                           <Button
                             size="sm"
                             variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => { e.stopPropagation(); handleHistory(lead); }}
+                            title="History"
+                          >
+                            <Clock3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                             onClick={(e) => { e.stopPropagation(); setLeadToDelete(lead); }}
                           >
@@ -341,6 +359,7 @@ export function InternalLeadsView() {
         lead={selectedLead}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
+        initialTab={editDialogInitialTab}
       />
 
       <AlertDialog open={!!leadToDelete} onOpenChange={(open) => !open && setLeadToDelete(null)}>

@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditLeadDialog } from './EditLeadDialog';
-import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
+import { Edit, Trash2, MessageCircle, Phone, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
@@ -109,6 +109,7 @@ function StageSelect({ leadId, stage } : { leadId: string, stage: Enums<'lead_st
 export function LeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editDialogInitialTab, setEditDialogInitialTab] = useState<'details' | 'history'>('details');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const { data: leads, isLoading } = useLeads();
   const deleteLead = useDeleteLead();
@@ -116,6 +117,13 @@ export function LeadsView() {
 
   const handleEdit = (lead: Lead) => {
     setSelectedLead(lead);
+    setEditDialogInitialTab('details');
+    setEditDialogOpen(true);
+  };
+
+  const handleHistory = (lead: Lead) => {
+    setSelectedLead(lead);
+    setEditDialogInitialTab('history');
     setEditDialogOpen(true);
   };
 
@@ -378,6 +386,18 @@ export function LeadsView() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHistory(lead);
+                          }}
+                          title="History"
+                        >
+                          <Clock3 className="h-4 w-4" />
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -422,6 +442,7 @@ export function LeadsView() {
         lead={selectedLead}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+        initialTab={editDialogInitialTab}
       />
     </div>
   );
