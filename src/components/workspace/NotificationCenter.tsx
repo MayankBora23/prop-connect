@@ -9,9 +9,13 @@ import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useNotificationsRealtime } from '@/hooks/useNotifications';
 
 export function NotificationCenter() {
   const [open, setOpen] = useState(false);
+
+  // Keep bell counts and list fresh without requiring refresh.
+  useNotificationsRealtime();
 
   const { data: notifications, isLoading } = useNotifications();
   const { data: unreadCount } = useUnreadNotificationsCount();
@@ -72,6 +76,12 @@ export function NotificationCenter() {
         return '⏰';
       case 'follow_up_reminder':
         return '🔔';
+      case 'ticket_created':
+        return '🎫';
+      case 'ticket_replied':
+        return '💬';
+      case 'ticket_status_changed':
+        return '🔄';
       default:
         return '📢';
     }

@@ -3,7 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 
 // Define notification types
-export type NotificationType = 'task_assigned' | 'task_completed' | 'task_overdue' | 'follow_up_reminder' | 'system_alert';
+export type NotificationType =
+  | 'task_assigned'
+  | 'task_completed'
+  | 'task_overdue'
+  | 'follow_up_reminder'
+  | 'system_alert'
+  | 'ticket_created'
+  | 'ticket_replied'
+  | 'ticket_status_changed';
 
 export interface Notification {
   id: string;

@@ -64,6 +64,8 @@ import { InternalCRMWhatsAppInbox } from '@/components/internalcrm/WhatsAppInbox
 import { InternalLeadsView } from '@/components/internalcrm/leads/InternalLeadsView';
 import { InternalDemosView } from '@/components/internalcrm/InternalDemosView';
 import { AddInternalLeadDialog } from '@/components/internalcrm/leads/AddInternalLeadDialog';
+import { ClientSupport } from '@/components/support/ClientSupport';
+import { AdminSupportDashboard } from '@/components/support/AdminSupportDashboard';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -73,6 +75,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track employee attendance and working hours', addLabel: 'Mark Attendance' },
   purchased: { title: 'Purchased', subtitle: 'Closed won deals and property purchases' },
   inbox: { title: 'WhatsApp Inbox', subtitle: 'Customer conversations' },
+  support: { title: 'Support', subtitle: 'Get help from our team' },
   telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
   visits: { title: 'Site Visits', subtitle: 'Scheduled property visits', addLabel: 'Schedule Visit' },
   followups: { title: 'Follow-ups', subtitle: 'Track your tasks', addLabel: 'Add Follow-up' },
@@ -97,6 +100,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   fees: { title: 'Fees', subtitle: 'Fee management' },
   telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
   'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Student conversations' },
+  support: { title: 'Support', subtitle: 'Get help from our team' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
@@ -119,6 +123,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track staff attendance and working hours' },
   telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
   'whatsapp-inbox': { title: 'WhatsApp Inbox', subtitle: 'Auto lead conversations' },
+  support: { title: 'Support', subtitle: 'Get help from our team' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
@@ -138,6 +143,7 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
   workspace: { title: 'Personal Workspace', subtitle: 'Internal collaboration' },
   team: { title: 'Team Management', subtitle: 'Platform administrators' },
   analytics: { title: 'Platform Analytics', subtitle: 'System performance' },
+  'admin-support': { title: 'Admin Support', subtitle: 'Manage support tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage platform settings' },
 };
@@ -287,6 +293,8 @@ const Index = () => {
           return <TeamView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'admin-support':
+          return <AdminSupportDashboard />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -330,6 +338,8 @@ const Index = () => {
           return <ProfileSettingsView />;
         case 'company-settings':
           return <CompanySettingsView />;
+        case 'support':
+          return <ClientSupport />;
         default:
           return <EducationDashboard />;
       }
@@ -369,6 +379,8 @@ const Index = () => {
           return <ProfileSettingsView />;
         case 'company-settings':
           return <CompanySettingsView />;
+        case 'support':
+          return <ClientSupport />;
         default:
           return <AutomobileDashboard />;
       }
@@ -388,6 +400,8 @@ const Index = () => {
           return <PurchasedView />;
         case 'inbox':
           return <WhatsAppInbox />;
+        case 'support':
+          return <ClientSupport />;
         case 'telephony':
           return <TelephonyView />;
         case 'visits':

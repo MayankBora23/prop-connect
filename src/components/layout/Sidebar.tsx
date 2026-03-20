@@ -15,6 +15,7 @@ import {
   Home,
   Settings,
   Briefcase,
+  LifeBuoy,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
@@ -35,6 +36,7 @@ const realEstateMenuItems = [
   { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
   { id: 'purchased', label: 'Purchased', icon: CheckCircle, badge: undefined },
   { id: 'inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: 3 },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
   { id: 'visits', label: 'Site Visits', icon: Calendar, badge: undefined },
   { id: 'followups', label: 'Follow-ups', icon: Clock, badge: 5 },
@@ -59,6 +61,7 @@ const educationMenuItems = [
   { id: 'fees', label: 'Fees', icon: DollarSign, badge: undefined },
   { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
   { id: 'whatsapp-inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: undefined },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
@@ -81,6 +84,7 @@ const automobileMenuItems = [
   { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
   { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
   { id: 'whatsapp-inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: undefined },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'workspace', label: 'Workspace', icon: Home, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
@@ -102,6 +106,7 @@ const internalCRMMenuItems = [
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'admin-support', label: 'Admin Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Platform Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];

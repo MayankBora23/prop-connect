@@ -5,3 +5,21 @@ verify_jwt = false
 
 [functions.score-lead]
 verify_jwt = false
+
+[functions.support-ai-suggest]
+verify_jwt = false
+
+[functions.tickets]
+verify_jwt = true
+
+[functions.admin-tickets]
+verify_jwt = true
+
+[functions.tickets-status]
+verify_jwt = true
+
+[functions.tickets-reply]
+verify_jwt = true
+
+[functions.tickets-internal-note]
+verify_jwt = true
