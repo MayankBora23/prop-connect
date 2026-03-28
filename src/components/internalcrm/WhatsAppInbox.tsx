@@ -12,7 +12,7 @@ import {
 import { useAllCompanies } from '@/hooks/useCompany';
 import { useInternalLeads } from '@/hooks/useInternalLeads';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Building2, SendHorizontal, User, Home } from 'lucide-react';
+import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Building2, SendHorizontal, User, Home, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,8 +53,17 @@ export function InternalCRMWhatsAppInbox() {
     const imageInputRef = useRef<HTMLInputElement>(null);
     const documentInputRef = useRef<HTMLInputElement>(null);
 
-    const { data: conversations, isLoading: conversationsLoading, refetch: refetchConversations } = useWhatsAppConversations();
-    const { data: messagesData } = useWhatsAppMessagesRealtime(selectedConversationId || '');
+    const {
+        data: conversations,
+        isLoading: conversationsLoading,
+        isFetching: conversationsFetching,
+        refetch: refetchConversations,
+    } = useWhatsAppConversations();
+    const {
+        data: messagesData,
+        isFetching: messagesFetching,
+        refetch: refetchMessages,
+    } = useWhatsAppMessagesRealtime(selectedConversationId || '');
     const { data: internalLeads } = useInternalLeads();
     const createMessage = useCreateWhatsAppMessage();
     const deleteConversation = useDeleteWhatsAppConversation();
@@ -85,6 +94,28 @@ export function InternalCRMWhatsAppInbox() {
             subscription.unsubscribe();
         };
     }, [refetchConversations]);
+
+    const inboxRefreshBusy =
+        conversationsFetching || (!!selectedConversationId && messagesFetching);
+
+    const handleInboxRefresh = async () => {
+        try {
+            await Promise.all([
+                refetchConversations(),
+                selectedConversationId ? refetchMessages() : Promise.resolve(),
+            ]);
+            toast({
+                title: 'Refreshed',
+                description: 'Conversations and messages are up to date.',
+            });
+        } catch {
+            toast({
+                title: 'Refresh failed',
+                description: 'Could not reload inbox. Try again.',
+                variant: 'destructive',
+            });
+        }
+    };
 
     const normalizePhone = (phone: string) => phone.replace(/^\+91/, '').replace(/\D/g, '');
 
@@ -386,6 +417,19 @@ export function InternalCRMWhatsAppInbox() {
             {/* Conversations List */}
             <div className="w-80 border-r border-border flex flex-col bg-card">
                 <div className="p-4 border-b border-border space-y-3">
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-foreground flex-1">Conversations</h2>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleInboxRefresh}
+                            disabled={inboxRefreshBusy}
+                            className="h-8 w-8 shrink-0 p-0"
+                            aria-label="Refresh conversations and messages"
+                        >
+                            <RefreshCw className={cn('h-4 w-4', inboxRefreshBusy && 'animate-spin')} />
+                        </Button>
+                    </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input

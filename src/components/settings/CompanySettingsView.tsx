@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings, Facebook } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const companySchema = z.object({
   company_name: z.string().min(2, 'Company name must be at least 2 characters').max(100),
@@ -49,6 +50,13 @@ export function CompanySettingsView() {
 
   const [metaEnabled, setMetaEnabled] = useState<boolean>(company?.enable_meta_leads ?? false);
   const [metaAccessToken, setMetaAccessToken] = useState<string>('');
+  const [whatsappProvider, setWhatsappProvider] = useState<'twilio' | 'meta'>(
+    company?.whatsapp_provider === 'meta' ? 'meta' : 'twilio'
+  );
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState<string>('');
+  const [metaWhatsAppNumber, setMetaWhatsAppNumber] = useState<string>('');
+  const [metaWabaId, setMetaWabaId] = useState<string>('');
+  const [metaWebhookVerifyToken, setMetaWebhookVerifyToken] = useState<string>('');
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -83,6 +91,11 @@ export function CompanySettingsView() {
       });
       setMetaEnabled(company.enable_meta_leads ?? false);
       setMetaAccessToken('');
+      setWhatsappProvider(company.whatsapp_provider === 'meta' ? 'meta' : 'twilio');
+      setMetaPhoneNumberId(company.meta_phone_number_id || '');
+      setMetaWhatsAppNumber(company.meta_whatsapp_number || '');
+      setMetaWabaId(company.meta_waba_id || '');
+      setMetaWebhookVerifyToken(company.meta_webhook_verify_token || '');
     }
   }, [company, form]);
 
@@ -148,6 +161,73 @@ export function CompanySettingsView() {
     }
   };
 
+  const handleWhatsappProviderChange = async (nextProvider: 'twilio' | 'meta') => {
+    if (!company?.id) return;
+
+    const prevProvider = whatsappProvider;
+    setWhatsappProvider(nextProvider);
+
+    try {
+      await updateCompany.mutateAsync({
+        id: company.id,
+        whatsapp_provider: nextProvider,
+      });
+      toast.success(`WhatsApp provider set to ${nextProvider === 'twilio' ? 'Twilio' : 'Meta'}`);
+    } catch (error: any) {
+      setWhatsappProvider(prevProvider);
+      toast.error(error.message || 'Failed to update WhatsApp provider');
+    }
+  };
+
+  const onSaveMetaWhatsAppSettings = async () => {
+    if (!company?.id) return;
+
+    const phoneId = metaPhoneNumberId.trim();
+    const waNumber = metaWhatsAppNumber.trim();
+    const wabaId = metaWabaId.trim();
+    const verifyToken = metaWebhookVerifyToken.trim();
+    const accessTokenDraft = metaAccessToken.trim();
+
+    if (!phoneId) {
+      toast.error('Meta Phone ID is required');
+      return;
+    }
+    if (!wabaId) {
+      toast.error('Meta WABA ID is required');
+      return;
+    }
+    if (!verifyToken) {
+      toast.error('Webhook verify token is required');
+      return;
+    }
+    if (!waNumber) {
+      toast.error('Meta WhatsApp Business Number is required');
+      return;
+    }
+
+    const hasExistingAccessToken = !!(company.meta_access_token && company.meta_access_token.trim().length > 0);
+    if (!hasExistingAccessToken && !accessTokenDraft) {
+      toast.error('Please paste your Meta Access Token');
+      return;
+    }
+
+    try {
+      await updateCompany.mutateAsync({
+        id: company.id,
+        meta_phone_number_id: phoneId || null,
+        meta_whatsapp_number: waNumber || null,
+        meta_waba_id: wabaId || null,
+        meta_webhook_verify_token: verifyToken || null,
+        ...(accessTokenDraft ? { meta_access_token: accessTokenDraft } : {}),
+      });
+
+      setMetaAccessToken('');
+      toast.success('Meta WhatsApp settings saved successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save Meta WhatsApp settings');
+    }
+  };
+
   const handleMetaToggleChange = async (checked: boolean) => {
     if (!company?.id) return;
 
@@ -209,6 +289,19 @@ export function CompanySettingsView() {
       webhookUrl = `https://${url.host}/functions/v1/lead-webhook?token=${company.webhook_token}`;
     } catch {
       webhookUrl = `https://YOUR-PROJECT-REF.supabase.co/functions/v1/lead-webhook?token=${company.webhook_token}`;
+    }
+  }
+
+  let metaWhatsAppWebhookUrl = 'https://YOUR-PROJECT-REF.supabase.co/functions/v1/whatsapp-meta-webhook';
+  if (projectUrl) {
+    try {
+      const url = new URL(projectUrl);
+      const projectRef = url.hostname.split('.')[0];
+      if (projectRef) {
+        metaWhatsAppWebhookUrl = `https://${projectRef}.supabase.co/functions/v1/whatsapp-meta-webhook`;
+      }
+    } catch {
+      // keep placeholder
     }
   }
 
@@ -353,63 +446,90 @@ export function CompanySettingsView() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...whatsappForm}>
-                <form onSubmit={whatsappForm.handleSubmit(onWhatsAppSubmit)} className="space-y-6">
-                  <FormField
-                    control={whatsappForm.control}
-                    name="twilio_sid"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Twilio Account SID</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input {...field} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">WhatsApp Provider</p>
+                    <p className="text-xs text-muted-foreground">Twilio or Meta Cloud API</p>
+                  </div>
+                  <Select
+                    value={whatsappProvider}
+                    onValueChange={(v) => handleWhatsappProviderChange(v as 'twilio' | 'meta')}
+                    disabled={updateCompany.isPending}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="Select provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="twilio">Twilio</SelectItem>
+                      <SelectItem value="meta">Meta Cloud API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <FormField
-                    control={whatsappForm.control}
-                    name="twilio_auth_token"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Twilio Auth Token</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              {...field}
-                              type="password"
-                              placeholder="Your Twilio Auth Token"
-                              className="pl-10 font-mono text-sm"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                <Form {...whatsappForm}>
+                  <form onSubmit={whatsappForm.handleSubmit(onWhatsAppSubmit)} className="space-y-6">
+                    {whatsappProvider === 'twilio' && (
+                      <FormField
+                        control={whatsappForm.control}
+                        name="twilio_sid"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Twilio Account SID</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input {...field} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
 
-                  <FormField
-                    control={whatsappForm.control}
-                    name="whatsapp_number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>WhatsApp Business Number</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input {...field} placeholder="+1234567890" className="pl-10" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                    {whatsappProvider === 'twilio' && (
+                      <FormField
+                        control={whatsappForm.control}
+                        name="twilio_auth_token"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Twilio Auth Token</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Your Twilio Auth Token"
+                                  className="pl-10 font-mono text-sm"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
+
+                    {whatsappProvider === 'twilio' && (
+                      <FormField
+                        control={whatsappForm.control}
+                        name="whatsapp_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>WhatsApp Business Number</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input {...field} placeholder="+1234567890" className="pl-10" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                   {/* Telephony Settings Section */}
                   <div className="border-t pt-6 mt-6">
@@ -491,7 +611,8 @@ export function CompanySettingsView() {
                     </div>
                   </div>
 
-                  <div className="bg-muted p-4 rounded-lg space-y-4">
+                  {whatsappProvider === 'twilio' && (
+                    <div className="bg-muted p-4 rounded-lg space-y-4">
                     <div>
                       <h4 className="font-medium mb-2">Setup Instructions:</h4>
                       <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
@@ -525,20 +646,128 @@ export function CompanySettingsView() {
                         </p>
                       </div>
                     )}
-                  </div>
+                    </div>
+                  )}
 
                   <Button
                     type="submit"
-                    disabled={createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending}
+                    disabled={
+                      createWhatsAppSettings.isPending ||
+                      updateWhatsAppSettings.isPending ||
+                      (whatsappProvider === 'meta' && !whatsappSettings)
+                    }
                     className="w-full"
                   >
                     {(createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending) && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
-                    {whatsappSettings ? 'Update WhatsApp Settings' : 'Save WhatsApp Settings'}
+                    {whatsappProvider === 'meta'
+                      ? 'Save Voice Telephony Settings'
+                      : whatsappSettings
+                        ? 'Update WhatsApp Settings'
+                        : 'Save WhatsApp Settings'}
                   </Button>
-                </form>
-              </Form>
+                  </form>
+                </Form>
+
+                {whatsappProvider === 'meta' && (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium leading-none">Meta Phone ID</p>
+                      <Input
+                        value={metaPhoneNumberId}
+                        onChange={(e) => setMetaPhoneNumberId(e.target.value)}
+                        placeholder="e.g. 106540352242922"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium leading-none">Meta WhatsApp Business Number</p>
+                      <Input
+                        value={metaWhatsAppNumber}
+                        onChange={(e) => setMetaWhatsAppNumber(e.target.value)}
+                        placeholder="e.g. +14155552671"
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This is your WhatsApp business number (E.164). Used for display/debug; routing uses Phone ID / WABA ID.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium leading-none">Meta WABA ID</p>
+                      <Input
+                        value={metaWabaId}
+                        onChange={(e) => setMetaWabaId(e.target.value)}
+                        placeholder="e.g. 123456789"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium leading-none">Webhook Verify Token</p>
+                      <Input
+                        value={metaWebhookVerifyToken}
+                        onChange={(e) => setMetaWebhookVerifyToken(e.target.value)}
+                        placeholder="Paste your webhook verify token"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm font-medium leading-none">Access Token</p>
+                        <span className="text-xs text-muted-foreground">
+                          {maskedStoredMetaToken ? 'Configured' : 'Not saved'}
+                        </span>
+                      </div>
+
+                      {maskedStoredMetaToken ? (
+                        <Input readOnly value={maskedStoredMetaToken} className="font-mono text-sm" />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Paste your Meta long-lived access token and click save.
+                        </p>
+                      )}
+
+                      <Input
+                        type="password"
+                        value={metaAccessToken}
+                        onChange={(e) => setMetaAccessToken(e.target.value)}
+                        placeholder="Paste your Meta long-lived access token"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="border-t pt-4 space-y-2">
+                      <p className="text-sm font-medium leading-none">Webhook URL</p>
+                      <div className="flex items-center gap-2">
+                        <Input readOnly value={metaWhatsAppWebhookUrl} className="font-mono text-xs" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => copyToClipboard(metaWhatsAppWebhookUrl, 'Webhook URL')}
+                          disabled={!metaWhatsAppWebhookUrl}
+                          className="shrink-0"
+                        >
+                          Copy URL
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={onSaveMetaWhatsAppSettings}
+                      disabled={updateCompany.isPending}
+                      className="w-full"
+                    >
+                      {updateCompany.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                      Save Meta WhatsApp Settings
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

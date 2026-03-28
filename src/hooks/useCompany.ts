@@ -21,7 +21,12 @@ export type Company = {
   webhook_token?: string | null;
   meta_verify_token?: string | null;
   enable_meta_leads?: boolean | null;
+  whatsapp_provider?: 'twilio' | 'meta' | null;
+  meta_phone_number_id?: string | null;
+  meta_whatsapp_number?: string | null;
+  meta_waba_id?: string | null;
   meta_access_token?: string | null;
+  meta_webhook_verify_token?: string | null;
 };
 
 export type AppRole = 'super_admin' | 'admin' | 'manager' | 'sales';

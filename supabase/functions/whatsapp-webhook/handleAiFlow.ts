@@ -1,23 +1,34 @@
+// @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.21.0'
+
+export type WhatsappProvider = 'twilio' | 'meta'
 
 interface TwilioWebhookPayload {
   To: string
   From: string
   Body: string
   MessageSid: string
-  AccountSid: string
+  AccountSid?: string
   NumMedia?: string
   MediaUrl0?: string
   MediaContentType0?: string
   ProfileName?: string
 }
 
-interface WhatsAppSettings {
+interface TwilioWhatsAppSettings {
   company_id: string
   twilio_auth_token: string
   whatsapp_number: string
 }
+
+interface MetaWhatsAppSettings {
+  company_id: string
+  meta_phone_number_id: string
+  meta_access_token: string
+}
+
+type WhatsAppSettings = TwilioWhatsAppSettings | MetaWhatsAppSettings
 
 interface ConversationData {
   is_new_user: boolean
@@ -40,7 +51,8 @@ interface AiFlowParams {
   whatsappSettings: WhatsAppSettings
   conversationData: ConversationData
   supabase: any
-  accountSid: string
+  provider: WhatsappProvider
+  accountSid?: string
   industry: string
 }
 
@@ -181,6 +193,7 @@ export async function handleAiFlow({
   whatsappSettings,
   conversationData,
   supabase,
+  provider,
   accountSid,
   industry
 }: AiFlowParams) {
@@ -200,7 +213,9 @@ export async function handleAiFlow({
     // Get industry-specific step configurations
     const STEP_CONFIGS = getStepConfigs(industry)
 
-    // Log the incoming user message to whatsapp_messages
+    // Log the incoming user message to whatsapp_messages.
+    // Note: Twilio webhook also writes an incoming row before calling this flow,
+    // so this intentionally keeps the same behavior.
     try {
       const { error: logError } = await supabase
         .from('whatsapp_messages')
@@ -234,7 +249,7 @@ export async function handleAiFlow({
 
       // Send confirmation message
       const confirmationMessage = "I've connected you with our human agent. They'll assist you shortly."
-      await sendWhatsAppMessage(whatsappSettings, payload.From, confirmationMessage, accountSid)
+      await sendWhatsAppMessage(whatsappSettings, provider, payload.From, confirmationMessage, accountSid)
 
       // Store bot response in database
       await supabase.from("whatsapp_messages").insert({
@@ -305,7 +320,7 @@ export async function handleAiFlow({
       if (nextStep > 0) {
         // Send next step message
         const nextStepConfig = STEP_CONFIGS.find(config => config.step === nextStep)!
-        await sendStepMessage(whatsappSettings, payload.From, nextStepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
+        await sendStepMessage(whatsappSettings, provider, payload.From, nextStepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
 
         // If this is the final step (nextStep of the config we just sent is 0), create summary
         if (nextStepConfig.nextStep === 0) {
@@ -317,7 +332,7 @@ export async function handleAiFlow({
     } else {
       // Input was invalid, send current step message again
       console.log(`❌ Invalid input for step ${currentStep}, sending current step message again`)
-      await sendStepMessage(whatsappSettings, payload.From, stepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
+        await sendStepMessage(whatsappSettings, provider, payload.From, stepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
     }
 
     return new Response('', { status: 200, headers: corsHeaders })
@@ -338,7 +353,7 @@ async function processRealEstateFlow(
   whatsappSettings: any,
   payload: any,
   supabase: any,
-  accountSid: string,
+  accountSid: string | undefined,
   industry: string
 ): Promise<boolean> {
   const corsHeaders = {
@@ -430,7 +445,7 @@ async function processAutomobileFlow(
   whatsappSettings: any,
   payload: any,
   supabase: any,
-  accountSid: string,
+  accountSid: string | undefined,
   industry: string
 ): Promise<boolean> {
   const corsHeaders = {
@@ -522,7 +537,7 @@ async function processEducationFlow(
   whatsappSettings: any,
   payload: any,
   supabase: any,
-  accountSid: string,
+  accountSid: string | undefined,
   industry: string
 ): Promise<boolean> {
   const corsHeaders = {
@@ -650,18 +665,19 @@ async function processEducationFlow(
 // Helper functions
 async function sendStepMessage(
   whatsappSettings: WhatsAppSettings,
+  provider: WhatsappProvider,
   to: string,
   stepConfig: StepConfig,
   supabase: any,
   conversationId: string,
   companyId: string,
-  accountSid: string
+  accountSid?: string
 ) {
   try {
     const messageText = buildMessageText(stepConfig.message, stepConfig.buttons)
     console.log(`🚀 Sending AI message to ${to}: ${messageText.substring(0, 100)}...`)
 
-    await sendWhatsAppMessage(whatsappSettings, to, messageText, accountSid)
+    await sendWhatsAppMessage(whatsappSettings, provider, to, messageText, accountSid)
 
     await supabase.from("whatsapp_messages").insert({
       conversation_id: conversationId,
@@ -678,30 +694,71 @@ async function sendStepMessage(
 
 async function sendWhatsAppMessage(
   whatsappSettings: WhatsAppSettings,
+  provider: WhatsappProvider,
   to: string,
   message: string,
-  accountSid: string
+  accountSid?: string
 ) {
-  const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
+  if (provider === 'twilio') {
+    if (!accountSid) {
+      throw new Error('Missing accountSid for Twilio send')
+    }
 
-  const formData = new FormData()
-  formData.append('To', to)
-  formData.append('From', `whatsapp:${whatsappSettings.whatsapp_number}`)
-  formData.append('Body', message)
+    const twilioSettings = whatsappSettings as TwilioWhatsAppSettings
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
 
-  const response = await fetch(twilioUrl, {
+    const formData = new FormData()
+    formData.append('To', to)
+    formData.append('From', `whatsapp:${twilioSettings.whatsapp_number}`)
+    formData.append('Body', message)
+
+    const response = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${btoa(`${accountSid}:${twilioSettings.twilio_auth_token}`)}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      console.error('Failed to send WhatsApp message:', response.statusText)
+      const errorText = await response.text()
+      console.error('Twilio error details:', errorText)
+      throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
+    }
+
+    return
+  }
+
+  // Meta provider
+  const metaSettings = whatsappSettings as MetaWhatsAppSettings
+
+  const toTrimmed = to.trim()
+  const recipientRaw = toTrimmed.startsWith('whatsapp:') ? toTrimmed.replace('whatsapp:', '') : toTrimmed
+  const toE164 = recipientRaw.startsWith('+') ? recipientRaw : `+${recipientRaw}`
+
+  const url = `https://graph.facebook.com/v18.0/${metaSettings.meta_phone_number_id}/messages`
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: toE164,
+    type: 'text',
+    text: { body: message },
+  }
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Basic ${btoa(`${accountSid}:${whatsappSettings.twilio_auth_token}`)}`
+      'Authorization': `Bearer ${metaSettings.meta_access_token}`,
+      'Content-Type': 'application/json',
     },
-    body: formData
+    body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
-    console.error('Failed to send WhatsApp message:', response.statusText)
     const errorText = await response.text()
-    console.error('Twilio error details:', errorText)
-    throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
+    throw new Error(`Meta API error: HTTP ${response.status}: ${errorText}`)
   }
 }
 

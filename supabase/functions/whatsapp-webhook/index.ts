@@ -219,6 +219,7 @@ serve(async (req) => {
           whatsappSettings,
           conversationData,
           supabase,
+          provider: 'twilio',
           accountSid: payload.AccountSid,
           industry: companyIndustry
         })

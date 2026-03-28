@@ -29,7 +29,12 @@ export interface Database {
           webhook_token: string | null
           meta_verify_token: string | null
           enable_meta_leads: boolean | null
+          whatsapp_provider: string | null
+          meta_phone_number_id: string | null
+          meta_whatsapp_number: string | null
+          meta_waba_id: string | null
           meta_access_token: string | null
+          meta_webhook_verify_token: string | null
         }
         Insert: {
           address?: string | null
@@ -50,7 +55,12 @@ export interface Database {
           webhook_token?: string | null
           meta_verify_token?: string | null
           enable_meta_leads?: boolean | null
+          whatsapp_provider?: string | null
+          meta_phone_number_id?: string | null
+          meta_whatsapp_number?: string | null
+          meta_waba_id?: string | null
           meta_access_token?: string | null
+          meta_webhook_verify_token?: string | null
         }
         Update: {
           address?: string | null
@@ -71,7 +81,12 @@ export interface Database {
           webhook_token?: string | null
           meta_verify_token?: string | null
           enable_meta_leads?: boolean | null
+          whatsapp_provider?: string | null
+          meta_phone_number_id?: string | null
+          meta_whatsapp_number?: string | null
+          meta_waba_id?: string | null
           meta_access_token?: string | null
+          meta_webhook_verify_token?: string | null
         }
         Relationships: []
       }

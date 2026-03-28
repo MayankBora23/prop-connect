@@ -16,6 +16,14 @@ interface SendMessageRequest {
   reply_to_message_id?: string
 }
 
+type WhatsappProvider = 'twilio' | 'meta'
+
+interface CompanyRow {
+  whatsapp_provider: WhatsappProvider | null
+  meta_phone_number_id: string | null
+  meta_access_token: string | null
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -81,17 +89,19 @@ serve(async (req) => {
       return new Response('Conversation has no company_id', { status: 400, headers: corsHeaders })
     }
 
-    // Get WhatsApp settings for this company
-    const { data: whatsappSettings, error: settingsError } = await supabase
-      .from('whatsapp_settings')
-      .select('*')
-      .eq('company_id', conversation.company_id)
-      .single()
+    // Resolve provider + credentials from companies
+    const { data: companyRow, error: companyError } = await supabase
+      .from('companies')
+      .select('whatsapp_provider, meta_phone_number_id, meta_access_token')
+      .eq('id', conversation.company_id)
+      .maybeSingle<CompanyRow>()
 
-    if (settingsError || !whatsappSettings) {
-      console.error('WhatsApp settings not found:', settingsError)
-      return new Response('WhatsApp settings not configured', { status: 404, headers: corsHeaders })
+    if (companyError) {
+      console.error('Failed to resolve company provider:', companyError)
+      return new Response('Company lookup failed', { status: 500, headers: corsHeaders })
     }
+
+    const provider: WhatsappProvider = (companyRow?.whatsapp_provider ?? 'twilio') === 'meta' ? 'meta' : 'twilio'
 
     // Build message body for Twilio, including quoted reply context if provided
     const twilioBody = body || ''
@@ -120,31 +130,82 @@ serve(async (req) => {
       }
     }
 
-    console.log('Sending to Twilio:', {
-      from: whatsappSettings.whatsapp_number,
-      to: conversation.contact_phone,
-      body_length: twilioBody?.length || 0,
-      file_count: file_urls?.length || 0,
-      reply_to_message_id
-    })
+    // Send message via provider
+    let outboundMessageSid: string | undefined
+    if (provider === 'twilio') {
+      // Get WhatsApp settings for this company
+      const { data: whatsappSettings, error: settingsError } = await supabase
+        .from('whatsapp_settings')
+        .select('*')
+        .eq('company_id', conversation.company_id)
+        .single()
 
-    // Twilio WhatsApp supports only one media file per message — send first file if any
-    const twilioResponse = await sendTwilioMessage(
-      whatsappSettings.twilio_sid,
-      whatsappSettings.twilio_auth_token,
-      whatsappSettings.whatsapp_number,
-      conversation.contact_phone,
-      twilioBody,
-      file_urls?.[0], // Send only the first file to Twilio
-      repliedMessageSid
-    )
+      if (settingsError || !whatsappSettings) {
+        console.error('WhatsApp settings not found:', settingsError)
+        return new Response('WhatsApp settings not configured', { status: 404, headers: corsHeaders })
+      }
 
-    if (!twilioResponse.success) {
-      console.error('Twilio API error:', twilioResponse.error)
-      return new Response(`Twilio API error: ${twilioResponse.error}`, { status: 500, headers: corsHeaders })
+      console.log('Sending to Twilio:', {
+        from: whatsappSettings.whatsapp_number,
+        to: conversation.contact_phone,
+        body_length: twilioBody?.length || 0,
+        file_count: file_urls?.length || 0,
+        reply_to_message_id,
+      })
+
+      // Twilio WhatsApp supports only one media file per message — send first file if any
+      const twilioResponse = await sendTwilioMessage(
+        whatsappSettings.twilio_sid,
+        whatsappSettings.twilio_auth_token,
+        whatsappSettings.whatsapp_number,
+        conversation.contact_phone,
+        twilioBody,
+        file_urls?.[0], // Send only the first file to Twilio
+        repliedMessageSid
+      )
+
+      if (!twilioResponse.success) {
+        console.error('Twilio API error:', twilioResponse.error)
+        return new Response(`Twilio API error: ${twilioResponse.error}`, { status: 500, headers: corsHeaders })
+      }
+
+      outboundMessageSid = twilioResponse.messageSid
+      console.log('Twilio message sent successfully:', outboundMessageSid)
+    } else {
+      const phoneId = companyRow?.meta_phone_number_id
+      const accessToken = companyRow?.meta_access_token
+      if (!phoneId || !accessToken) {
+        return new Response('Meta WhatsApp not configured (meta_phone_number_id/meta_access_token missing)', {
+          status: 400,
+          headers: corsHeaders,
+        })
+      }
+
+      console.log('Sending to Meta WhatsApp:', {
+        phone_number_id: phoneId,
+        to: conversation.contact_phone,
+        body_length: twilioBody?.length || 0,
+        file_count: file_urls?.length || 0,
+      })
+
+      const metaResponse = await sendMetaWhatsAppMessage({
+        phoneNumberId: phoneId,
+        accessToken,
+        to: conversation.contact_phone,
+        body: twilioBody,
+        fileUrl: file_urls?.[0],
+        fileName: file_names?.[0],
+        fileType: file_types?.[0],
+      })
+
+      if (!metaResponse.success) {
+        console.error('Meta API error:', metaResponse.error)
+        return new Response(`Meta API error: ${metaResponse.error}`, { status: 500, headers: corsHeaders })
+      }
+
+      outboundMessageSid = metaResponse.messageSid
+      console.log('Meta message sent successfully:', outboundMessageSid)
     }
-
-    console.log('Twilio message sent successfully:', twilioResponse.messageSid)
 
     // Store the sent message in database
     const messageDataToInsert: any = {
@@ -152,7 +213,7 @@ serve(async (req) => {
       direction: 'outgoing' as const,
       body: body || '', // Ensure body is never null
       status: 'sent' as const,
-      message_sid: twilioResponse.messageSid,
+      message_sid: outboundMessageSid ?? null,
       company_id: conversation.company_id,
       file_urls: file_urls || null,
       file_names: file_names || null,
@@ -181,12 +242,12 @@ serve(async (req) => {
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversation_id)
 
-    console.log('WhatsApp message sent successfully:', twilioResponse.messageSid)
+    console.log('WhatsApp message sent successfully:', outboundMessageSid)
 
     return new Response(JSON.stringify({
       success: true,
       messageId: messageData.id,
-      messageSid: twilioResponse.messageSid
+      messageSid: outboundMessageSid
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -197,6 +258,89 @@ serve(async (req) => {
     return new Response('Internal server error', { status: 500, headers: corsHeaders })
   }
 })
+
+async function sendMetaWhatsAppMessage(params: {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  body: string
+  fileUrl?: string
+  fileName?: string
+  fileType?: string
+}): Promise<{ success: boolean; messageSid?: string; error?: string }> {
+  try {
+    const { phoneNumberId, accessToken, to, body, fileUrl, fileName, fileType } = params
+
+    const toE164 = to.trim().startsWith('+') ? to.trim() : `+${to.trim()}`
+    const trimmedBody = body ?? ''
+
+    let payload: any
+
+    if (fileUrl) {
+      const normalizedType = (fileType || '').trim().toLowerCase()
+
+      if (normalizedType === 'image') {
+        payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: toE164,
+          type: 'image',
+          image: {
+            link: fileUrl,
+            ...(trimmedBody ? { caption: trimmedBody } : {}),
+          },
+        }
+      } else {
+        // Default to document if not explicitly image
+        payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: toE164,
+          type: 'document',
+          document: {
+            link: fileUrl,
+            filename: fileName || 'document',
+            ...(trimmedBody ? { caption: trimmedBody } : {}),
+          },
+        }
+      }
+    } else {
+      payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: toE164,
+        type: 'text',
+        text: {
+          body: trimmedBody,
+        },
+      }
+    }
+
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` }
+    }
+
+    const data = await response.json()
+    const messageSid: string | undefined =
+      data?.messages?.[0]?.id || data?.id || undefined
+
+    return { success: true, messageSid }
+  } catch (error) {
+    return { success: false, error: (error as any)?.message || String(error) }
+  }
+}
 
 // Send message via Twilio API
 async function sendTwilioMessage(
