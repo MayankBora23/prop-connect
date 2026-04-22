@@ -393,6 +393,44 @@ export interface Database {
           }
         ]
       }
+      source_configs: {
+        Row: {
+          id: string
+          company_id: string
+          source_name: string
+          method: string
+          webhook_config: Json
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          source_name: string
+          method?: string
+          webhook_config?: Json
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          source_name?: string
+          method?: string
+          webhook_config?: Json
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       site_visits: {
         Row: {
           assigned_to: string | null

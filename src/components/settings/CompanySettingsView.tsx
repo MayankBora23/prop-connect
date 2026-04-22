@@ -12,10 +12,17 @@ import { useUpdateCompany } from '@/hooks/useCompany';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useWhatsAppSettings, useCreateWhatsAppSettings, useUpdateWhatsAppSettings } from '@/hooks/useWhatsApp';
 import { toast } from 'sonner';
-import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings, Facebook } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings, Facebook, Plug } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import {
+  THIRD_PARTY_PORTALS,
+  useSourceConfigs,
+  useUpsertSourceConfigActive,
+  portalWebhookUrl,
+} from '@/hooks/useLeadIntegrations';
 
 const companySchema = z.object({
   company_name: z.string().min(2, 'Company name must be at least 2 characters').max(100),
@@ -33,6 +40,11 @@ const whatsappSchema = z.object({
   twilio_api_key_sid: z.string().optional().or(z.literal('')),
   twilio_api_key_secret: z.string().optional().or(z.literal('')),
   twilio_twiml_app_sid: z.string().optional().or(z.literal('')),
+  telephony_provider: z.enum(['twilio', 'callerdesk']).optional(),
+  callerdesk_api_key: z.string().optional().or(z.literal('')),
+  callerdesk_secret_key: z.string().optional().or(z.literal('')),
+  callerdesk_integration_key: z.string().optional().or(z.literal('')),
+  callerdesk_bridge_number: z.string().optional().or(z.literal('')),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -42,6 +54,8 @@ export function CompanySettingsView() {
   const { data: company, isLoading: companyLoading } = useCurrentCompany();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const updateCompany = useUpdateCompany();
+  const { data: sourceConfigs = [] } = useSourceConfigs(company?.id);
+  const upsertSourceConfig = useUpsertSourceConfigActive();
 
   // WhatsApp settings
   const { data: whatsappSettings, isLoading: whatsappLoading } = useWhatsAppSettings();
@@ -57,6 +71,7 @@ export function CompanySettingsView() {
   const [metaWhatsAppNumber, setMetaWhatsAppNumber] = useState<string>('');
   const [metaWabaId, setMetaWabaId] = useState<string>('');
   const [metaWebhookVerifyToken, setMetaWebhookVerifyToken] = useState<string>('');
+  const [isSavingTelephonyProvider, setIsSavingTelephonyProvider] = useState(false);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -79,6 +94,11 @@ export function CompanySettingsView() {
       twilio_api_key_sid: '',
       twilio_api_key_secret: '',
       twilio_twiml_app_sid: '',
+      telephony_provider: 'twilio',
+      callerdesk_api_key: '',
+      callerdesk_secret_key: '',
+      callerdesk_integration_key: '',
+      callerdesk_bridge_number: '',
     },
   });
 
@@ -108,6 +128,11 @@ export function CompanySettingsView() {
         twilio_api_key_sid: whatsappSettings.twilio_api_key_sid || '',
         twilio_api_key_secret: whatsappSettings.twilio_api_key_secret || '',
         twilio_twiml_app_sid: whatsappSettings.twilio_twiml_app_sid || '',
+        telephony_provider: (whatsappSettings as any).telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio',
+        callerdesk_api_key: (whatsappSettings as any).callerdesk_api_key || '',
+        callerdesk_secret_key: (whatsappSettings as any).callerdesk_secret_key || '',
+        callerdesk_integration_key: (whatsappSettings as any).callerdesk_integration_key || '',
+        callerdesk_bridge_number: (whatsappSettings as any).callerdesk_bridge_number || '',
       });
     }
   }, [whatsappSettings, whatsappForm]);
@@ -144,6 +169,11 @@ export function CompanySettingsView() {
           twilio_api_key_sid: data.twilio_api_key_sid || null,
           twilio_api_key_secret: data.twilio_api_key_secret || null,
           twilio_twiml_app_sid: data.twilio_twiml_app_sid || null,
+          telephony_provider: data.telephony_provider || 'twilio',
+          callerdesk_api_key: data.callerdesk_api_key || null,
+          callerdesk_secret_key: data.callerdesk_secret_key || null,
+          callerdesk_integration_key: data.callerdesk_integration_key || null,
+          callerdesk_bridge_number: data.callerdesk_bridge_number || null,
         });
       } else {
         await createWhatsAppSettings.mutateAsync({
@@ -154,10 +184,48 @@ export function CompanySettingsView() {
           twilio_api_key_sid: data.twilio_api_key_sid || null,
           twilio_api_key_secret: data.twilio_api_key_secret || null,
           twilio_twiml_app_sid: data.twilio_twiml_app_sid || null,
+          telephony_provider: data.telephony_provider || 'twilio',
+          callerdesk_api_key: data.callerdesk_api_key || null,
+          callerdesk_secret_key: data.callerdesk_secret_key || null,
+          callerdesk_integration_key: data.callerdesk_integration_key || null,
+          callerdesk_bridge_number: data.callerdesk_bridge_number || null,
         });
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to save WhatsApp settings');
+    }
+  };
+
+  const handleTelephonyProviderChange = async (nextProvider: 'twilio' | 'callerdesk') => {
+    if (!company?.id) return;
+
+    const prev = whatsappForm.getValues('telephony_provider') || 'twilio';
+    whatsappForm.setValue('telephony_provider', nextProvider, { shouldDirty: true, shouldTouch: true });
+
+    setIsSavingTelephonyProvider(true);
+    try {
+      if (whatsappSettings) {
+        await updateWhatsAppSettings.mutateAsync({
+          id: whatsappSettings.id,
+          telephony_provider: nextProvider,
+        });
+      } else {
+        // Create minimal row so provider can be saved immediately
+        await createWhatsAppSettings.mutateAsync({
+          company_id: company.id,
+          twilio_sid: whatsappForm.getValues('twilio_sid') || '',
+          twilio_auth_token: whatsappForm.getValues('twilio_auth_token') || '',
+          whatsapp_number: whatsappForm.getValues('whatsapp_number') || '',
+          telephony_provider: nextProvider,
+        } as any);
+      }
+
+      toast.success(`Telephony provider set to ${nextProvider === 'twilio' ? 'Twilio' : 'CallerDesk'}`);
+    } catch (error: any) {
+      whatsappForm.setValue('telephony_provider', prev as any, { shouldDirty: true });
+      toast.error(error.message || 'Failed to update Telephony provider');
+    } finally {
+      setIsSavingTelephonyProvider(false);
     }
   };
 
@@ -280,6 +348,16 @@ export function CompanySettingsView() {
     }
   };
 
+  const copyThirdPartyWebhookUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('URL copied to clipboard');
+    } catch (error: unknown) {
+      console.error('Clipboard error', error);
+      toast.error('Failed to copy URL');
+    }
+  };
+
   const projectUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
 
   let webhookUrl = '';
@@ -299,6 +377,19 @@ export function CompanySettingsView() {
       const projectRef = url.hostname.split('.')[0];
       if (projectRef) {
         metaWhatsAppWebhookUrl = `https://${projectRef}.supabase.co/functions/v1/whatsapp-meta-webhook`;
+      }
+    } catch {
+      // keep placeholder
+    }
+  }
+
+  let callerdeskWebhookUrl = 'https://YOUR-PROJECT-REF.supabase.co/functions/v1/callerdesk-webhook';
+  if (projectUrl) {
+    try {
+      const url = new URL(projectUrl);
+      const projectRef = url.hostname.split('.')[0];
+      if (projectRef) {
+        callerdeskWebhookUrl = `https://${projectRef}.supabase.co/functions/v1/callerdesk-webhook`;
       }
     } catch {
       // keep placeholder
@@ -346,10 +437,17 @@ export function CompanySettingsView() {
     );
   }
 
+  const showThirdPartyTab = company.industry === 'real_estate';
+
   return (
     <div className="max-w-3xl mx-auto">
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-xl">
+        <TabsList
+          className={cn(
+            'grid w-full',
+            showThirdPartyTab ? 'grid-cols-3 max-w-4xl' : 'grid-cols-2 max-w-xl',
+          )}
+        >
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             <span>Company & WhatsApp</span>
@@ -358,6 +456,12 @@ export function CompanySettingsView() {
             <Facebook className="w-4 h-4" />
             <span>Meta Lead Ads & WhatsApp</span>
           </TabsTrigger>
+          {showThirdPartyTab && (
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <Plug className="w-4 h-4" />
+              <span>3rd Party Integration</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="company" className="space-y-6">
@@ -538,77 +642,193 @@ export function CompanySettingsView() {
                       Voice Telephony Integration
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Configure Twilio Voice API for outbound calling capabilities.
+                      Configure your telephony provider for outbound calling capabilities.
                       These settings are optional and only required if you want to enable voice calling.
                     </p>
 
                     <FormField
                       control={whatsappForm.control}
-                      name="twilio_api_key_sid"
+                      name="telephony_provider"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Twilio API Key SID</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input {...field} placeholder="SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
-                            </div>
-                          </FormControl>
+                          <FormLabel>Telephony Provider</FormLabel>
+                          <Select
+                            value={field.value || 'twilio'}
+                            onValueChange={(v) => {
+                              field.onChange(v as 'twilio' | 'callerdesk');
+                              void handleTelephonyProviderChange(v as 'twilio' | 'callerdesk');
+                            }}
+                            disabled={isSavingTelephonyProvider || updateWhatsAppSettings.isPending || createWhatsAppSettings.isPending}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-[260px]">
+                                <SelectValue placeholder="Select provider" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="twilio">Twilio</SelectItem>
+                              <SelectItem value="callerdesk">CallerDesk</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <FormField
-                      control={whatsappForm.control}
-                      name="twilio_api_key_secret"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Twilio API Key Secret</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input
-                                {...field}
-                                type="password"
-                                placeholder="Your Twilio API Key Secret"
-                                className="pl-10 font-mono text-sm"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {whatsappForm.watch('telephony_provider') !== 'callerdesk' && (
+                      <>
+                        <FormField
+                          control={whatsappForm.control}
+                          name="twilio_api_key_sid"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Twilio API Key SID</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                  <Input {...field} placeholder="SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    <FormField
-                      control={whatsappForm.control}
-                      name="twilio_twiml_app_sid"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Twilio TwiML App SID</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input {...field} placeholder="APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        <FormField
+                          control={whatsappForm.control}
+                          name="twilio_api_key_secret"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Twilio API Key Secret</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                  <Input
+                                    {...field}
+                                    type="password"
+                                    placeholder="Your Twilio API Key Secret"
+                                    className="pl-10 font-mono text-sm"
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg mt-4">
-                      <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Voice Telephony Setup:</h4>
-                      <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
-                        <li>Create an API Key in Twilio Console → Settings → API Keys</li>
-                        <li>Create a TwiML App in Twilio Console → Voice → Manage → TwiML Apps</li>
-                        <li>Set Voice Request URL: <code>https://your-project.supabase.co/functions/v1/voice-router</code></li>
-                        <li>Set Status Callback URL: <code>https://your-project.supabase.co/functions/v1/voice-status</code></li>
-                        <li>Each agent needs an "Agent Identity" set in their profile settings</li>
-                        <li>Enable telephony for leads by checking "Enable Telephony" in lead details</li>
-                      </ol>
-                    </div>
+                        <FormField
+                          control={whatsappForm.control}
+                          name="twilio_twiml_app_sid"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Twilio TwiML App SID</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                  <Input {...field} placeholder="APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg mt-4">
+                          <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Twilio Voice Setup:</h4>
+                          <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
+                            <li>Create an API Key in Twilio Console → Settings → API Keys</li>
+                            <li>Create a TwiML App in Twilio Console → Voice → Manage → TwiML Apps</li>
+                            <li>Set Voice Request URL: <code>https://your-project.supabase.co/functions/v1/voice-router</code></li>
+                            <li>Set Status Callback URL: <code>https://your-project.supabase.co/functions/v1/voice-status</code></li>
+                            <li>Each agent needs an "Agent Identity" set in their profile settings</li>
+                            <li>Enable telephony for leads by checking "Enable Telephony" in lead details</li>
+                          </ol>
+                        </div>
+                      </>
+                    )}
+
+                    {whatsappForm.watch('telephony_provider') === 'callerdesk' && (
+                      <>
+                        <FormField
+                          control={whatsappForm.control}
+                          name="callerdesk_api_key"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CallerDesk API Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Paste CallerDesk API key" className="font-mono text-sm" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={whatsappForm.control}
+                          name="callerdesk_secret_key"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CallerDesk Secret Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="password" placeholder="Paste CallerDesk secret key" className="font-mono text-sm" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={whatsappForm.control}
+                          name="callerdesk_integration_key"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Integration Key</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Paste full click-to-call URL, or a /path?query..., or authcode/token"
+                                  className="font-mono text-sm"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={whatsappForm.control}
+                          name="callerdesk_bridge_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bridge Number (Agent)</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="e.g. +9198XXXXXXXX" className="font-mono text-sm" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="border rounded-md p-4 bg-muted/30 space-y-2">
+                          <p className="text-sm font-medium leading-none">CallerDesk Webhook URL</p>
+                          <div className="flex items-center gap-2">
+                            <Input readOnly value={callerdeskWebhookUrl} className="font-mono text-xs" />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => copyToClipboard(callerdeskWebhookUrl, 'CallerDesk Webhook URL')}
+                              disabled={!callerdeskWebhookUrl}
+                              className="shrink-0"
+                            >
+                              Copy URL
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Configure this webhook in CallerDesk to send call reports to Supabase.
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {whatsappProvider === 'twilio' && (
@@ -771,6 +991,80 @@ export function CompanySettingsView() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {showThirdPartyTab && (
+          <TabsContent value="integrations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plug className="w-5 h-5" />
+                  3rd Party Integration
+                </CardTitle>
+                <CardDescription>
+                  Receive inbound leads from Indian property listing portals via webhook. Enable a portal, copy the URL,
+                  and paste it in that portal&apos;s lead / webhook settings.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {THIRD_PARTY_PORTALS.map((portal) => {
+                  const cfg = sourceConfigs.find((c) => c.source_name === portal.source_name);
+                  const isOn = cfg?.is_active ?? false;
+                  const url =
+                    company.webhook_token && isOn
+                      ? portalWebhookUrl(company.webhook_token, portal.source_name)
+                      : '';
+
+                  return (
+                    <div key={portal.source_name} className="space-y-3 border-b pb-6 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium">{portal.label}</p>
+                          <p className="text-xs text-muted-foreground">Inbound webhook / API (real estate)</p>
+                        </div>
+                        <Switch
+                          checked={isOn}
+                          disabled={upsertSourceConfig.isPending}
+                          onCheckedChange={async (checked) => {
+                            try {
+                              await upsertSourceConfig.mutateAsync({
+                                companyId: company.id,
+                                source_name: portal.source_name,
+                                is_active: checked,
+                                existingWebhookToken: company.webhook_token,
+                              });
+                            } catch (error: unknown) {
+                              const message = error instanceof Error ? error.message : 'Failed to update integration';
+                              toast.error(message);
+                            }
+                          }}
+                        />
+                      </div>
+                      {isOn && url ? (
+                        <div className="space-y-2 rounded-md border bg-muted/30 p-4">
+                          <p className="text-sm font-medium leading-none">Webhook URL</p>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Input readOnly value={url} className="font-mono text-xs" />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="shrink-0"
+                              onClick={() => void copyThirdPartyWebhookUrl(url)}
+                            >
+                              Copy URL
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Paste this URL in {portal.label} account manager / webhook settings
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="meta">
           <Card>

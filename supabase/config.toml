@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.score-lead]
 verify_jwt = false
+
+[functions.callerdesk-webhook]
+verify_jwt = false
+
+[functions.lead-webhook]
+verify_jwt = false
+
+[functions.party-lead-webhook]
+verify_jwt = false

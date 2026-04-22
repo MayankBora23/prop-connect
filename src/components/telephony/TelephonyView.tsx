@@ -22,7 +22,7 @@ import type { InternalLead } from '@/hooks/useInternalLeads';
 export function TelephonyView() {
   const { data: profile } = useCurrentProfile();
   const { data: industry } = useIndustry();
-  const { callStatus, currentLead, startCall, endCall, isDeviceReady, initializeDevice, device } = useTelephony();
+  const { callStatus, currentLead, startCall, endCall, isDeviceReady, initializeDevice, device, telephonyProvider, isCallerDeskConfigured } = useTelephony();
 
   console.log('TelephonyView render:', {
     companyId: profile?.company_id,
@@ -30,7 +30,9 @@ export function TelephonyView() {
     isDeviceReady,
     hasDevice: !!device,
     callStatus,
-    userAgentIdentity: profile?.agent_identity
+    userAgentIdentity: profile?.agent_identity,
+    telephonyProvider,
+    isCallerDeskConfigured
   });
 
   const updateLead = useUpdateLead();
@@ -100,15 +102,11 @@ export function TelephonyView() {
   });
 
   const handleCall = async (contact: Lead | Student) => {
-    if (!isDeviceReady) {
-      toast.error('Telephony not configured. Please ensure your company has Twilio Voice credentials and you have set your agent identity.');
-      return;
-    }
     await startCall(contact);
   };
 
   const handleEndCall = () => {
-    endCall();
+    void endCall();
   };
 
   const handleInitializeDevice = async () => {
@@ -190,18 +188,26 @@ export function TelephonyView() {
         </div>
         <div className="text-right space-y-2">
           <div>
-            <p className="text-sm text-muted-foreground">Device Status</p>
+            <p className="text-sm text-muted-foreground">
+              {telephonyProvider === 'callerdesk' ? 'CallerDesk Status' : 'Device Status'}
+            </p>
             <div className="flex items-center gap-2">
-              {isDeviceReady ? (
+              {(telephonyProvider === 'callerdesk' ? isCallerDeskConfigured : isDeviceReady) ? (
                 <Wifi className="w-4 h-4 text-success" />
               ) : (
                 <WifiOff className="w-4 h-4 text-destructive" />
               )}
-              <p className={`text-sm font-semibold ${isDeviceReady ? 'text-success' : 'text-destructive'
+              <p className={`text-sm font-semibold ${(telephonyProvider === 'callerdesk' ? isCallerDeskConfigured : isDeviceReady) ? 'text-success' : 'text-destructive'
                 }`}>
-                {isDeviceReady ? 'Ready' : 'Not Ready - Configure Twilio settings and initialize'}
+                {telephonyProvider === 'callerdesk'
+                  ? (isCallerDeskConfigured
+                    ? 'Ready'
+                    : 'Not Ready - Configure CallerDesk keys in Company Settings')
+                  : (isDeviceReady
+                    ? 'Ready'
+                    : 'Not Ready - Configure Twilio settings and initialize')}
               </p>
-              {!isDeviceReady && (
+              {telephonyProvider !== 'callerdesk' && !isDeviceReady && (
                 <Button
                   size="sm"
                   variant="outline"

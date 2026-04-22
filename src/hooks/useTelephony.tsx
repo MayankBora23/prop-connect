@@ -12,15 +12,19 @@ export type CallStatus = 'Idle' | 'Dialing' | 'Connected' | 'Disconnected';
 
 export type TelephonyContact = Lead | Student | InternalLead;
 
+export type TelephonyProviderKey = 'twilio' | 'callerdesk';
+
 interface TelephonyContextType {
   callStatus: CallStatus;
   currentLead: TelephonyContact | null;
   device: Device | null;
   isDeviceReady: boolean;
+  telephonyProvider: TelephonyProviderKey;
+  isCallerDeskConfigured: boolean;
   setCallStatus: (status: CallStatus) => void;
   setCurrentLead: (lead: TelephonyContact | null) => void;
   startCall: (contact: TelephonyContact) => Promise<void>;
-  endCall: () => void;
+  endCall: () => Promise<void>;
   initializeDevice: () => Promise<void>;
 }
 
@@ -31,6 +35,8 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
   const [currentLead, setCurrentLead] = useState<TelephonyContact | null>(null);
   const [device, setDevice] = useState<Device | null>(null);
   const [isDeviceReady, setIsDeviceReady] = useState(false);
+  const [telephonyProvider, setTelephonyProvider] = useState<TelephonyProviderKey>('twilio');
+  const [isCallerDeskConfigured, setIsCallerDeskConfigured] = useState(false);
   const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
   const [currentIndustry, setCurrentIndustry] = useState<string | null>(null);
   const { data: profile } = useCurrentProfile();
@@ -98,6 +104,76 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     };
   }, [device]);
 
+  const normalizePhone = (value?: string | null) => {
+    if (!value) return '';
+    // CallerDesk expects numbers without '+' and generally without spaces/symbols.
+    return value.toString().trim().replace(/^\+/, '').replace(/[^\d]/g, '');
+  };
+
+  const loadTelephonySettings = async () => {
+    // Use select('*') to avoid hard-failing (400) if migrations haven't been applied yet
+    // or PostgREST schema cache hasn't refreshed for newly added columns.
+    const { data, error } = await supabase
+      .from('whatsapp_settings')
+      .select('*')
+      .single();
+
+    // If settings row doesn't exist yet, treat as Twilio (existing behavior).
+    if (error && (error as any).code !== 'PGRST116') {
+      console.warn('Failed to load telephony settings', error);
+      setTelephonyProvider('twilio');
+      setIsCallerDeskConfigured(false);
+      return {} as any;
+    }
+
+    const provider: TelephonyProviderKey =
+      (data as any)?.telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio';
+    setTelephonyProvider(provider);
+
+    const integrationKey = ((data as any)?.callerdesk_integration_key || '').toString().trim();
+    const bridgeNumberRaw = ((data as any)?.callerdesk_bridge_number || '').toString().trim();
+    setIsCallerDeskConfigured(!!integrationKey && !!bridgeNumberRaw);
+
+    return (data || {}) as any;
+  };
+
+  useEffect(() => {
+    // Keep provider/config in sync for the current company context
+    // (ignore errors; UI will fall back to Twilio behavior)
+    loadTelephonySettings().catch((e) => console.warn('Failed to load telephony settings', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.company_id]);
+
+  useEffect(() => {
+    // Realtime sync: when Company Settings saves telephony_provider/CallerDesk keys,
+    // switch Telephony UI immediately without requiring a refresh.
+    const companyId = profile?.company_id;
+    if (!companyId) return;
+
+    const channel = supabase
+      .channel(`telephony-settings-${companyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_settings',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          loadTelephonySettings().catch((e) =>
+            console.warn('Failed to refresh telephony settings from realtime', e)
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.company_id]);
+
   const initializeDevice = async () => {
     console.log('=== STARTING DEVICE INITIALIZATION ===');
     console.log('Current state:', {
@@ -110,9 +186,22 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       currentIndustry
     });
 
+    // Ensure we use the provider selected in settings (source of truth)
+    try {
+      await loadTelephonySettings();
+    } catch (e) {
+      console.warn('Failed to refresh telephony settings before init', e);
+    }
+
     // If device exists and is ready, no need to re-initialize
     if (device && isDeviceReady) {
       console.log('Device already exists and is ready - skipping initialization');
+      return;
+    }
+
+    // CallerDesk does not use Twilio device initialization
+    if (telephonyProvider === 'callerdesk') {
+      toast.message('CallerDesk does not require device initialization.');
       return;
     }
 
@@ -268,17 +357,52 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
   };
 
   const startCall = async (contact: TelephonyContact) => {
-    if (!device || !isDeviceReady) {
-      toast.error('Telephony not configured. Please check your settings and try again.');
-      return;
-    }
-
     try {
       setCurrentLead(contact);
       setCallStatus('Dialing');
 
-      // Make outbound call
       const phoneNumber = (contact as any).phone || (contact as any).phone_no;
+      const providerSettings = await loadTelephonySettings();
+      const provider = ((providerSettings as any)?.telephony_provider || telephonyProvider) as string;
+
+      if (provider === 'callerdesk') {
+        const integrationKey = (providerSettings?.callerdesk_integration_key || '').toString().trim();
+        const bridgeNumberRaw = (providerSettings?.callerdesk_bridge_number || '').toString().trim();
+
+        if (!integrationKey || !bridgeNumberRaw) {
+          toast.error('CallerDesk telephony is not configured. Please set Integration Key and Bridge Number in Company Settings.');
+          setCallStatus('Idle');
+          setCurrentLead(null);
+          return;
+        }
+
+        const customerNumber = normalizePhone(phoneNumber);
+
+        const { data, error } = await supabase.functions.invoke('callerdesk-make-call', {
+          body: { customer_number: customerNumber },
+        });
+
+        if (error) {
+          console.error('CallerDesk make call error:', error);
+          toast.error(`Failed to trigger CallerDesk call: ${error.message}`);
+          setCallStatus('Idle');
+          setCurrentLead(null);
+          return;
+        }
+
+        console.log('CallerDesk call initiated:', data);
+        toast.success('Call initiated');
+        return;
+      }
+
+      // Default: Twilio voice SDK (existing behavior)
+      if (!device || !isDeviceReady) {
+        toast.error('Telephony not configured. Please ensure Twilio settings are configured and your agent identity is set.');
+        setCallStatus('Idle');
+        setCurrentLead(null);
+        return;
+      }
+
       const connection = await device.connect({
         params: {
           To: phoneNumber,
@@ -296,8 +420,19 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const endCall = () => {
-    if (device) {
+  const endCall = async () => {
+    // End-call behavior is provider-specific.
+    // - Twilio: disconnect active SDK connection(s)
+    // - CallerDesk: we can't programmatically hang up reliably from client, so we just close the UI state.
+    let provider: TelephonyProviderKey = telephonyProvider;
+    try {
+      const latest = await loadTelephonySettings();
+      provider = (latest as any)?.telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio';
+    } catch (e) {
+      console.warn('Failed to refresh telephony settings before endCall', e);
+    }
+
+    if (provider !== 'callerdesk' && device) {
       device.disconnectAll();
     }
     setCallStatus('Disconnected');
@@ -315,6 +450,8 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
         currentLead,
         device,
         isDeviceReady,
+        telephonyProvider,
+        isCallerDeskConfigured,
         setCallStatus,
         setCurrentLead,
         startCall,
@@ -330,7 +467,21 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
 export function useTelephony() {
   const context = useContext(TelephonyContext);
   if (context === undefined) {
-    throw new Error('useTelephony must be used within a TelephonyProvider');
+    // During hot reloads / transient unmounts, React can render a child before
+    // the provider is re-established. Don't crash the entire app; return a safe stub.
+    return {
+      callStatus: 'Idle' as const,
+      currentLead: null,
+      device: null,
+      isDeviceReady: false,
+      telephonyProvider: 'twilio' as const,
+      isCallerDeskConfigured: false,
+      setCallStatus: () => {},
+      setCurrentLead: () => {},
+      startCall: async () => {},
+      endCall: async () => {},
+      initializeDevice: async () => {},
+    };
   }
   return context;
 }

@@ -11,6 +11,11 @@ export interface WhatsAppSettings {
   twilio_api_key_sid?: string | null
   twilio_api_key_secret?: string | null
   twilio_twiml_app_sid?: string | null
+  telephony_provider?: 'twilio' | 'callerdesk' | string | null
+  callerdesk_api_key?: string | null
+  callerdesk_secret_key?: string | null
+  callerdesk_integration_key?: string | null
+  callerdesk_bridge_number?: string | null
   created_at: string
   updated_at: string
 }
@@ -53,6 +58,7 @@ export interface WhatsAppMessage {
   file_names?: string[] // Array of original filenames
   file_types?: string[] // Array of file types
   reply_to_message_id?: string // ID of message being replied to
+  reply_to_message_sid?: string // Twilio message SID being replied to
 }
 
 export interface WhatsAppMessageWithConversation extends WhatsAppMessage {
