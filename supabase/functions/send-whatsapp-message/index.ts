@@ -1,11 +1,21 @@
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
+
+type WhatsappProvider = 'twilio' | 'meta'
 
 interface SendMessageRequest {
   conversation_id: string
@@ -14,9 +24,38 @@ interface SendMessageRequest {
   file_names?: string[]
   file_types?: string[]
   reply_to_message_id?: string
+  message_category?: string
 }
 
-type WhatsappProvider = 'twilio' | 'meta'
+function getCountryCode(phone: string): string {
+  const p = phone.trim()
+  if (p.startsWith('+91')) return 'IN'
+  if (p.startsWith('+971')) return 'AE'
+  if (p.startsWith('+966')) return 'SA'
+  if (p.startsWith('+974')) return 'QA'
+  return 'GCC'
+}
+
+function pricingDestinationCountry(provider: WhatsappProvider, rawCountry: string): string {
+  if (provider === 'meta' && ['AE', 'SA', 'QA'].includes(rawCountry)) {
+    return 'GCC'
+  }
+  return rawCountry
+}
+
+async function postEdgeFunction<T>(functionName: string, payload: Record<string, unknown>): Promise<T> {
+  const base = Deno.env.get('SUPABASE_URL') ?? ''
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const res = await fetch(`${base}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(payload),
+  })
+  return (await res.json()) as T
+}
 
 interface CompanyRow {
   whatsapp_provider: WhatsappProvider | null
@@ -42,7 +81,17 @@ serve(async (req) => {
     )
 
     // Get the request body
-    const { conversation_id, body, file_urls, file_names, file_types, reply_to_message_id }: SendMessageRequest = await req.json()
+    const {
+      conversation_id,
+      body,
+      file_urls,
+      file_names,
+      file_types,
+      reply_to_message_id,
+      message_category: messageCategoryRaw,
+    }: SendMessageRequest = await req.json()
+
+    const message_category = (messageCategoryRaw || 'utility').toLowerCase()
 
     if (!conversation_id) {
       return new Response('Missing conversation_id', { status: 400, headers: corsHeaders })
@@ -103,6 +152,57 @@ serve(async (req) => {
 
     const provider: WhatsappProvider = (companyRow?.whatsapp_provider ?? 'twilio') === 'meta' ? 'meta' : 'twilio'
 
+    const to_number = conversation.contact_phone
+    const destination_country_raw = getCountryCode(to_number)
+    const pricing_country = pricingDestinationCountry(provider, destination_country_raw)
+
+    const { data: priceRow, error: priceErr } = await supabase
+      .from('service_pricing')
+      .select('client_price_inr')
+      .eq('provider', provider)
+      .eq('service_type', 'whatsapp')
+      .eq('destination_country', pricing_country)
+      .eq('message_category', message_category)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (priceErr || !priceRow) {
+      console.error('service_pricing lookup failed:', priceErr, {
+        provider,
+        pricing_country,
+        message_category,
+      })
+      return new Response(
+        JSON.stringify({ error: 'pricing_not_found', destination_country: pricing_country, message_category }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const client_price_inr = Number(priceRow.client_price_inr)
+
+    const balanceCheck = await postEdgeFunction<{
+      allowed?: boolean
+      reason?: string
+      balance?: number
+      min_threshold?: number
+    }>('check-balance', {
+      company_id: conversation.company_id,
+      provider,
+      service_type: 'whatsapp',
+      estimated_cost_inr: client_price_inr,
+    })
+
+    if (!balanceCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: balanceCheck.reason ?? 'insufficient_balance',
+          balance: balanceCheck.balance,
+          min_threshold: balanceCheck.min_threshold,
+        }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Build message body for Twilio, including quoted reply context if provided
     const twilioBody = body || ''
 
@@ -154,6 +254,8 @@ serve(async (req) => {
       })
 
       // Twilio WhatsApp supports only one media file per message — send first file if any
+      const statusCallbackUrl = `${Deno.env.get('SUPABASE_URL') ?? ''}/functions/v1/whatsapp-webhook`
+
       const twilioResponse = await sendTwilioMessage(
         whatsappSettings.twilio_sid,
         whatsappSettings.twilio_auth_token,
@@ -161,7 +263,8 @@ serve(async (req) => {
         conversation.contact_phone,
         twilioBody,
         file_urls?.[0], // Send only the first file to Twilio
-        repliedMessageSid
+        repliedMessageSid,
+        statusCallbackUrl
       )
 
       if (!twilioResponse.success) {
@@ -205,6 +308,21 @@ serve(async (req) => {
 
       outboundMessageSid = metaResponse.messageSid
       console.log('Meta message sent successfully:', outboundMessageSid)
+    }
+
+    if (outboundMessageSid) {
+      const deduct = await postEdgeFunction<{ success?: boolean; reason?: string }>('deduct-credits', {
+        company_id: conversation.company_id,
+        provider,
+        service_type: 'whatsapp',
+        destination_country: destination_country_raw,
+        message_category,
+        usage_quantity: 1,
+        reference_id: outboundMessageSid,
+      })
+      if (!deduct.success) {
+        console.error('deduct-credits failed after send:', deduct)
+      }
     }
 
     // Store the sent message in database
@@ -350,7 +468,8 @@ async function sendTwilioMessage(
   toNumber: string,
   body: string,
   mediaUrl?: string,
-  repliedMessageSid?: string | null
+  repliedMessageSid?: string | null,
+  statusCallbackUrl?: string
 ): Promise<{ success: boolean; messageSid?: string; error?: string }> {
   try {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
@@ -359,6 +478,10 @@ async function sendTwilioMessage(
     formData.append('From', `whatsapp:${fromNumber}`)
     formData.append('To', `whatsapp:${toNumber}`)
     formData.append('Body', body)
+
+    if (statusCallbackUrl) {
+      formData.append('StatusCallback', statusCallbackUrl)
+    }
 
     // Add media URL if provided
     if (mediaUrl) {

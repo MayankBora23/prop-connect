@@ -1,6 +1,14 @@
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { handleAiFlow } from './handleAiFlow.ts'
+
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +57,29 @@ serve(async (req) => {
 
     // Parse the form data
     const formData = new URLSearchParams(body)
+    const messageStatus = formData.get('MessageStatus')
+    if (messageStatus) {
+      const messageSid = formData.get('MessageSid') || ''
+      const priceRaw = formData.get('Price')
+      const priceUnit = formData.get('PriceUnit') || formData.get('PriceCurrency')
+      if ((messageStatus === 'delivered' || messageStatus === 'sent') && priceRaw && messageSid) {
+        const p = parseFloat(String(priceRaw))
+        if (!Number.isNaN(p)) {
+          const { error: priceUpdateErr } = await supabase
+            .from('wallet_transactions')
+            .update({
+              twilio_actual_price: p,
+              twilio_price_currency: priceUnit || null,
+            })
+            .eq('reference_id', messageSid)
+          if (priceUpdateErr) {
+            console.error('Failed to update Twilio actual price on wallet_transactions:', priceUpdateErr)
+          }
+        }
+      }
+      return new Response('', { status: 200, headers: corsHeaders })
+    }
+
     const payload: TwilioWebhookPayload = {
       To: formData.get('To') || '',
       From: formData.get('From') || '',

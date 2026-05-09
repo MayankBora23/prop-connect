@@ -1159,6 +1159,201 @@ export interface Database {
           }
         ]
       }
+      wallets: {
+        Row: {
+          id: string
+          company_id: string
+          balance: number
+          currency: string | null
+          min_balance_threshold: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          balance?: number
+          currency?: string | null
+          min_balance_threshold?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          balance?: number
+          currency?: string | null
+          min_balance_threshold?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      wallet_transactions: {
+        Row: {
+          id: string
+          company_id: string
+          type: string
+          provider: string | null
+          service_type: string | null
+          amount_inr: number
+          usage_quantity: number | null
+          destination_country: string | null
+          message_category: string | null
+          reference_id: string | null
+          twilio_actual_price: number | null
+          twilio_price_currency: string | null
+          status: string | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          type: string
+          provider?: string | null
+          service_type?: string | null
+          amount_inr: number
+          usage_quantity?: number | null
+          destination_country?: string | null
+          message_category?: string | null
+          reference_id?: string | null
+          twilio_actual_price?: number | null
+          twilio_price_currency?: string | null
+          status?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          type?: string
+          provider?: string | null
+          service_type?: string | null
+          amount_inr?: number
+          usage_quantity?: number | null
+          destination_country?: string | null
+          message_category?: string | null
+          reference_id?: string | null
+          twilio_actual_price?: number | null
+          twilio_price_currency?: string | null
+          status?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      usage_logs: {
+        Row: {
+          id: string
+          company_id: string
+          provider: string
+          service_type: string
+          usage_type: string
+          quantity: number
+          destination_country: string | null
+          message_category: string | null
+          credits_deducted: number
+          twilio_actual_price: number | null
+          reference_id: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          provider: string
+          service_type: string
+          usage_type: string
+          quantity: number
+          destination_country?: string | null
+          message_category?: string | null
+          credits_deducted: number
+          twilio_actual_price?: number | null
+          reference_id?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          provider?: string
+          service_type?: string
+          usage_type?: string
+          quantity?: number
+          destination_country?: string | null
+          message_category?: string | null
+          credits_deducted?: number
+          twilio_actual_price?: number | null
+          reference_id?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      service_pricing: {
+        Row: {
+          id: string
+          provider: string
+          service_type: string
+          destination_country: string
+          message_category: string | null
+          client_price_inr: number
+          your_cost_usd: number | null
+          unit: string
+          is_active: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          provider: string
+          service_type: string
+          destination_country: string
+          message_category?: string | null
+          client_price_inr: number
+          your_cost_usd?: number | null
+          unit: string
+          is_active?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          provider?: string
+          service_type?: string
+          destination_country?: string
+          message_category?: string | null
+          client_price_inr?: number
+          your_cost_usd?: number | null
+          unit?: string
+          is_active?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

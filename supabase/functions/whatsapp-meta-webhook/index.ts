@@ -1,6 +1,14 @@
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { handleAiFlow, type WhatsappProvider } from '../whatsapp-webhook/handleAiFlow.ts'
+
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined
+  }
+}
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -35,10 +43,17 @@ interface MetaMetadata {
   waba_id?: string
 }
 
+interface MetaStatus {
+  id?: string
+  status?: string
+  recipient_id?: string
+}
+
 interface MetaValue {
   messages?: MetaMessage[]
   metadata?: MetaMetadata
   contacts?: MetaContact[]
+  statuses?: MetaStatus[]
 }
 
 interface MetaChange {
@@ -66,6 +81,15 @@ interface CompanyRow {
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const supabase = createClient(supabaseUrl, serviceRoleKey)
+
+function getCountryCode(phone: string): string {
+  const p = phone.trim()
+  if (p.startsWith('+91')) return 'IN'
+  if (p.startsWith('+971')) return 'AE'
+  if (p.startsWith('+966')) return 'SA'
+  if (p.startsWith('+974')) return 'QA'
+  return 'GCC'
+}
 
 function normalizeMetaPhoneNumber(phone: string | undefined): string | null {
   if (!phone) return null
@@ -260,9 +284,92 @@ async function handleIncoming(req: Request): Promise<Response> {
           continue
         }
 
+        const statuses = Array.isArray(value.statuses) ? value.statuses : []
+        for (const st of statuses) {
+          if (st?.status !== 'sent') continue
+          if (company.whatsapp_provider !== 'meta') continue
+          const wamid = st.id as string | undefined
+          const recipientId = st.recipient_id as string | undefined
+          if (!wamid || !recipientId) continue
+
+          const phone = normalizeMetaPhoneNumber(recipientId) || ''
+          const destination_country = getCountryCode(phone)
+          const message_category = 'utility'
+
+          try {
+            const res = await fetch(`${supabaseUrl}/functions/v1/deduct-credits`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                company_id: company.id,
+                provider: 'meta',
+                service_type: 'whatsapp',
+                destination_country,
+                message_category,
+                usage_quantity: 1,
+                reference_id: wamid,
+              }),
+            })
+            const j = (await res.json()) as { success?: boolean; reason?: string }
+            if (!j?.success) {
+              console.warn('Meta webhook deduct-credits (status sent):', j)
+            }
+          } catch (e) {
+            console.error('Meta webhook deduct-credits request failed', e)
+          }
+        }
+
         const contactName = value.contacts?.[0]?.profile?.name ?? null
         const messages = Array.isArray(value.messages) ? value.messages : []
         for (const message of messages) {
+          if (company.whatsapp_provider === 'meta' && phoneNumberId && String(message.from) === String(phoneNumberId)) {
+            const recipientRaw =
+              (message as { to?: string }).to ??
+              (message as { recipient_id?: string }).recipient_id ??
+              ''
+            const toPhone = normalizeMetaPhoneNumber(recipientRaw)
+            if (toPhone) {
+              const destination_country = getCountryCode(toPhone)
+              let message_category = 'utility'
+              if (message.type === 'template') {
+                const cat = (message as { template?: { category?: string } }).template?.category
+                if (cat) {
+                  const c = String(cat).toLowerCase()
+                  if (['marketing', 'utility', 'authentication', 'service'].includes(c)) {
+                    message_category = c
+                  }
+                }
+              }
+              try {
+                const res = await fetch(`${supabaseUrl}/functions/v1/deduct-credits`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${serviceRoleKey}`,
+                  },
+                  body: JSON.stringify({
+                    company_id: company.id,
+                    provider: 'meta',
+                    service_type: 'whatsapp',
+                    destination_country,
+                    message_category,
+                    usage_quantity: 1,
+                    reference_id: String(message.id || ''),
+                  }),
+                })
+                const j = (await res.json()) as { success?: boolean; reason?: string }
+                if (!j?.success) {
+                  console.warn('Meta outbound message deduct-credits:', j)
+                }
+              } catch (e) {
+                console.error('Meta outbound message deduct-credits error', e)
+              }
+            }
+            continue
+          }
           const contactPhone = normalizeMetaPhoneNumber(message.from)
           if (!contactPhone) {
             console.warn('Meta webhook: message missing from phone', { message })

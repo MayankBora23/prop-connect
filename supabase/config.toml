@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.party-lead-webhook]
 verify_jwt = false
+
+[functions.check-balance]
+verify_jwt = false
+
+[functions.deduct-credits]
+verify_jwt = false
