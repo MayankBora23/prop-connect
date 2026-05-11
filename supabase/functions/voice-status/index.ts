@@ -1,5 +1,13 @@
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -166,6 +174,52 @@ serve(async (req) => {
           console.log('Lead last_called_at updated')
         }
       }
+
+      const isOutbound = Boolean(from && from.startsWith('client:'))
+
+      // Bill only after call ends, only for outbound calls
+      if (isOutbound && callStatus === 'completed' && callDuration && parseInt(callDuration) > 0) {
+        const durationSeconds = parseInt(callDuration)
+        const durationMinutes = Math.ceil(durationSeconds / 60)
+        const companyId = callLog?.company_id
+        const destinationCountry = callLog?.destination_country ?? 'IN'
+
+        if (companyId) {
+          try {
+            const deductRes = await fetch(
+              `${Deno.env.get('SUPABASE_URL')}/functions/v1/deduct-credits`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                },
+                body: JSON.stringify({
+                  company_id: companyId,
+                  provider: 'twilio',
+                  service_type: 'call',
+                  destination_country: destinationCountry,
+                  message_category: null,
+                  usage_quantity: durationMinutes,
+                  call_duration_seconds: durationSeconds,
+                  call_duration_minutes: durationMinutes,
+                  reference_id: callSid,
+                }),
+              }
+            )
+            const result = await deductRes.json()
+            if (result.success) {
+              console.log(
+                `Call billing: ₹${result.credits_deducted} deducted for ${durationMinutes} min (${durationSeconds}s), new balance: ₹${result.new_balance}`
+              )
+            } else {
+              console.warn(`Call billing failed: ${result.reason} for CallSid ${callSid}`)
+            }
+          } catch (err) {
+            console.error('deduct-credits call failed:', err)
+          }
+        }
+      }
     }
 
     // Return empty response with 200 status
@@ -176,6 +230,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unexpected error in voice status:', error)
-    return new Response('Internal server error', { status: 500, headers: corsHeaders })
+    return new Response('', { status: 200, headers: corsHeaders })
   }
 })

@@ -23,6 +23,7 @@ import {
   useUpsertSourceConfigActive,
   portalWebhookUrl,
 } from '@/hooks/useLeadIntegrations';
+import { normalizeCallerDeskIntegrationInput } from '@/lib/callerdeskAuthCode';
 
 const companySchema = z.object({
   company_name: z.string().min(2, 'Company name must be at least 2 characters').max(100),
@@ -45,6 +46,7 @@ const whatsappSchema = z.object({
   callerdesk_secret_key: z.string().optional().or(z.literal('')),
   callerdesk_integration_key: z.string().optional().or(z.literal('')),
   callerdesk_bridge_number: z.string().optional().or(z.literal('')),
+  callerdesk_virtual_number: z.string().optional().or(z.literal('')),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -58,7 +60,7 @@ export function CompanySettingsView() {
   const upsertSourceConfig = useUpsertSourceConfigActive();
 
   // WhatsApp settings
-  const { data: whatsappSettings, isLoading: whatsappLoading } = useWhatsAppSettings();
+  const { data: whatsappSettings, isLoading: whatsappLoading } = useWhatsAppSettings(company?.id);
   const createWhatsAppSettings = useCreateWhatsAppSettings();
   const updateWhatsAppSettings = useUpdateWhatsAppSettings();
 
@@ -99,6 +101,7 @@ export function CompanySettingsView() {
       callerdesk_secret_key: '',
       callerdesk_integration_key: '',
       callerdesk_bridge_number: '',
+      callerdesk_virtual_number: '',
     },
   });
 
@@ -133,6 +136,7 @@ export function CompanySettingsView() {
         callerdesk_secret_key: (whatsappSettings as any).callerdesk_secret_key || '',
         callerdesk_integration_key: (whatsappSettings as any).callerdesk_integration_key || '',
         callerdesk_bridge_number: (whatsappSettings as any).callerdesk_bridge_number || '',
+        callerdesk_virtual_number: (whatsappSettings as any).callerdesk_virtual_number || '',
       });
     }
   }, [whatsappSettings, whatsappForm]);
@@ -160,6 +164,8 @@ export function CompanySettingsView() {
     if (!company?.id) return;
 
     try {
+      const integrationKey = normalizeCallerDeskIntegrationInput(data.callerdesk_integration_key || '') || null
+
       if (whatsappSettings) {
         await updateWhatsAppSettings.mutateAsync({
           id: whatsappSettings.id,
@@ -172,9 +178,10 @@ export function CompanySettingsView() {
           telephony_provider: data.telephony_provider || 'twilio',
           callerdesk_api_key: data.callerdesk_api_key || null,
           callerdesk_secret_key: data.callerdesk_secret_key || null,
-          callerdesk_integration_key: data.callerdesk_integration_key || null,
+          callerdesk_integration_key: integrationKey,
           callerdesk_bridge_number: data.callerdesk_bridge_number || null,
-        });
+          callerdesk_virtual_number: data.callerdesk_virtual_number || null,
+        } as any);
       } else {
         await createWhatsAppSettings.mutateAsync({
           company_id: company.id,
@@ -187,9 +194,10 @@ export function CompanySettingsView() {
           telephony_provider: data.telephony_provider || 'twilio',
           callerdesk_api_key: data.callerdesk_api_key || null,
           callerdesk_secret_key: data.callerdesk_secret_key || null,
-          callerdesk_integration_key: data.callerdesk_integration_key || null,
+          callerdesk_integration_key: integrationKey,
           callerdesk_bridge_number: data.callerdesk_bridge_number || null,
-        });
+          callerdesk_virtual_number: data.callerdesk_virtual_number || null,
+        } as any);
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to save WhatsApp settings');
@@ -782,14 +790,21 @@ export function CompanySettingsView() {
                           name="callerdesk_integration_key"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Integration Key</FormLabel>
+                              <FormLabel>Integration key (click-to-call authcode)</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
-                                  placeholder="Paste full click-to-call URL, or a /path?query..., or authcode/token"
+                                  placeholder="From CallerDesk → API: Integration key only (not API key / secret)"
                                   className="font-mono text-sm"
                                 />
                               </FormControl>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Sent as <span className="font-mono">authcode</span> to CallerDesk. Must be from the{' '}
+                                <strong>same CallerDesk account</strong> as your virtual/IVR number. If you still see
+                                &quot;Invalid Auth Code&quot;, regenerate the key in CallerDesk, paste again, save, and
+                                confirm Click-to-call coins are not zero. A full click-to-call URL is also accepted; we
+                                extract <span className="font-mono">authcode</span> on save.
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -804,6 +819,23 @@ export function CompanySettingsView() {
                               <FormControl>
                                 <Input {...field} placeholder="e.g. +9198XXXXXXXX" className="font-mono text-sm" />
                               </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={whatsappForm.control}
+                          name="callerdesk_virtual_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CallerDesk Virtual/IVR Number</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="e.g. 01141234567" className="font-mono text-sm" />
+                              </FormControl>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Your CallerDesk DID/IVR number — found in CallerDesk Dashboard → Virtual Numbers
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}

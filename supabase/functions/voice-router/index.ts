@@ -1,10 +1,27 @@
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function getCountryCode(phone: string): string {
+  const clean = phone.replace(/\D/g, '')
+  if (clean.startsWith('971')) return 'AE'
+  if (clean.startsWith('966')) return 'SA'
+  if (clean.startsWith('974')) return 'QA'
+  if (clean.startsWith('91') && clean.length === 12) return 'IN'
+  return 'IN'
 }
 
 serve(async (req) => {
@@ -92,6 +109,81 @@ serve(async (req) => {
       console.log('From:', from)
       console.log('To:', to)
 
+      // Resolve company_id from profiles.agent_identity (required for billing)
+      let companyId: string | null = null
+      let agentId: string | null = null
+      if (agentIdentity) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, company_id')
+          .eq('agent_identity', agentIdentity)
+          .single()
+
+        if (profile) {
+          agentId = profile.user_id
+          companyId = profile.company_id
+        }
+      }
+
+      const destinationCountry = getCountryCode(to)
+
+      if (companyId) {
+        const { data: priceRow } = await supabase
+          .from('service_pricing')
+          .select('client_price_inr')
+          .eq('provider', 'twilio')
+          .eq('service_type', 'call')
+          .eq('destination_country', destinationCountry)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        const clientPriceInr = Number(priceRow?.client_price_inr ?? 0)
+
+        const balCheck = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/check-balance`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({
+            company_id: companyId,
+            provider: 'twilio',
+            service_type: 'call',
+            estimated_cost_inr: clientPriceInr,
+          }),
+        })
+        const balResult = await balCheck.json()
+
+        if (balResult.allowed === false) {
+          try {
+            await supabase.from('call_logs').insert({
+              company_id: companyId,
+              agent_id: agentId,
+              direction: direction === 'inbound' ? 'incoming' : 'outgoing',
+              status: 'failed',
+              blocked_reason: balResult.reason,
+              destination_country: destinationCountry,
+              twilio_call_sid: callSid,
+              twilio_from_number: from,
+              twilio_to_number: to,
+            })
+          } catch (e) {
+            console.error('Error logging blocked call:', e)
+          }
+
+          const insufficientTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Your account has insufficient credits. Please recharge your wallet to make calls.</Say>
+  <Hangup/>
+</Response>`
+
+          return new Response(insufficientTwiml, {
+            status: 200,
+            headers: { 'Content-Type': 'text/xml' },
+          })
+        }
+      }
+
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Dial callerId="+17656296512">${to}</Dial>
@@ -119,6 +211,7 @@ serve(async (req) => {
       // Try to find company and agent based on the call details
       let companyId = null
       let agentId = null
+      let destinationCountry: string | null = null
 
       if (agentIdentity) {
         // For outgoing calls, find the agent by identity
@@ -131,6 +224,7 @@ serve(async (req) => {
         if (profile) {
           agentId = profile.user_id
           companyId = profile.company_id
+          destinationCountry = to ? getCountryCode(to) : null
         }
       }
 
@@ -146,7 +240,8 @@ serve(async (req) => {
             status: 'initiated',
             twilio_call_sid: callSid,
             twilio_from_number: from,
-            twilio_to_number: to
+            twilio_to_number: to,
+            destination_country: destinationCountry
           })
 
         if (logError) {

@@ -16,6 +16,7 @@ export interface WhatsAppSettings {
   callerdesk_secret_key?: string | null
   callerdesk_integration_key?: string | null
   callerdesk_bridge_number?: string | null
+  callerdesk_virtual_number?: string | null
   created_at: string
   updated_at: string
 }
@@ -67,16 +68,18 @@ export interface WhatsAppMessageWithConversation extends WhatsAppMessage {
 }
 
 // WhatsApp Settings Hooks
-export function useWhatsAppSettings() {
+export function useWhatsAppSettings(companyId?: string | null) {
   return useQuery({
-    queryKey: ['whatsapp-settings'],
+    queryKey: ['whatsapp-settings', companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('whatsapp_settings')
         .select('*')
-        .single()
+        .eq('company_id', companyId as string)
+        .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error
       }
 
@@ -89,7 +92,11 @@ export function useCreateWhatsAppSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (settings: Omit<WhatsAppSettings, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (
+      settings: Omit<WhatsAppSettings, 'id' | 'created_at' | 'updated_at'> & {
+        callerdesk_virtual_number?: string | null
+      }
+    ) => {
       const { data, error } = await supabase
         .from('whatsapp_settings')
         .insert(settings)
@@ -113,7 +120,10 @@ export function useUpdateWhatsAppSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<WhatsAppSettings> & { id: string }) => {
+    mutationFn: async ({
+      id,
+      ...updates
+    }: (Partial<WhatsAppSettings> & { callerdesk_virtual_number?: string | null }) & { id: string }) => {
       const { data, error } = await supabase
         .from('whatsapp_settings')
         .update(updates)

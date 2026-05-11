@@ -1,3 +1,21 @@
+/*
+ * CALLERDESK WEBHOOK SETUP — MUST DO THIS MANUALLY:
+ *
+ * 1. Go to CallerDesk Dashboard → API & Integration → Webhooks
+ * 2. Click "Create Webhook"
+ * 3. Enter URL: https://YOUR_PROJECT.supabase.co/functions/v1/callerdesk-webhook
+ * 4. Select events: "Call Report" / "Call Completed" / all call events
+ * 5. Save
+ *
+ * To verify the function is reachable, open in browser:
+ * https://YOUR_PROJECT.supabase.co/functions/v1/callerdesk-webhook?ping=1
+ * Should return: { "status": "callerdesk-webhook alive" }
+ *
+ * CALLERDESK SETTINGS REQUIRED in whatsapp_settings table:
+ * - telephony_provider = 'callerdesk'
+ * - callerdesk_integration_key = your authcode from CallerDesk API settings
+ * - callerdesk_bridge_number = agent's mobile/desk number (10 digits, no country code)
+ */
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -5,7 +23,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
 type CallerDeskReport = {
@@ -43,8 +61,12 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+  // Health check — visit this URL in browser to confirm the function is live
+  if (req.method === 'GET' && new URL(req.url).searchParams.get('ping') === '1') {
+    return new Response(JSON.stringify({ status: 'callerdesk-webhook alive', timestamp: new Date().toISOString() }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   const supabase = createClient(
@@ -56,12 +78,26 @@ serve(async (req) => {
     let payload: CallerDeskReport = {}
 
     const contentType = req.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
-      payload = (await req.json()) as CallerDeskReport
+    if (req.method === 'GET') {
+      // CallerDesk may send as query params
+      const url = new URL(req.url)
+      payload = Object.fromEntries(url.searchParams.entries()) as unknown as CallerDeskReport
+    } else if (contentType.includes('application/json')) {
+      payload = await req.json()
     } else {
-      const formData = await req.formData()
-      payload = Object.fromEntries(formData.entries()) as unknown as CallerDeskReport
+      // form-urlencoded or multipart
+      try {
+        const formData = await req.formData()
+        payload = Object.fromEntries(formData.entries()) as unknown as CallerDeskReport
+      } catch {
+        const text = await req.text()
+        // try parse as query string
+        const params = new URLSearchParams(text)
+        payload = Object.fromEntries(params.entries()) as unknown as CallerDeskReport
+      }
     }
+
+    console.log('CallerDesk webhook payload:', JSON.stringify(payload))
 
     const sourceNumber = normalizePhone(payload.SourceNumber)
     const dialWhomNumber = normalizePhone(payload.DialWhomNumber)
@@ -77,28 +113,41 @@ serve(async (req) => {
       return new Response('Missing caller identifiers', { status: 400, headers: corsHeaders })
     }
 
-    const bridgeCandidate = dialWhomNumber || destinationNumber || sourceNumber
+    // Build list of candidate numbers, remove duplicates and empty strings
+    const candidates = [...new Set([
+      dialWhomNumber,
+      destinationNumber,
+      sourceNumber,
+    ].filter(Boolean))]
 
-    // Resolve company_id by matching CallerDesk bridge number stored in whatsapp_settings
-    const { data: settings, error: settingsError } = await supabase
-      .from('whatsapp_settings')
-      .select('company_id, callerdesk_bridge_number')
-      .in('callerdesk_bridge_number', [
-        bridgeCandidate,
-        dialWhomNumber,
-        destinationNumber,
-        sourceNumber,
-      ].filter(Boolean))
-      .maybeSingle()
-
-    if (settingsError) {
-      console.error('Failed to resolve company by bridge candidate:', settingsError)
-      return new Response('Failed to resolve company', { status: 500, headers: corsHeaders })
+    if (candidates.length === 0) {
+      console.error('No phone numbers in payload to match company')
+      return new Response('Missing caller identifiers', { status: 400, headers: corsHeaders })
     }
 
-    const companyId = settings?.company_id
+    // Try each candidate one at a time until we find a match
+    let companyId: string | null = null
+    let bridgeNumber: string | null = null
+
+    for (const candidate of candidates) {
+      const { data, error } = await supabase
+        .from('whatsapp_settings')
+        .select('company_id, callerdesk_bridge_number')
+        .eq('callerdesk_bridge_number', candidate)
+        .limit(1)
+        .maybeSingle()
+
+      if (!error && data?.company_id) {
+        companyId = data.company_id
+        bridgeNumber = data.callerdesk_bridge_number
+        break
+      }
+    }
+
     if (!companyId) {
-      return new Response('Unknown bridge number', { status: 404, headers: corsHeaders })
+      console.error('Could not resolve company from numbers:', candidates)
+      // Return 200 anyway so CallerDesk doesn't keep retrying
+      return new Response('Unknown bridge number', { status: 200, headers: corsHeaders })
     }
 
     const updateData: Record<string, unknown> = {
@@ -116,7 +165,6 @@ serve(async (req) => {
     }
 
     // Store bridge/agent number for correlation
-    const bridgeNumber = normalizePhone(settings.callerdesk_bridge_number || '') || bridgeCandidate
     updateData.callerdesk_bridge_number = bridgeNumber
 
     // 1) Try update by CallSid (best signal)

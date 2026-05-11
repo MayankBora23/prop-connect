@@ -64,6 +64,8 @@ import { InternalCRMWhatsAppInbox } from '@/components/internalcrm/WhatsAppInbox
 import { InternalLeadsView } from '@/components/internalcrm/leads/InternalLeadsView';
 import { InternalDemosView } from '@/components/internalcrm/InternalDemosView';
 import { AddInternalLeadDialog } from '@/components/internalcrm/leads/AddInternalLeadDialog';
+import { CreditsView } from '@/components/credits/CreditsView';
+import { LowBalanceAlert } from '@/components/credits/LowBalanceAlert';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -80,6 +82,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   team: { title: 'Team Management', subtitle: 'Your team members' },
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -100,6 +103,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -122,6 +126,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -138,6 +143,7 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
   workspace: { title: 'Personal Workspace', subtitle: 'Internal collaboration' },
   team: { title: 'Team Management', subtitle: 'Platform administrators' },
   analytics: { title: 'Platform Analytics', subtitle: 'System performance' },
+  credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage platform settings' },
 };
@@ -287,6 +293,8 @@ const Index = () => {
           return <TeamView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'credits':
+          return <CreditsView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -326,6 +334,8 @@ const Index = () => {
           return <EducationAnalytics />;
         case 'telephony':
           return <TelephonyView />;
+        case 'credits':
+          return <CreditsView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -365,6 +375,8 @@ const Index = () => {
           return <TeamView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'credits':
+          return <CreditsView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -402,6 +414,8 @@ const Index = () => {
           return <AutomationView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'credits':
+          return <CreditsView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -429,6 +443,7 @@ const Index = () => {
         />
 
         <div className="p-6">
+          {!isInternalCRM && <LowBalanceAlert />}
           {renderContent()}
         </div>
       </main>

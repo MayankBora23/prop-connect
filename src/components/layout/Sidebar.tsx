@@ -15,6 +15,7 @@ import {
   Home,
   Settings,
   Briefcase,
+  Wallet,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
@@ -42,6 +43,7 @@ const realEstateMenuItems = [
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'automation', label: 'Automation', icon: Zap, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -62,6 +64,7 @@ const educationMenuItems = [
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -84,6 +87,7 @@ const automobileMenuItems = [
   { id: 'workspace', label: 'Workspace', icon: Home, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -102,6 +106,7 @@ const internalCRMMenuItems = [
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
+  { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Platform Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];

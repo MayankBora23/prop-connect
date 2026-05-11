@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Device } from '@twilio/voice-sdk';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProfile } from './useProfiles';
 import { useIndustry } from './useIndustry';
 import { toast } from 'sonner';
+import { normalizeCallerDeskIntegrationInput } from '@/lib/callerdeskAuthCode';
 import type { Lead } from './useLeads';
 import type { Student } from './useStudents';
 import type { InternalLead } from './useInternalLeads';
@@ -29,6 +31,26 @@ interface TelephonyContextType {
 }
 
 const TelephonyContext = createContext<TelephonyContextType | undefined>(undefined);
+
+/** `FunctionsHttpError.context` is a `fetch` Response body (JSON from the edge function). */
+async function readFunctionsHttpErrorPayload(
+  error: unknown
+): Promise<{ error?: string; hint?: string } | null> {
+  if (!(error instanceof FunctionsHttpError)) return null
+  const ctx = error.context
+  if (!(ctx instanceof Response)) return null
+  try {
+    const text = (await ctx.text()).trim()
+    if (!text) return null
+    try {
+      return JSON.parse(text) as { error?: string; hint?: string }
+    } catch {
+      return { error: text }
+    }
+  } catch {
+    return null
+  }
+}
 
 export function TelephonyProvider({ children }: { children: ReactNode }) {
   const [callStatus, setCallStatus] = useState<CallStatus>('Idle');
@@ -111,15 +133,20 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
   };
 
   const loadTelephonySettings = async () => {
-    // Use select('*') to avoid hard-failing (400) if migrations haven't been applied yet
-    // or PostgREST schema cache hasn't refreshed for newly added columns.
+    const companyId = profile?.company_id;
+    if (!companyId) {
+      setTelephonyProvider('twilio');
+      setIsCallerDeskConfigured(false);
+      return {} as any;
+    }
+
     const { data, error } = await supabase
       .from('whatsapp_settings')
       .select('*')
-      .single();
+      .eq('company_id', companyId)
+      .maybeSingle();
 
-    // If settings row doesn't exist yet, treat as Twilio (existing behavior).
-    if (error && (error as any).code !== 'PGRST116') {
+    if (error) {
       console.warn('Failed to load telephony settings', error);
       setTelephonyProvider('twilio');
       setIsCallerDeskConfigured(false);
@@ -130,9 +157,14 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       (data as any)?.telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio';
     setTelephonyProvider(provider);
 
-    const integrationKey = ((data as any)?.callerdesk_integration_key || '').toString().trim();
+    const integrationKey = normalizeCallerDeskIntegrationInput(
+      ((data as any)?.callerdesk_integration_key || '').toString()
+    );
     const bridgeNumberRaw = ((data as any)?.callerdesk_bridge_number || '').toString().trim();
-    setIsCallerDeskConfigured(!!integrationKey && !!bridgeNumberRaw);
+    const virtualRaw = ((data as any)?.callerdesk_virtual_number || '').toString().trim();
+    setIsCallerDeskConfigured(
+      !!integrationKey && !!bridgeNumberRaw && !!virtualRaw.replace(/\D/g, '')
+    );
 
     return (data || {}) as any;
   };
@@ -366,11 +398,16 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       const provider = ((providerSettings as any)?.telephony_provider || telephonyProvider) as string;
 
       if (provider === 'callerdesk') {
-        const integrationKey = (providerSettings?.callerdesk_integration_key || '').toString().trim();
+        const integrationKey = normalizeCallerDeskIntegrationInput(
+          (providerSettings?.callerdesk_integration_key || '').toString()
+        );
         const bridgeNumberRaw = (providerSettings?.callerdesk_bridge_number || '').toString().trim();
+        const virtualRaw = (providerSettings?.callerdesk_virtual_number || '').toString().trim();
 
-        if (!integrationKey || !bridgeNumberRaw) {
-          toast.error('CallerDesk telephony is not configured. Please set Integration Key and Bridge Number in Company Settings.');
+        if (!integrationKey || !bridgeNumberRaw || !virtualRaw.replace(/\D/g, '')) {
+          toast.error(
+            'CallerDesk is not fully configured. Set Integration key, Bridge (agent) number, and Virtual/IVR number in Company Settings, then save.'
+          );
           setCallStatus('Idle');
           setCurrentLead(null);
           return;
@@ -383,8 +420,12 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
         });
 
         if (error) {
-          console.error('CallerDesk make call error:', error);
-          toast.error(`Failed to trigger CallerDesk call: ${error.message}`);
+          let msg = error.message
+          const payload = await readFunctionsHttpErrorPayload(error)
+          if (payload?.error) msg = payload.error.trim()
+          if (payload?.hint) msg = `${msg} — ${payload.hint}`
+          console.error('CallerDesk make call error:', error, data)
+          toast.error(`CallerDesk: ${msg}`)
           setCallStatus('Idle');
           setCurrentLead(null);
           return;

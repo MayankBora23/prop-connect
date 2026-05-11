@@ -1,3 +1,15 @@
+/*
+ * CALLERDESK CLICK-TO-CALL SETUP NOTES:
+ *
+ * - CALLERDESK SETTINGS REQUIRED in whatsapp_settings table:
+ *   - telephony_provider = 'callerdesk'
+ *   - callerdesk_integration_key = your authcode from CallerDesk API settings
+ *   - callerdesk_bridge_number = agent's mobile number (10 digits, no country code)
+ *   - callerdesk_virtual_number = CallerDesk DID/IVR virtual number (digits; usually includes STD/country code)
+ *
+ * - This function triggers CallerDesk click_to_call_v2. CallerDesk will first ring the agent number
+ *   (bridge/deskphone) and then connect to the customer number.
+ */
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -13,62 +25,60 @@ const normalizePhone = (value?: string | null) => {
   return value.toString().trim().replace(/^\+/, '').replace(/[^\d]/g, '')
 }
 
-const toAgentWithoutCountryCode = (digits: string) => {
-  const d = normalizePhone(digits)
-  // CallerDesk docs: calling_party_a should be agent number without country code.
-  // Heuristic: if number looks like E.164, use last 10 digits (common for IN; safe fallback).
-  if (d.length > 10) return d.slice(-10)
-  return d
+const normalizeAuthCode = (value?: string | null) => {
+  if (!value) return ''
+  // Remove all whitespace characters from copied keys (spaces/tabs/newlines).
+  return value.toString().replace(/\s+/g, '').trim()
 }
 
-const buildCallerDeskUrl = (integrationKey: string, agent: string, customer: string) => {
-  const trimmed = (integrationKey || '').toString().trim()
-  if (!trimmed) throw new Error('Missing integration_key')
+/** If user stored a full click_to_call URL or `authcode=...`, extract authcode for the API. */
+const extractIntegrationKeyForApi = (raw: string): string => {
+  let t = raw.trim().replace(/^\uFEFF/, '')
+  t = t.replace(/[\u200B-\u200D\uFEFF]/g, '').trim()
+  if (!t) return ''
 
-  const agentA = toAgentWithoutCountryCode(agent)
-
-  // If caller provided only an authcode/token, use documented click_to_call_v2 format.
-  if (!trimmed.includes('/') && !trimmed.includes('?') && !trimmed.includes('=')) {
-    const authcode = trimmed
-    return (
-      `https://app.callerdesk.io/api/click_to_call_v2` +
-      `?calling_party_a=${encodeURIComponent(agentA)}` +
-      `&calling_party_b=${encodeURIComponent(customer)}` +
-      `&deskphone=` +
-      `&call_from_did=1` +
-      `&authcode=${encodeURIComponent(authcode)}`
-    )
+  const stripWrappingQuotes = (s: string) => {
+    const x = s.trim()
+    if ((x.startsWith('"') && x.endsWith('"')) || (x.startsWith("'") && x.endsWith("'"))) {
+      return x.slice(1, -1).trim()
+    }
+    return x
   }
 
-  let base: string
-  if (/^https?:\/\//i.test(trimmed)) {
-    base = trimmed
-  } else {
-    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
-    // Prefer app.callerdesk.io for API routes; keep callerdesk.io for non-API custom paths.
-    const host = path.startsWith('/api/') || path.startsWith('/api_') || path.includes('click_to_call')
-      ? 'https://app.callerdesk.io'
-      : 'https://callerdesk.io'
-    base = `${host}${path}`
+  const compact = t.replace(/\s+/g, '')
+  const m = /(?:^|[?&])authcode=([^&]+)/i.exec(compact)
+  if (m?.[1]) {
+    try {
+      return stripWrappingQuotes(decodeURIComponent(m[1]).replace(/\s+/g, '').trim())
+    } catch {
+      return stripWrappingQuotes(m[1].replace(/\s+/g, '').trim())
+    }
   }
+  return stripWrappingQuotes(normalizeAuthCode(compact))
+}
 
-  // Default behavior for a provided URL/path: ensure calling_party params exist.
-  // Keep legacy params too (per original spec), but CallerDesk click_to_call_v2 needs calling_party_a/b.
-  const joinChar = base.includes('?') ? '&' : '?'
-  const hasA = /(?:\?|&)calling_party_a=/.test(base)
-  const hasB = /(?:\?|&)calling_party_b=/.test(base)
-  const hasDeskphone = /(?:\?|&)deskphone=/.test(base)
-  const hasCallFromDid = /(?:\?|&)call_from_did=/.test(base)
+const buildCallerDeskUrl = (
+  authcode: string,
+  agentNumber: string, // calling_party_a — agent mobile without country code
+  customerNumber: string, // calling_party_b — customer WITH country code
+  virtualNumber: string // deskphone — CallerDesk IVR/DID number
+): string => {
+  // Agent number: last 10 digits, no country code
+  const agentDigits = agentNumber.replace(/\D/g, '').slice(-10)
+  // Customer number: full digits with country code
+  const customerDigits = customerNumber.replace(/\D/g, '')
+  // Virtual/IVR number: full digits
+  const virtualDigits = virtualNumber.replace(/\D/g, '')
 
-  const params: string[] = []
-  params.push(`agent=${encodeURIComponent(agent)}`)
-  params.push(`customer=${encodeURIComponent(customer)}`)
-  if (!hasA) params.push(`calling_party_a=${encodeURIComponent(agentA)}`)
-  if (!hasB) params.push(`calling_party_b=${encodeURIComponent(customer)}`)
-  if (!hasDeskphone) params.push(`deskphone=`)
-  if (!hasCallFromDid) params.push(`call_from_did=1`)
+  const params = new URLSearchParams({
+    calling_party_a: agentDigits,
+    calling_party_b: customerDigits,
+    deskphone: virtualDigits, // virtual/IVR number, NOT agent number
+    call_from_did: '1',
+    authcode: authcode.trim(),
+  })
 
-  return `${base}${joinChar}${params.join('&')}`
+  return `https://app.callerdesk.io/api/click_to_call_v2?${params.toString()}`
 }
 
 serve(async (req) => {
@@ -91,7 +101,9 @@ serve(async (req) => {
     }
 
     const body = (await req.json().catch(() => ({}))) as { customer_number?: string }
-    const customerNumber = normalizePhone(body.customer_number)
+    const customerNumberRaw = normalizePhone(body.customer_number)
+    // CallerDesk expects customer number with country code digits.
+    const customerNumber = customerNumberRaw.length === 10 ? `91${customerNumberRaw}` : customerNumberRaw
     if (!customerNumber) {
       return new Response('Missing customer_number', { status: 400, headers: corsHeaders })
     }
@@ -112,7 +124,7 @@ serve(async (req) => {
     // Load CallerDesk telephony settings for this company
     const { data: settings, error: settingsErr } = await supabase
       .from('whatsapp_settings')
-      .select('telephony_provider, callerdesk_integration_key, callerdesk_bridge_number')
+      .select('id, updated_at, telephony_provider, callerdesk_integration_key, callerdesk_bridge_number, callerdesk_virtual_number')
       .eq('company_id', profile.company_id)
       .maybeSingle()
 
@@ -125,10 +137,39 @@ serve(async (req) => {
       return new Response('Telephony provider is not CallerDesk', { status: 400, headers: corsHeaders })
     }
 
-    const integrationKey = ((settings as any)?.callerdesk_integration_key || '').toString().trim()
+    const integrationKey = extractIntegrationKeyForApi(
+      ((settings as any)?.callerdesk_integration_key || '').toString()
+    )
     const bridgeNumber = normalizePhone((settings as any)?.callerdesk_bridge_number || '')
-    if (!integrationKey || !bridgeNumber) {
-      return new Response('CallerDesk not configured', { status: 400, headers: corsHeaders })
+    const virtualNumber = normalizePhone((settings as any)?.callerdesk_virtual_number || '')
+    if (!integrationKey || !bridgeNumber || !virtualNumber) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'CallerDesk not fully configured. Missing: ' +
+            (!integrationKey ? 'integration_key ' : '') +
+            (!bridgeNumber ? 'bridge_number ' : '') +
+            (!virtualNumber ? 'virtual_number' : ''),
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('CallerDesk settings resolved:', {
+      companyId: profile.company_id,
+      settingsId: (settings as any)?.id ?? null,
+      settingsUpdatedAt: (settings as any)?.updated_at ?? null,
+      telephonyProvider: (settings as any)?.telephony_provider ?? null,
+      integrationKeyPrefix: integrationKey ? `${integrationKey.slice(0, 8)}...` : 'MISSING',
+      bridgeNumber,
+      virtualNumber,
+    })
+
+    if (customerNumber.endsWith(bridgeNumber)) {
+      console.warn('CallerDesk call warning: customer number appears to match bridge/agent number', {
+        bridgeNumber,
+        customerNumber,
+      })
     }
 
     // Create initial call log entry (server-side; bypasses RLS)
@@ -143,16 +184,59 @@ serve(async (req) => {
     if (logErr) console.error('Failed to insert call_log:', logErr)
 
     // Trigger CallerDesk (server-side; no CORS)
-    const url = buildCallerDeskUrl(integrationKey, bridgeNumber, customerNumber)
+    const url = buildCallerDeskUrl(integrationKey, bridgeNumber, customerNumber, virtualNumber)
+    console.log('CallerDesk call attempt:', {
+      integrationKey: integrationKey ? `${integrationKey.slice(0, 8)}...` : 'MISSING',
+      bridgeNumber,
+      customerNumber,
+      virtualNumber,
+      url: url.replace(integrationKey, 'REDACTED'),
+    })
+
     const res = await fetch(url, { method: 'GET' })
     const text = await res.text().catch(() => '')
+    console.log('CallerDesk response:', { status: res.status, body: text, url })
 
     if (!res.ok) {
       console.error('CallerDesk trigger failed:', { url, status: res.status, body: text })
-      return new Response(`CallerDesk trigger failed (${res.status})`, { status: 502, headers: corsHeaders })
+      return new Response(
+        JSON.stringify({ ok: false, error: `CallerDesk HTTP ${res.status}`, detail: text }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
-    return new Response(JSON.stringify({ ok: true, url, response: text }), {
+    // CallerDesk often returns HTTP 200 with JSON { type: "error", message: "..." } — treat as failure.
+    let callerDeskError: string | null = null
+    const trimmed = text.trim()
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed) as { type?: string; message?: string }
+        if (parsed?.type === 'error' && parsed.message) {
+          callerDeskError = parsed.message.trim()
+        }
+      } catch {
+        /* not JSON */
+      }
+    }
+
+    if (callerDeskError) {
+      console.error('CallerDesk API error (body):', callerDeskError)
+      const lower = callerDeskError.toLowerCase()
+      const authHint =
+        lower.includes('auth') || lower.includes('invalid')
+          ? 'Re-copy the Integration key from CallerDesk → API (same account as your virtual number). If it still fails, regenerate that key in CallerDesk or ask support whether click-to-call expects a different credential. Ensure Click-to-call coin balance is not zero.'
+          : undefined
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: callerDeskError,
+          hint: authHint,
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    return new Response(JSON.stringify({ ok: true, response: text }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
