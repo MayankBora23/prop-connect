@@ -18,7 +18,11 @@ const stages: { id: LeadStage; label: string; color: string }[] = [
   { id: 'closed-lost', label: 'Closed Lost', color: 'bg-destructive' },
 ];
 
-export function LeadPipeline() {
+interface LeadPipelineProps {
+  onOpenHistory?: (lead: Lead) => void;
+}
+
+export function LeadPipeline({ onOpenHistory }: LeadPipelineProps) {
   const { data: leads, isLoading } = useLeads();
   const updateLead = useUpdateLead();
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
@@ -89,6 +93,7 @@ export function LeadPipeline() {
                     lead={lead}
                     onDragStart={() => handleDragStart(lead)}
                     isDragging={draggedLead?.id === lead.id}
+                    onOpenHistory={onOpenHistory ? () => onOpenHistory(lead) : undefined}
                   />
                 ))}
                 {stageLeads.length === 0 && (

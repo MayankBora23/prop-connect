@@ -19,7 +19,11 @@ const stages: { id: StudentStage; label: string; color: string }[] = [
   { id: 'lost', label: 'Lost', color: 'bg-destructive' },
 ];
 
-export function StudentPipeline() {
+interface StudentPipelineProps {
+  onOpenHistory?: (student: Student) => void;
+}
+
+export function StudentPipeline({ onOpenHistory }: StudentPipelineProps) {
   const { data: students, isLoading } = useStudents();
   const updateStudent = useUpdateStudent();
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
@@ -90,6 +94,7 @@ export function StudentPipeline() {
                     student={student}
                     onDragStart={() => handleDragStart(student)}
                     isDragging={draggedStudent?.id === student.id}
+                    onOpenHistory={onOpenHistory ? () => onOpenHistory(student) : undefined}
                   />
                 ))}
                 {stageStudents.length === 0 && (

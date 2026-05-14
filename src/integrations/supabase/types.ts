@@ -277,6 +277,60 @@ export interface Database {
           }
         ]
       }
+      lead_history: {
+        Row: {
+          id: string
+          lead_id: string
+          lead_entity: Database["public"]["Enums"]["lead_entity"]
+          company_id: string
+          created_by: string
+          created_at: string
+          interaction_type: string
+          message: string
+          raw_data: Json
+          visibility: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          lead_entity: Database["public"]["Enums"]["lead_entity"]
+          company_id: string
+          created_by?: string
+          created_at?: string
+          interaction_type: string
+          message: string
+          raw_data?: Json
+          visibility?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          lead_entity?: Database["public"]["Enums"]["lead_entity"]
+          company_id?: string
+          created_by?: string
+          created_at?: string
+          interaction_type?: string
+          message?: string
+          raw_data?: Json
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_history_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
       profiles: {
         Row: {
           agent_identity: string | null
@@ -1354,6 +1408,201 @@ export interface Database {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          id: string
+          company_id: string
+          created_by: string
+          assigned_to: string | null
+          industry_type: string
+          title: string
+          description: string
+          status: Database["public"]["Enums"]["ticket_status"]
+          priority: Database["public"]["Enums"]["ticket_priority"]
+          category: Database["public"]["Enums"]["ticket_category"]
+          tags: string[]
+          ticket_number: number
+          is_read_by_admin: boolean
+          is_read_by_client: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          created_by: string
+          assigned_to?: string | null
+          industry_type: string
+          title: string
+          description: string
+          status?: Database["public"]["Enums"]["ticket_status"]
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          category?: Database["public"]["Enums"]["ticket_category"]
+          tags?: string[]
+          ticket_number?: number
+          is_read_by_admin?: boolean
+          is_read_by_client?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          created_by?: string
+          assigned_to?: string | null
+          industry_type?: string
+          title?: string
+          description?: string
+          status?: Database["public"]["Enums"]["ticket_status"]
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          category?: Database["public"]["Enums"]["ticket_category"]
+          tags?: string[]
+          ticket_number?: number
+          is_read_by_admin?: boolean
+          is_read_by_client?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      support_messages: {
+        Row: {
+          id: string
+          ticket_id: string
+          company_id: string
+          sender_id: string
+          sender_type: Database["public"]["Enums"]["ticket_message_sender"]
+          message: string
+          is_internal: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ticket_id: string
+          company_id: string
+          sender_id: string
+          sender_type: Database["public"]["Enums"]["ticket_message_sender"]
+          message: string
+          is_internal?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ticket_id?: string
+          company_id?: string
+          sender_id?: string
+          sender_type?: Database["public"]["Enums"]["ticket_message_sender"]
+          message?: string
+          is_internal?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      support_attachments: {
+        Row: {
+          id: string
+          ticket_id: string
+          message_id: string | null
+          company_id: string
+          file_name: string
+          file_url: string
+          file_size: number | null
+          file_type: string | null
+          uploaded_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ticket_id: string
+          message_id?: string | null
+          company_id: string
+          file_name: string
+          file_url: string
+          file_size?: number | null
+          file_type?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ticket_id?: string
+          message_id?: string | null
+          company_id?: string
+          file_name?: string
+          file_url?: string
+          file_size?: number | null
+          file_type?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "support_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1370,6 +1619,7 @@ export interface Database {
       follow_up_status: "pending" | "completed" | "missed"
       follow_up_type: "call" | "whatsapp" | "meeting" | "email"
       industry_type: "real_estate" | "education" | "healthcare" | "automobile_dealers" | "online_business" | "internal_crm"
+      lead_entity: "leads" | "auto_leads" | "students" | "internal_leads"
       lead_stage: "new" | "contacted" | "follow-up" | "site-visit" | "negotiation" | "closed-won" | "closed-lost"
       lead_status: "hot" | "warm" | "cold"
       patient_stage: "new_patient_inquiry" | "appointment_scheduled" | "checked_in_visit_started" | "consultation_treatment_completed" | "billing_payment_pending" | "payment_completed" | "follow_up_scheduled"
@@ -1380,6 +1630,10 @@ export interface Database {
       site_visit_status: "scheduled" | "completed" | "cancelled"
       student_stage: "new_students" | "contacted" | "demo_scheduled" | "demo_attended" | "interested" | "fees_discussed" | "enrolled" | "lost"
       workflow_status: "active" | "inactive"
+      ticket_status: "open" | "in_progress" | "resolved" | "closed"
+      ticket_priority: "low" | "medium" | "high" | "urgent"
+      ticket_category: "bug" | "feature_request" | "help" | "integration" | "billing" | "other"
+      ticket_message_sender: "client" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, Calendar, Car, IndianRupee, Settings } from 'lucide-react';
+import { Phone, Mail, Calendar, Car, IndianRupee, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AutoLead } from '@/hooks/useAutoLeads';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ interface AutoLeadCardProps {
   onClick?: () => void;
   onDragStart?: () => void;
   isDragging?: boolean;
+  onOpenHistory?: () => void;
 }
 
 function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?: string }) {
@@ -44,7 +45,7 @@ function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?:
   );
 }
 
-export function AutoLeadCard({ lead, onClick, onDragStart, isDragging = false }: AutoLeadCardProps) {
+export function AutoLeadCard({ lead, onClick, onDragStart, isDragging = false, onOpenHistory }: AutoLeadCardProps) {
   return (
     <div
       onClick={onClick}
@@ -156,6 +157,24 @@ export function AutoLeadCard({ lead, onClick, onDragStart, isDragging = false }:
         <span>Assigned to:</span>
         <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
       </div>
+
+      {onOpenHistory && (
+        <div className="mt-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenHistory();
+            }}
+            title="History"
+          >
+            <History className="w-3 h-3 mr-1" />
+            History
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

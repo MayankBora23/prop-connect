@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, MapPin, Calendar, Zap, Loader2, MessageCircle } from 'lucide-react';
+import { Phone, Mail, MapPin, Calendar, Zap, Loader2, MessageCircle, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Lead } from '@/hooks/useLeads';
 import { useScoreLead, useUpdateLead } from '@/hooks/useLeads';
@@ -16,6 +16,7 @@ interface LeadCardProps {
   onClick?: () => void;
   onDragStart?: () => void;
   isDragging?: boolean;
+  onOpenHistory?: () => void;
 }
 
 function getScoreColor(score: number) {
@@ -89,7 +90,7 @@ function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?:
   );
 }
 
-export function LeadCard({ lead, onClick, onDragStart, isDragging = false }: LeadCardProps) {
+export function LeadCard({ lead, onClick, onDragStart, isDragging = false, onOpenHistory }: LeadCardProps) {
   const scoreLead = useScoreLead();
   const updateLead = useUpdateLead();
 
@@ -240,7 +241,22 @@ export function LeadCard({ lead, onClick, onDragStart, isDragging = false }: Lea
         <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-2 flex-wrap">
+        {onOpenHistory && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenHistory();
+            }}
+            title="History"
+          >
+            <History className="w-3 h-3 mr-1" />
+            History
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"

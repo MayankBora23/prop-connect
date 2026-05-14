@@ -1,6 +1,6 @@
 import type { InternalLead } from '@/hooks/useInternalLeads';
 import { cn } from '@/lib/utils';
-import { Building2, Phone, MapPin, Users, MessageCircle, Calendar } from 'lucide-react';
+import { Building2, Phone, MapPin, Users, MessageCircle, Calendar, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 
@@ -12,6 +12,7 @@ interface InternalLeadCardProps {
   onEdit?: (lead: InternalLead) => void;
   onWhatsApp?: (lead: InternalLead) => void;
   onTelephony?: (lead: InternalLead) => void;
+  onHistory?: () => void;
 }
 
 export function InternalLeadCard({
@@ -21,7 +22,8 @@ export function InternalLeadCard({
   isDragging = false,
   onEdit,
   onWhatsApp,
-  onTelephony
+  onTelephony,
+  onHistory
 }: InternalLeadCardProps) {
   const isInternalIndustry = lead.industry === 'internal_crm';
 
@@ -107,7 +109,22 @@ export function InternalLeadCard({
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-2 flex-wrap">
+        {onHistory && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onHistory();
+            }}
+            title="History"
+          >
+            <History className="w-3 h-3 mr-1" />
+            History
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"

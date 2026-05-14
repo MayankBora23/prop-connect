@@ -17,9 +17,10 @@ interface InternalLeadPipelineProps {
   onEditLead?: (lead: InternalLead) => void;
   onWhatsApp?: (lead: InternalLead) => void;
   onTelephony?: (lead: InternalLead) => void;
+  onOpenHistory?: (lead: InternalLead) => void;
 }
 
-export function InternalLeadPipeline({ onEditLead, onWhatsApp, onTelephony }: InternalLeadPipelineProps) {
+export function InternalLeadPipeline({ onEditLead, onWhatsApp, onTelephony, onOpenHistory }: InternalLeadPipelineProps) {
   const { data: leads, isLoading } = useInternalLeads();
   const updateLead = useUpdateInternalLead();
   const [draggedLead, setDraggedLead] = useState<InternalLead | null>(null);
@@ -93,6 +94,7 @@ export function InternalLeadPipeline({ onEditLead, onWhatsApp, onTelephony }: In
                     onEdit={onEditLead}
                     onWhatsApp={onWhatsApp}
                     onTelephony={onTelephony}
+                    onHistory={onOpenHistory ? () => onOpenHistory(lead) : undefined}
                   />
                 ))}
                 {stageLeads.length === 0 && (

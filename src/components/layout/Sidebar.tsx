@@ -16,9 +16,11 @@ import {
   Settings,
   Briefcase,
   Wallet,
+  LifeBuoy,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
+import { useTicketStats } from '@/hooks/useSupport';
 import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone, Video } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
 
@@ -44,6 +46,7 @@ const realEstateMenuItems = [
   { id: 'automation', label: 'Automation', icon: Zap, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -65,6 +68,7 @@ const educationMenuItems = [
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -88,6 +92,7 @@ const automobileMenuItems = [
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
+  { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -107,6 +112,7 @@ const internalCRMMenuItems = [
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
+  { id: 'support', label: 'Client Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Platform Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
@@ -114,6 +120,7 @@ const internalCRMMenuItems = [
 export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { data: profile } = useCurrentProfile();
+  const { data: ticketStats } = useTicketStats();
   const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
   if (industryLoading || !isLoaded) {
     return (
@@ -167,6 +174,15 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
         {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
+          const isAdminRole = profile?.role === 'super_admin' || profile?.role === 'admin';
+          const supportUnread =
+            item.id === 'support' &&
+            isAdminRole &&
+            ticketStats?.unread_by_admin &&
+            ticketStats.unread_by_admin > 0
+              ? ticketStats.unread_by_admin
+              : undefined;
+          const badge = supportUnread ?? item.badge;
 
           return (
             <button
@@ -183,16 +199,16 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
               {!collapsed && (
                 <>
                   <span className="font-medium text-sm">{item.label}</span>
-                  {item.badge && (
+                  {badge != null && badge !== undefined && (
                     <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-0.5 rounded-full">
-                      {item.badge}
+                      {badge}
                     </span>
                   )}
                 </>
               )}
-              {collapsed && item.badge && (
+              {collapsed && badge != null && badge !== undefined && (
                 <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full">
-                  {item.badge}
+                  {badge}
                 </span>
               )}
             </button>

@@ -15,7 +15,11 @@ const stages: { id: string; label: string; color: string }[] = [
   { id: 'delivered_sold', label: 'Delivered / Sold', color: 'bg-emerald-600' },
 ];
 
-export function AutoLeadPipeline() {
+interface AutoLeadPipelineProps {
+  onOpenHistory?: (lead: AutoLead) => void;
+}
+
+export function AutoLeadPipeline({ onOpenHistory }: AutoLeadPipelineProps) {
   const { data: leads, isLoading } = useAutoLeads();
   const updateLead = useUpdateAutoLead();
   const [draggedLead, setDraggedLead] = useState<AutoLead | null>(null);
@@ -91,6 +95,7 @@ export function AutoLeadPipeline() {
                     lead={lead}
                     onDragStart={() => handleDragStart(lead)}
                     isDragging={draggedLead?.id === lead.id}
+                    onOpenHistory={onOpenHistory ? () => onOpenHistory(lead) : undefined}
                   />
                 ))}
                 {stageLeads.length === 0 && (

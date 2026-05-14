@@ -66,6 +66,7 @@ import { InternalDemosView } from '@/components/internalcrm/InternalDemosView';
 import { AddInternalLeadDialog } from '@/components/internalcrm/leads/AddInternalLeadDialog';
 import { CreditsView } from '@/components/credits/CreditsView';
 import { LowBalanceAlert } from '@/components/credits/LowBalanceAlert';
+import { SupportView } from '@/components/support/SupportView';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -83,6 +84,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -104,6 +106,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -127,6 +130,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -144,6 +148,7 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
   team: { title: 'Team Management', subtitle: 'Platform administrators' },
   analytics: { title: 'Platform Analytics', subtitle: 'System performance' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  support: { title: 'Client Support', subtitle: 'Tickets from all client companies' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage platform settings' },
 };
@@ -295,6 +300,8 @@ const Index = () => {
           return <AnalyticsView />;
         case 'credits':
           return <CreditsView />;
+        case 'support':
+          return <SupportView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -336,6 +343,8 @@ const Index = () => {
           return <TelephonyView />;
         case 'credits':
           return <CreditsView />;
+        case 'support':
+          return <SupportView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -377,6 +386,8 @@ const Index = () => {
           return <AnalyticsView />;
         case 'credits':
           return <CreditsView />;
+        case 'support':
+          return <SupportView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -416,6 +427,8 @@ const Index = () => {
           return <AnalyticsView />;
         case 'credits':
           return <CreditsView />;
+        case 'support':
+          return <SupportView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':

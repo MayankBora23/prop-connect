@@ -14,10 +14,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditLeadDialog } from './EditLeadDialog';
-import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
+import { Edit, Trash2, MessageCircle, Phone, History } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
+import { useCurrentCompany } from '@/hooks/useCompany';
+import { LeadHistoryDialog } from '@/components/leads/LeadHistoryTimeline';
 
 function LeadStatusSelect({ leadId, leadStatus }: { leadId: string, leadStatus?: Enums<'lead_status'> }) {
   const updateLead = useUpdateLead();
@@ -110,6 +112,8 @@ export function LeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [historyLead, setHistoryLead] = useState<Lead | null>(null);
+  const { data: company } = useCurrentCompany();
   const { data: leads, isLoading } = useLeads();
   const deleteLead = useDeleteLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
@@ -266,7 +270,7 @@ export function LeadsView() {
 
       {/* Content */}
       {viewMode === 'pipeline' ? (
-        <LeadPipeline />
+        <LeadPipeline onOpenHistory={(lead) => setHistoryLead(lead)} />
       ) : (
         <div className="card-elevated overflow-hidden">
           <table className="w-full">
@@ -343,6 +347,18 @@ export function LeadsView() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHistoryLead(lead);
+                          }}
+                          title="History"
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -423,6 +439,18 @@ export function LeadsView() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
       />
+
+      {historyLead?.company_id && (
+        <LeadHistoryDialog
+          open={!!historyLead}
+          onOpenChange={(open) => !open && setHistoryLead(null)}
+          leadId={historyLead.id}
+          leadEntity="leads"
+          companyId={historyLead.company_id}
+          industry={company?.industry ?? null}
+          subjectTitle={historyLead.name}
+        />
+      )}
     </div>
   );
 }

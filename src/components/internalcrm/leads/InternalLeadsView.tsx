@@ -17,6 +17,7 @@ import {
   Trash2,
   Download,
   Upload,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ import { toast } from 'sonner';
 import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
 import { useCurrentCompany } from '@/hooks/useCompany';
 import { format } from 'date-fns';
+import { LeadHistoryDialog } from '@/components/leads/LeadHistoryTimeline';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +81,7 @@ export function InternalLeadsView() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<InternalLead | null>(null);
   const [leadToDelete, setLeadToDelete] = useState<InternalLead | null>(null);
+  const [historyLead, setHistoryLead] = useState<InternalLead | null>(null);
 
   const { data: leads, isLoading } = useInternalLeads();
   const deleteLead = useDeleteInternalLead();
@@ -223,6 +226,7 @@ export function InternalLeadsView() {
           onEditLead={handleEdit}
           onWhatsApp={handleWhatsApp}
           onTelephony={handleTelephony}
+          onOpenHistory={(lead) => setHistoryLead(lead)}
         />
       ) : (
         <div className="card-elevated overflow-hidden">
@@ -295,6 +299,15 @@ export function InternalLeadsView() {
                           <Button
                             size="sm"
                             variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => { e.stopPropagation(); setHistoryLead(lead); }}
+                            title="History"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                             onClick={(e) => { e.stopPropagation(); handleWhatsApp(lead); }}
                             title="WhatsApp"
@@ -362,6 +375,18 @@ export function InternalLeadsView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {historyLead && company?.id && (
+        <LeadHistoryDialog
+          open={!!historyLead}
+          onOpenChange={(open) => !open && setHistoryLead(null)}
+          leadId={historyLead.id}
+          leadEntity="internal_leads"
+          companyId={company.id}
+          industry={historyLead.industry}
+          subjectTitle={`${historyLead.company_name} · ${historyLead.lead_name}`}
+        />
+      )}
     </div>
   );
 }

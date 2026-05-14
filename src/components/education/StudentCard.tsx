@@ -1,17 +1,19 @@
 import React from 'react';
-import { Phone, Mail, MapPin, Calendar, User } from 'lucide-react';
+import { Phone, Mail, MapPin, Calendar, User, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Student } from '@/hooks/useStudents';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 interface StudentCardProps {
   student: Student;
   onClick?: () => void;
   onDragStart?: () => void;
   isDragging?: boolean;
+  onOpenHistory?: () => void;
 }
 
-export function StudentCard({ student, onClick, onDragStart, isDragging = false }: StudentCardProps) {
+export function StudentCard({ student, onClick, onDragStart, isDragging = false, onOpenHistory }: StudentCardProps) {
   return (
     <div
       onClick={onClick}
@@ -81,6 +83,24 @@ export function StudentCard({ student, onClick, onDragStart, isDragging = false 
               {tag}
             </span>
           ))}
+        </div>
+      )}
+
+      {onOpenHistory && (
+        <div className="mt-3">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenHistory();
+            }}
+            title="History"
+          >
+            <History className="w-3 h-3 mr-1" />
+            History
+          </Button>
         </div>
       )}
     </div>
