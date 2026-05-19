@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { insertLeadReassignmentAuditEntry } from '@/hooks/useLeadHistory';
+import { logTeamActivity } from '@/lib/logTeamActivity';
 
 export type Lead = Tables<'leads'>;
 export type LeadInsert = Omit<TablesInsert<'leads'>, 'company_id'>;
@@ -68,10 +70,19 @@ export function useCreateLead() {
         .single();
       
       if (error) throw error;
+
+      void logTeamActivity({
+        action_type: 'lead_created',
+        description: `Created new lead: ${data.name}`,
+        reference_id: data.id,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
     },
   });
 }
@@ -81,6 +92,14 @@ export function useUpdateLead() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: LeadUpdate & { id: string }) => {
+      const { data: prior, error: priorError } = await supabase
+        .from('leads')
+        .select('assigned_to, company_id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (priorError) throw priorError;
+
       const { data, error } = await supabase
         .from('leads')
         .update(updates)
@@ -89,10 +108,40 @@ export function useUpdateLead() {
         .single();
       
       if (error) throw error;
+
+      if (
+        updates.assigned_to !== undefined &&
+        prior &&
+        updates.assigned_to !== prior.assigned_to &&
+        data.company_id
+      ) {
+        try {
+          await insertLeadReassignmentAuditEntry({
+            companyId: data.company_id,
+            leadId: id,
+            leadType: 'real_estate',
+            newAssigneeUserId: updates.assigned_to ?? null,
+          });
+        } catch (e) {
+          console.warn('Failed to log lead reassignment', e);
+        }
+      }
+
+      void logTeamActivity({
+        action_type: 'lead_updated',
+        description: 'Updated lead record',
+        reference_id: id,
+      });
+
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
+      if (variables.assigned_to !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ['lead-history', variables.id] });
+      }
     },
   });
 }

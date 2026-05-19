@@ -14,11 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditStudentDialog } from './EditStudentDialog';
-import { Edit, Trash2, MessageCircle, Phone, History } from 'lucide-react';
+import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Student } from '@/hooks/useStudents';
-import { useCurrentCompany } from '@/hooks/useCompany';
-import { LeadHistoryDialog } from '@/components/leads/LeadHistoryTimeline';
 
 function AssignStudentSelect({ studentId, assignedTo }: { studentId: string, assignedTo?: string }) {
   const { data: profiles, isLoading } = useProfiles();
@@ -82,8 +80,6 @@ export function StudentsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
-  const { data: company } = useCurrentCompany();
   const { data: students, isLoading } = useStudents();
   const deleteStudent = useDeleteStudent();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
@@ -240,7 +236,7 @@ export function StudentsView() {
 
       {/* Content */}
       {viewMode === 'pipeline' ? (
-        <StudentPipeline onOpenHistory={(student) => setHistoryStudent(student)} />
+        <StudentPipeline />
       ) : (
       <div className="card-elevated overflow-hidden">
         <table className="w-full">
@@ -317,18 +313,6 @@ export function StudentsView() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHistoryStudent(student);
-                          }}
-                          title="History"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -409,18 +393,6 @@ export function StudentsView() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
       />
-
-      {historyStudent?.company_id && (
-        <LeadHistoryDialog
-          open={!!historyStudent}
-          onOpenChange={(open) => !open && setHistoryStudent(null)}
-          leadId={historyStudent.id}
-          leadEntity="students"
-          companyId={historyStudent.company_id}
-          industry={company?.industry ?? null}
-          subjectTitle={historyStudent.name}
-        />
-      )}
     </div>
   );
 }

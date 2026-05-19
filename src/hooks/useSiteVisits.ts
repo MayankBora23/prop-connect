@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useCreateNotification } from './useNotifications';
 import { useProfiles } from './useProfiles';
+import { logTeamActivity } from '@/lib/logTeamActivity';
 
 export type SiteVisit = Tables<'site_visits'>;
 export type SiteVisitInsert = TablesInsert<'site_visits'>;
@@ -61,6 +62,12 @@ export function useCreateSiteVisit() {
 
       if (error) throw error;
 
+      void logTeamActivity({
+        action_type: 'site_visit_logged',
+        description: 'Logged site visit activity',
+        reference_id: data.id,
+      });
+
       // Create notification if site visit is assigned to someone
       console.log('🏠 Checking site visit notification creation:', {
         assigned_to: visit.assigned_to,
@@ -102,6 +109,8 @@ export function useCreateSiteVisit() {
       queryClient.invalidateQueries({ queryKey: ['site_visits'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
     },
   });
 }
@@ -142,6 +151,12 @@ export function useUpdateSiteVisit() {
 
       if (error) throw error;
 
+      void logTeamActivity({
+        action_type: 'site_visit_logged',
+        description: 'Logged site visit activity',
+        reference_id: data.id,
+      });
+
       // Check if assigned_to changed and create notification for new assignee
       if (updates.assigned_to !== undefined &&
           updates.assigned_to !== currentVisit.assigned_to &&
@@ -174,6 +189,8 @@ export function useUpdateSiteVisit() {
       queryClient.invalidateQueries({ queryKey: ['site_visits'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
     },
   });
 }

@@ -28,7 +28,6 @@ import { toast } from 'sonner';
 import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
 import { useCurrentCompany } from '@/hooks/useCompany';
 import { format } from 'date-fns';
-import { LeadHistoryDialog } from '@/components/leads/LeadHistoryTimeline';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +38,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { LeadHistorySheet } from '@/components/history/LeadHistorySheet';
 
 const internalStageOptions = [
   { value: 'new', label: 'New' },
@@ -81,7 +82,9 @@ export function InternalLeadsView() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<InternalLead | null>(null);
   const [leadToDelete, setLeadToDelete] = useState<InternalLead | null>(null);
-  const [historyLead, setHistoryLead] = useState<InternalLead | null>(null);
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
+  const [selectedHistoryLeadId, setSelectedHistoryLeadId] = useState<string | null>(null);
+  const [selectedHistoryLeadName, setSelectedHistoryLeadName] = useState('');
 
   const { data: leads, isLoading } = useInternalLeads();
   const deleteLead = useDeleteInternalLead();
@@ -226,7 +229,11 @@ export function InternalLeadsView() {
           onEditLead={handleEdit}
           onWhatsApp={handleWhatsApp}
           onTelephony={handleTelephony}
-          onOpenHistory={(lead) => setHistoryLead(lead)}
+          onHistory={(lead) => {
+            setSelectedHistoryLeadId(lead.id);
+            setSelectedHistoryLeadName(`${lead.company_name} — ${lead.lead_name}`);
+            setHistorySheetOpen(true);
+          }}
         />
       ) : (
         <div className="card-elevated overflow-hidden">
@@ -295,16 +302,26 @@ export function InternalLeadsView() {
                         {format(new Date(lead.created_at), 'MMM d, yyyy')}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => { e.stopPropagation(); setHistoryLead(lead); }}
-                            title="History"
-                          >
-                            <History className="h-4 w-4" />
-                          </Button>
+                        <TooltipProvider>
+                          <div className="flex gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedHistoryLeadId(lead.id);
+                                    setSelectedHistoryLeadName(`${lead.company_name} — ${lead.lead_name}`);
+                                    setHistorySheetOpen(true);
+                                  }}
+                                >
+                                  <History className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View History</TooltipContent>
+                            </Tooltip>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -339,7 +356,8 @@ export function InternalLeadsView() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
+                          </div>
+                        </TooltipProvider>
                       </td>
                     </tr>
                   ))
@@ -376,17 +394,13 @@ export function InternalLeadsView() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {historyLead && company?.id && (
-        <LeadHistoryDialog
-          open={!!historyLead}
-          onOpenChange={(open) => !open && setHistoryLead(null)}
-          leadId={historyLead.id}
-          leadEntity="internal_leads"
-          companyId={company.id}
-          industry={historyLead.industry}
-          subjectTitle={`${historyLead.company_name} · ${historyLead.lead_name}`}
-        />
-      )}
+      <LeadHistorySheet
+        leadId={selectedHistoryLeadId ?? ''}
+        leadType="internal_crm"
+        leadName={selectedHistoryLeadName}
+        open={historySheetOpen}
+        onOpenChange={setHistorySheetOpen}
+      />
     </div>
   );
 }

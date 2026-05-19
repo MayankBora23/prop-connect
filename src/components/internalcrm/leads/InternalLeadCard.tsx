@@ -23,10 +23,8 @@ export function InternalLeadCard({
   onEdit,
   onWhatsApp,
   onTelephony,
-  onHistory
+  onHistory,
 }: InternalLeadCardProps) {
-  const isInternalIndustry = lead.industry === 'internal_crm';
-
 
   const handleWhatsApp = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -119,7 +117,7 @@ export function InternalLeadCard({
               e.stopPropagation();
               onHistory();
             }}
-            title="History"
+            title="View History"
           >
             <History className="w-3 h-3 mr-1" />
             History

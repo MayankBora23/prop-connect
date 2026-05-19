@@ -15,7 +15,7 @@ interface AutoLeadCardProps {
   onClick?: () => void;
   onDragStart?: () => void;
   isDragging?: boolean;
-  onOpenHistory?: () => void;
+  onHistory?: () => void;
 }
 
 function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?: string }) {
@@ -45,7 +45,7 @@ function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?:
   );
 }
 
-export function AutoLeadCard({ lead, onClick, onDragStart, isDragging = false, onOpenHistory }: AutoLeadCardProps) {
+export function AutoLeadCard({ lead, onClick, onDragStart, isDragging = false, onHistory }: AutoLeadCardProps) {
   return (
     <div
       onClick={onClick}
@@ -158,17 +158,17 @@ export function AutoLeadCard({ lead, onClick, onDragStart, isDragging = false, o
         <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
       </div>
 
-      {onOpenHistory && (
-        <div className="mt-2">
+      {onHistory && (
+        <div className="mt-2 flex gap-2">
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenHistory();
+              onHistory();
             }}
-            title="History"
+            title="View History"
           >
             <History className="w-3 h-3 mr-1" />
             History

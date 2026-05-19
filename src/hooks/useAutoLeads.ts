@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCurrentCompany } from './useCompany';
 import { useCreateNotification } from './useNotifications';
 import { useProfiles } from './useProfiles';
+import { insertLeadReassignmentAuditEntry } from '@/hooks/useLeadHistory';
+import { logTeamActivity } from '@/lib/logTeamActivity';
 
 // Cast supabase to any to bypass type checking for automobile tables
 const supabaseAny = supabase as any;
@@ -164,6 +166,12 @@ export function useUpdateAutoLead() {
       if (error) throw error;
       const updatedLead = data as any as AutoLead;
 
+      void logTeamActivity({
+        action_type: 'auto_lead_updated',
+        description: 'Updated auto lead record',
+        reference_id: updatedLead.id,
+      });
+
       // Check if assigned_to changed and create notification for new assignee
       if (updates.assigned_to !== undefined &&
           updates.assigned_to !== currentLead.assigned_to &&
@@ -188,12 +196,34 @@ export function useUpdateAutoLead() {
         }
       }
 
+      if (
+        updates.assigned_to !== undefined &&
+        updates.assigned_to !== currentLead.assigned_to &&
+        updatedLead.company_id
+      ) {
+        try {
+          await insertLeadReassignmentAuditEntry({
+            companyId: updatedLead.company_id,
+            leadId: id,
+            leadType: 'automobile',
+            newAssigneeUserId: updates.assigned_to ?? null,
+          });
+        } catch (e) {
+          console.warn('Failed to log auto lead reassignment', e);
+        }
+      }
+
       return updatedLead;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['auto_leads'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
+      if (variables.assigned_to !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ['lead-history', variables.id] });
+      }
     },
   });
 }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Enums } from '@/integrations/supabase/types';
+import { insertLeadReassignmentAuditEntry } from '@/hooks/useLeadHistory';
 
 export type InternalLeadStage =
   | 'new'
@@ -85,6 +86,14 @@ export function useUpdateInternalLead() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: UpdateInternalLeadInput) => {
+      const { data: priorRow, error: priorErr } = await (supabase as any)
+        .from('internal_leads')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (priorErr) throw priorErr;
+
       const { data, error } = await (supabase as any)
         .from('internal_leads')
         .update(updates)
@@ -93,10 +102,43 @@ export function useUpdateInternalLead() {
         .single();
 
       if (error) throw error;
+
+      const hadAssignKey = Object.prototype.hasOwnProperty.call(updates, 'assigned_to');
+      if (
+        hadAssignKey &&
+        priorRow &&
+        Object.prototype.hasOwnProperty.call(priorRow, 'assigned_to') &&
+        (updates as { assigned_to?: string | null }).assigned_to !== priorRow.assigned_to
+      ) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: actorProfile } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (actorProfile?.company_id) {
+            try {
+              await insertLeadReassignmentAuditEntry({
+                companyId: actorProfile.company_id,
+                leadId: id,
+                leadType: 'internal_crm',
+                newAssigneeUserId: (updates as { assigned_to?: string | null }).assigned_to ?? null,
+              });
+            } catch (e) {
+              console.warn('Failed to log internal lead reassignment', e);
+            }
+          }
+        }
+      }
+
       return data as InternalLead;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['internalLeads'] });
+      if (Object.prototype.hasOwnProperty.call(variables, 'assigned_to')) {
+        queryClient.invalidateQueries({ queryKey: ['lead-history', variables.id] });
+      }
     },
   });
 }

@@ -67,6 +67,7 @@ import { AddInternalLeadDialog } from '@/components/internalcrm/leads/AddInterna
 import { CreditsView } from '@/components/credits/CreditsView';
 import { LowBalanceAlert } from '@/components/credits/LowBalanceAlert';
 import { SupportView } from '@/components/support/SupportView';
+import { TeamReportView } from '@/components/reports/TeamReportView';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -83,6 +84,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   team: { title: 'Team Management', subtitle: 'Your team members' },
   automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
@@ -105,6 +107,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
@@ -129,6 +132,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
+  reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
@@ -147,6 +151,7 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
   workspace: { title: 'Personal Workspace', subtitle: 'Internal collaboration' },
   team: { title: 'Team Management', subtitle: 'Platform administrators' },
   analytics: { title: 'Platform Analytics', subtitle: 'System performance' },
+  reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   support: { title: 'Client Support', subtitle: 'Tickets from all client companies' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
@@ -298,6 +303,8 @@ const Index = () => {
           return <TeamView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'reports':
+          return <TeamReportView />;
         case 'credits':
           return <CreditsView />;
         case 'support':
@@ -339,6 +346,8 @@ const Index = () => {
           return <TeamView />;
         case 'analytics':
           return <EducationAnalytics />;
+        case 'reports':
+          return <TeamReportView />;
         case 'telephony':
           return <TelephonyView />;
         case 'credits':
@@ -384,6 +393,8 @@ const Index = () => {
           return <TeamView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'reports':
+          return <TeamReportView />;
         case 'credits':
           return <CreditsView />;
         case 'support':
@@ -425,6 +436,8 @@ const Index = () => {
           return <AutomationView />;
         case 'analytics':
           return <AnalyticsView />;
+        case 'reports':
+          return <TeamReportView />;
         case 'credits':
           return <CreditsView />;
         case 'support':
@@ -447,16 +460,28 @@ const Index = () => {
         onCollapsedChange={setSidebarCollapsed}
       />
 
-      <main className={cn("transition-all duration-300", sidebarCollapsed ? "ml-16" : "ml-64")}>
-        <Header
-          title={config.title}
-          subtitle={config.subtitle}
-          onAddNew={config.addLabel ? handleAddNew : undefined}
-          addNewLabel={config.addLabel}
-        />
+      <main
+        className={cn(
+          'transition-all duration-300',
+          sidebarCollapsed ? 'ml-16' : 'ml-64',
+          activeTab === 'reports' && 'print:ml-0 print:w-full'
+        )}
+      >
+        <div className={cn(activeTab === 'reports' && 'print:hidden')}>
+          <Header
+            title={config.title}
+            subtitle={config.subtitle}
+            onAddNew={config.addLabel ? handleAddNew : undefined}
+            addNewLabel={config.addLabel}
+          />
+        </div>
 
         <div className="p-6">
-          {!isInternalCRM && <LowBalanceAlert />}
+          {!isInternalCRM && (
+            <div className={cn(activeTab === 'reports' && 'print:hidden')}>
+              <LowBalanceAlert />
+            </div>
+          )}
           {renderContent()}
         </div>
       </main>
@@ -482,7 +507,11 @@ const Index = () => {
 
       <AddEmployeeDialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen} />
 
-      {!isEducation && !isAutomobileDealers && <AIChatAssistant />}
+      {!isEducation && !isAutomobileDealers && (
+        <div className={cn(activeTab === 'reports' && 'print:hidden')}>
+          <AIChatAssistant />
+        </div>
+      )}
     </div>
   );
 };

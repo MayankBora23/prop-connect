@@ -164,6 +164,63 @@ export interface Database {
           }
         ]
       }
+      lead_interactions: {
+        Row: {
+          id: string
+          company_id: string
+          lead_id: string
+          lead_type: string
+          interaction_type: string
+          note: string
+          created_by: string
+          created_by_name: string
+          created_at: string
+          updated_at: string | null
+          is_deleted: boolean
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          lead_id: string
+          lead_type: string
+          interaction_type: string
+          note: string
+          created_by: string
+          created_by_name: string
+          created_at?: string
+          updated_at?: string | null
+          is_deleted?: boolean
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          lead_id?: string
+          lead_type?: string
+          interaction_type?: string
+          note?: string
+          created_by?: string
+          created_by_name?: string
+          created_at?: string
+          updated_at?: string | null
+          is_deleted?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_interactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_interactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       leads: {
         Row: {
           id: string
@@ -274,60 +331,6 @@ export interface Database {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
-          }
-        ]
-      }
-      lead_history: {
-        Row: {
-          id: string
-          lead_id: string
-          lead_entity: Database["public"]["Enums"]["lead_entity"]
-          company_id: string
-          created_by: string
-          created_at: string
-          interaction_type: string
-          message: string
-          raw_data: Json
-          visibility: string
-        }
-        Insert: {
-          id?: string
-          lead_id: string
-          lead_entity: Database["public"]["Enums"]["lead_entity"]
-          company_id: string
-          created_by?: string
-          created_at?: string
-          interaction_type: string
-          message: string
-          raw_data?: Json
-          visibility?: string
-        }
-        Update: {
-          id?: string
-          lead_id?: string
-          lead_entity?: Database["public"]["Enums"]["lead_entity"]
-          company_id?: string
-          created_by?: string
-          created_at?: string
-          interaction_type?: string
-          message?: string
-          raw_data?: Json
-          visibility?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_history_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_history_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
           }
         ]
       }
@@ -562,6 +565,44 @@ export interface Database {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_activity_log: {
+        Row: {
+          id: string
+          company_id: string
+          profile_user_id: string
+          action_type: string
+          reference_id: string | null
+          description: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          profile_user_id: string
+          action_type: string
+          reference_id?: string | null
+          description: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          profile_user_id?: string
+          action_type?: string
+          reference_id?: string | null
+          description?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_activity_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           }
         ]
@@ -1619,7 +1660,6 @@ export interface Database {
       follow_up_status: "pending" | "completed" | "missed"
       follow_up_type: "call" | "whatsapp" | "meeting" | "email"
       industry_type: "real_estate" | "education" | "healthcare" | "automobile_dealers" | "online_business" | "internal_crm"
-      lead_entity: "leads" | "auto_leads" | "students" | "internal_leads"
       lead_stage: "new" | "contacted" | "follow-up" | "site-visit" | "negotiation" | "closed-won" | "closed-lost"
       lead_status: "hot" | "warm" | "cold"
       patient_stage: "new_patient_inquiry" | "appointment_scheduled" | "checked_in_visit_started" | "consultation_treatment_completed" | "billing_payment_pending" | "payment_completed" | "follow_up_scheduled"

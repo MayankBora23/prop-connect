@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LeadPipeline } from './LeadPipeline';
 import { useLeads } from '@/hooks/useLeads';
-import { LayoutGrid, List, Filter, Download, Upload } from 'lucide-react';
+import { LayoutGrid, List, Filter, Download, Upload, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,12 +14,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { EditLeadDialog } from './EditLeadDialog';
-import { Edit, Trash2, MessageCircle, Phone, History } from 'lucide-react';
-import { toast } from 'sonner';
+import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { LeadHistorySheet } from '@/components/history/LeadHistorySheet';
 import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
-import { useCurrentCompany } from '@/hooks/useCompany';
-import { LeadHistoryDialog } from '@/components/leads/LeadHistoryTimeline';
 
 function LeadStatusSelect({ leadId, leadStatus }: { leadId: string, leadStatus?: Enums<'lead_status'> }) {
   const updateLead = useUpdateLead();
@@ -112,8 +111,9 @@ export function LeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [historyLead, setHistoryLead] = useState<Lead | null>(null);
-  const { data: company } = useCurrentCompany();
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
+  const [selectedHistoryLeadId, setSelectedHistoryLeadId] = useState<string | null>(null);
+  const [selectedHistoryLeadName, setSelectedHistoryLeadName] = useState('');
   const { data: leads, isLoading } = useLeads();
   const deleteLead = useDeleteLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
@@ -270,7 +270,13 @@ export function LeadsView() {
 
       {/* Content */}
       {viewMode === 'pipeline' ? (
-        <LeadPipeline onOpenHistory={(lead) => setHistoryLead(lead)} />
+        <LeadPipeline
+          onOpenHistory={(lead) => {
+            setSelectedHistoryLeadId(lead.id);
+            setSelectedHistoryLeadName(lead.name);
+            setHistorySheetOpen(true);
+          }}
+        />
       ) : (
         <div className="card-elevated overflow-hidden">
           <table className="w-full">
@@ -346,19 +352,26 @@ export function LeadsView() {
                       {format(new Date(lead.created_at), 'MMM d, yyyy')}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHistoryLead(lead);
-                          }}
-                          title="History"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
+                      <TooltipProvider>
+                        <div className="flex gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedHistoryLeadId(lead.id);
+                                  setSelectedHistoryLeadName(lead.name);
+                                  setHistorySheetOpen(true);
+                                }}
+                              >
+                                <History className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View History</TooltipContent>
+                          </Tooltip>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -423,7 +436,8 @@ export function LeadsView() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      </div>
+                        </div>
+                      </TooltipProvider>
                     </td>
                   </tr>
                 ))
@@ -440,17 +454,13 @@ export function LeadsView() {
         onOpenChange={setEditDialogOpen}
       />
 
-      {historyLead?.company_id && (
-        <LeadHistoryDialog
-          open={!!historyLead}
-          onOpenChange={(open) => !open && setHistoryLead(null)}
-          leadId={historyLead.id}
-          leadEntity="leads"
-          companyId={historyLead.company_id}
-          industry={company?.industry ?? null}
-          subjectTitle={historyLead.name}
-        />
-      )}
+      <LeadHistorySheet
+        leadId={selectedHistoryLeadId ?? ''}
+        leadType="real_estate"
+        leadName={selectedHistoryLeadName}
+        open={historySheetOpen}
+        onOpenChange={setHistorySheetOpen}
+      />
     </div>
   );
 }

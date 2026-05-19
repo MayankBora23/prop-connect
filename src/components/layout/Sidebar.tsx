@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -117,6 +117,13 @@ const internalCRMMenuItems = [
   { id: 'company-settings', label: 'Platform Settings', icon: Settings, superAdminOnly: true, badge: undefined },
 ];
 
+const REPORTS_MENU_ITEM = {
+  id: 'reports',
+  label: 'Reports',
+  icon: BarChart3,
+  badge: undefined as number | undefined,
+};
+
 export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { data: profile } = useCurrentProfile();
@@ -131,20 +138,37 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
   }
   const isSuperAdmin = profile?.role === 'super_admin';
 
-  const menuItems = industry === 'education' ? educationMenuItems :
-    industry === 'automobile_dealers' ? automobileMenuItems :
-      industry === 'internal_crm' ? internalCRMMenuItems :
-        realEstateMenuItems;
+  const canSeeTeamReports =
+    profile?.role === 'super_admin' || profile?.role === 'admin' || profile?.role === 'manager';
 
-  const visibleMenuItems = menuItems.filter(item =>
-    !item.superAdminOnly || isSuperAdmin
-  );
+  const baseMenuItems = useMemo(() => {
+    if (industry === 'education') return educationMenuItems;
+    if (industry === 'automobile_dealers') return automobileMenuItems;
+    if (industry === 'internal_crm') return internalCRMMenuItems;
+    return realEstateMenuItems;
+  }, [industry]);
+
+  const menuItems = useMemo(() => {
+    const items = [...baseMenuItems];
+    if (canSeeTeamReports) {
+      const supportIdx = items.findIndex((i) => i.id === 'support');
+      if (supportIdx >= 0) {
+        items.splice(supportIdx, 0, REPORTS_MENU_ITEM);
+      } else {
+        items.push(REPORTS_MENU_ITEM);
+      }
+    }
+    return items;
+  }, [baseMenuItems, canSeeTeamReports]);
+
+  const visibleMenuItems = menuItems.filter((item) => !item.superAdminOnly || isSuperAdmin);
 
   return (
     <aside
       className={cn(
         'fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 flex flex-col',
-        collapsed ? 'w-16' : 'w-64'
+        collapsed ? 'w-16' : 'w-64',
+        activeTab === 'reports' && 'print:hidden'
       )}
     >
       {/* Logo */}

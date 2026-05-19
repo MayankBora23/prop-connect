@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { useLeads, Lead } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, type Lead } from '@/hooks/useLeads';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Enums } from '@/integrations/supabase/types';
-import { useUpdateLead } from '@/hooks/useLeads';
 
 type LeadStage = Enums<'lead_stage'>;
+
+interface LeadPipelineProps {
+  onOpenHistory?: (lead: Lead) => void;
+}
 
 const stages: { id: LeadStage; label: string; color: string }[] = [
   { id: 'new', label: 'New', color: 'bg-info' },
@@ -17,10 +20,6 @@ const stages: { id: LeadStage; label: string; color: string }[] = [
   { id: 'closed-won', label: 'Closed Won', color: 'bg-success' },
   { id: 'closed-lost', label: 'Closed Lost', color: 'bg-destructive' },
 ];
-
-interface LeadPipelineProps {
-  onOpenHistory?: (lead: Lead) => void;
-}
 
 export function LeadPipeline({ onOpenHistory }: LeadPipelineProps) {
   const { data: leads, isLoading } = useLeads();
@@ -93,7 +92,7 @@ export function LeadPipeline({ onOpenHistory }: LeadPipelineProps) {
                     lead={lead}
                     onDragStart={() => handleDragStart(lead)}
                     isDragging={draggedLead?.id === lead.id}
-                    onOpenHistory={onOpenHistory ? () => onOpenHistory(lead) : undefined}
+                    onHistory={() => onOpenHistory?.(lead)}
                   />
                 ))}
                 {stageLeads.length === 0 && (

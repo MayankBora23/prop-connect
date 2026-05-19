@@ -5,6 +5,10 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
+interface AutoLeadPipelineProps {
+  onOpenHistory?: (lead: AutoLead) => void;
+}
+
 const stages: { id: string; label: string; color: string }[] = [
   { id: 'new_lead', label: 'New Lead', color: 'bg-blue-500' },
   { id: 'contacted', label: 'Contacted', color: 'bg-yellow-500' },
@@ -14,10 +18,6 @@ const stages: { id: string; label: string; color: string }[] = [
   { id: 'booking_done', label: 'Booking Done', color: 'bg-green-500' },
   { id: 'delivered_sold', label: 'Delivered / Sold', color: 'bg-emerald-600' },
 ];
-
-interface AutoLeadPipelineProps {
-  onOpenHistory?: (lead: AutoLead) => void;
-}
 
 export function AutoLeadPipeline({ onOpenHistory }: AutoLeadPipelineProps) {
   const { data: leads, isLoading } = useAutoLeads();
@@ -95,7 +95,7 @@ export function AutoLeadPipeline({ onOpenHistory }: AutoLeadPipelineProps) {
                     lead={lead}
                     onDragStart={() => handleDragStart(lead)}
                     isDragging={draggedLead?.id === lead.id}
-                    onOpenHistory={onOpenHistory ? () => onOpenHistory(lead) : undefined}
+                    onHistory={() => onOpenHistory?.(lead)}
                   />
                 ))}
                 {stageLeads.length === 0 && (

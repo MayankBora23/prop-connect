@@ -1,23 +1,13 @@
 import { useState } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
-import { useAutoLeads } from '@/hooks/useAutoLeads';
-import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone, History } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
-import { useProfiles } from '@/hooks/useProfiles';
-import { useUpdateAutoLead, useDeleteAutoLead } from '@/hooks/useAutoLeads';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2 } from 'lucide-react';
+import { useAutoLeads, type AutoLead } from '@/hooks/useAutoLeads';
+import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone, History, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { LeadHistorySheet } from '@/components/history/LeadHistorySheet';
 import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
 import { supabase } from '@/integrations/supabase/client';
 import { EditAutoLeadDialog } from './EditAutoLeadDialog';
-import type { AutoLead } from '@/hooks/useAutoLeads';
-import { useCurrentCompany } from '@/hooks/useCompany';
-import { LeadHistoryDialog } from '@/components/leads/LeadHistoryTimeline';
 
 // Cast supabase to any to bypass type checking for automobile tables
 const supabaseAny = supabase as any;
@@ -82,12 +72,13 @@ function StatusSelect({ leadId, status } : { leadId: string, status: string }) {
 export function AutoLeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const { data: leads, isLoading } = useAutoLeads();
-  const { data: company } = useCurrentCompany();
   const deleteLead = useDeleteAutoLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
   const [editLeadOpen, setEditLeadOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<AutoLead | null>(null);
-  const [historyLead, setHistoryLead] = useState<AutoLead | null>(null);
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
+  const [selectedHistoryLeadId, setSelectedHistoryLeadId] = useState<string | null>(null);
+  const [selectedHistoryLeadName, setSelectedHistoryLeadName] = useState('');
 
   const handleDelete = async (leadId: string, leadName: string) => {
     try {
@@ -227,7 +218,13 @@ export function AutoLeadsView() {
 
       {/* Content */}
       {viewMode === 'pipeline' ? (
-        <AutoLeadPipeline onOpenHistory={(lead) => setHistoryLead(lead)} />
+        <AutoLeadPipeline
+          onOpenHistory={(lead) => {
+            setSelectedHistoryLeadId(lead.id);
+            setSelectedHistoryLeadName(lead.name);
+            setHistorySheetOpen(true);
+          }}
+        />
       ) : (
         <div className="card-elevated overflow-hidden">
           <table className="w-full">
@@ -303,19 +300,26 @@ export function AutoLeadsView() {
                       {format(new Date(lead.created_at), 'MMM d, yyyy')}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHistoryLead(lead);
-                          }}
-                          title="History"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
+                      <TooltipProvider>
+                        <div className="flex gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedHistoryLeadId(lead.id);
+                                  setSelectedHistoryLeadName(lead.name);
+                                  setHistorySheetOpen(true);
+                                }}
+                              >
+                                <History className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View History</TooltipContent>
+                          </Tooltip>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -380,7 +384,8 @@ export function AutoLeadsView() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      </div>
+                        </div>
+                      </TooltipProvider>
                     </td>
                   </tr>
                 ))
@@ -400,17 +405,13 @@ export function AutoLeadsView() {
         }}
       />
 
-      {historyLead?.company_id && (
-        <LeadHistoryDialog
-          open={!!historyLead}
-          onOpenChange={(open) => !open && setHistoryLead(null)}
-          leadId={historyLead.id}
-          leadEntity="auto_leads"
-          companyId={historyLead.company_id}
-          industry={company?.industry ?? null}
-          subjectTitle={historyLead.name}
-        />
-      )}
+      <LeadHistorySheet
+        leadId={selectedHistoryLeadId ?? ''}
+        leadType="automobile"
+        leadName={selectedHistoryLeadName}
+        open={historySheetOpen}
+        onOpenChange={setHistorySheetOpen}
+      />
     </div>
   );
 }

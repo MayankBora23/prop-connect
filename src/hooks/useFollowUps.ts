@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useCreateNotification } from './useNotifications';
 import { useProfiles } from './useProfiles';
+import { logTeamActivity } from '@/lib/logTeamActivity';
 
 export type FollowUp = Tables<'follow_ups'>;
 export type FollowUpInsert = TablesInsert<'follow_ups'>;
@@ -58,6 +59,12 @@ export function useCreateFollowUp() {
 
       if (error) throw error;
 
+      void logTeamActivity({
+        action_type: 'follow_up_created',
+        description: 'Created new follow-up task',
+        reference_id: data.id,
+      });
+
       // Create notification if task is assigned to someone
       console.log('🔍 Checking for notification creation:', {
         assigned_to: followUp.assigned_to,
@@ -106,6 +113,8 @@ export function useCreateFollowUp() {
       queryClient.invalidateQueries({ queryKey: ['follow_ups'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
     },
   });
 }
@@ -144,6 +153,14 @@ export function useUpdateFollowUp() {
 
       if (error) throw error;
 
+      if (updates.status === 'completed') {
+        void logTeamActivity({
+          action_type: 'follow_up_completed',
+          description: 'Completed follow-up task',
+          reference_id: data.id,
+        });
+      }
+
       // Check if assigned_to changed and create notification for new assignee
       if (updates.assigned_to !== undefined &&
           updates.assigned_to !== currentFollowUp.assigned_to &&
@@ -174,6 +191,8 @@ export function useUpdateFollowUp() {
       queryClient.invalidateQueries({ queryKey: ['follow_ups'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
+      queryClient.invalidateQueries({ queryKey: ['team-report'] });
+      queryClient.invalidateQueries({ queryKey: ['team-member-detail'] });
     },
   });
 }

@@ -16,7 +16,7 @@ interface LeadCardProps {
   onClick?: () => void;
   onDragStart?: () => void;
   isDragging?: boolean;
-  onOpenHistory?: () => void;
+  onHistory?: () => void;
 }
 
 function getScoreColor(score: number) {
@@ -90,7 +90,7 @@ function AssignLeadSelect({ leadId, assignedTo }: { leadId: string, assignedTo?:
   );
 }
 
-export function LeadCard({ lead, onClick, onDragStart, isDragging = false, onOpenHistory }: LeadCardProps) {
+export function LeadCard({ lead, onClick, onDragStart, isDragging = false, onHistory }: LeadCardProps) {
   const scoreLead = useScoreLead();
   const updateLead = useUpdateLead();
 
@@ -241,22 +241,22 @@ export function LeadCard({ lead, onClick, onDragStart, isDragging = false, onOpe
         <AssignLeadSelect leadId={lead.id} assignedTo={lead.assigned_to} />
       </div>
 
-      <div className="mt-3 flex gap-2 flex-wrap">
-        {onOpenHistory && (
+      <div className="mt-3 flex gap-2">
+        {/* {onHistory && (
           <Button
             size="sm"
             variant="ghost"
             className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenHistory();
+              onHistory();
             }}
-            title="History"
+            title="View History"
           >
             <History className="w-3 h-3 mr-1" />
             History
           </Button>
-        )}
+        )} */}
         <Button
           size="sm"
           variant="ghost"
