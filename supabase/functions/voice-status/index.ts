@@ -40,6 +40,8 @@ serve(async (req) => {
     const from = formData.get('From') as string
     const to = formData.get('To') as string
     const direction = formData.get('Direction') as string
+    const twilioAgentIdentity =
+      from && from.startsWith('client:') ? from.replace(/^client:/, '').trim() : ''
 
     console.log('Voice status webhook received:', {
       callSid,
@@ -84,7 +86,12 @@ serve(async (req) => {
     // Update call log
     const updateData: any = {
       status: mappedStatus,
-      updated_at: new Date().toISOString()
+      provider: 'twilio',
+      updated_at: new Date().toISOString(),
+    }
+
+    if (twilioAgentIdentity) {
+      updateData.agent_number = twilioAgentIdentity
     }
 
     // Add duration and completion time for completed calls
@@ -142,10 +149,13 @@ serve(async (req) => {
               direction: direction === 'inbound' ? 'incoming' : 'outgoing',
               status: mappedStatus,
               duration: callDuration ? parseInt(callDuration) : 0,
+              provider: 'twilio',
+              customer_number: direction === 'inbound' ? from : to,
+              agent_number: twilioAgentIdentity || null,
               twilio_call_sid: callSid,
               twilio_from_number: from,
               twilio_to_number: to,
-              completed_at: callStatus === 'completed' ? new Date().toISOString() : null
+              completed_at: callStatus === 'completed' ? new Date().toISOString() : null,
             })
 
           if (insertError) {

@@ -7,7 +7,11 @@ import { useIndustry } from '@/hooks/useIndustry';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Phone, Clock, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Phone, Clock, Trash2, Wifi, WifiOff, BarChart2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TelephonyAnalyticsDashboard } from '@/components/telephony/analytics/TelephonyAnalyticsDashboard';
+import { TelephonyProviderConfigBanner } from '@/components/telephony/TelephonyProviderConfigBanner';
+import { useTelephonySettings } from '@/hooks/useTelephonySettings';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useUpdateLead } from '@/hooks/useLeads';
@@ -23,6 +27,7 @@ export function TelephonyView() {
   const { data: profile } = useCurrentProfile();
   const { data: industry } = useIndustry();
   const { callStatus, currentLead, startCall, endCall, isDeviceReady, initializeDevice, device, telephonyProvider, isCallerDeskConfigured } = useTelephony();
+  const { data: telephonySettings } = useTelephonySettings();
 
   console.log('TelephonyView render:', {
     companyId: profile?.company_id,
@@ -180,11 +185,38 @@ export function TelephonyView() {
   }
 
   return (
+    <Tabs defaultValue="dialer" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="dialer" className="gap-2">
+          <Phone className="h-4 w-4" />
+          Dialer
+        </TabsTrigger>
+        <TabsTrigger value="analytics" className="gap-2">
+          <BarChart2 className="h-4 w-4" />
+          Analytics
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="dialer" className="space-y-4 mt-4">
     <div className="space-y-4">
+      <TelephonyProviderConfigBanner
+        provider={telephonyProvider}
+        settings={telephonySettings}
+        twilioAgentIdentity={profile?.agent_identity}
+        callerdeskBridgeNumber={
+          (profile as { callerdesk_bridge_number?: string | null } | undefined)?.callerdesk_bridge_number
+        }
+        profileName={profile?.name}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Telephony</h2>
           <p className="text-muted-foreground">Manage your telephony campaigns and calls</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {telephonyProvider === 'callerdesk'
+              ? 'CallerDesk uses your Bridge Number (Agent) from Profile Settings.'
+              : 'Twilio uses your Agent Identity from Profile Settings.'}
+          </p>
         </div>
         <div className="text-right space-y-2">
           <div>
@@ -202,10 +234,10 @@ export function TelephonyView() {
                 {telephonyProvider === 'callerdesk'
                   ? (isCallerDeskConfigured
                     ? 'Ready'
-                    : 'Not Ready - Configure CallerDesk keys in Company Settings')
+                    : 'Not Ready — set CallerDesk keys in Company Settings and your Bridge Number in Profile Settings')
                   : (isDeviceReady
                     ? 'Ready'
-                    : 'Not Ready - Configure Twilio settings and initialize')}
+                    : 'Not Ready — set Twilio in Company Settings, Agent Identity in Profile, then initialize')}
               </p>
               {telephonyProvider !== 'callerdesk' && !isDeviceReady && (
                 <Button
@@ -340,6 +372,12 @@ export function TelephonyView() {
         />
       )}
     </div>
+      </TabsContent>
+
+      <TabsContent value="analytics" className="mt-4">
+        <TelephonyAnalyticsDashboard key={telephonyProvider} provider={telephonyProvider} />
+      </TabsContent>
+    </Tabs>
   );
 }
 

@@ -108,6 +108,9 @@ export function useCreateWhatsAppSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['telephony-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['call-analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['call-logs'] })
       toast.success('WhatsApp settings saved successfully')
     },
     onError: (error: any) => {
@@ -136,6 +139,9 @@ export function useUpdateWhatsAppSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['telephony-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['call-analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['call-logs'] })
       toast.success('WhatsApp settings updated successfully')
     },
     onError: (error: any) => {

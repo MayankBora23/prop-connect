@@ -11,6 +11,11 @@ import { useCurrentCompany } from '@/hooks/useCompany';
 import { useUpdateCompany } from '@/hooks/useCompany';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useWhatsAppSettings, useCreateWhatsAppSettings, useUpdateWhatsAppSettings } from '@/hooks/useWhatsApp';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  applyOptimisticTelephonyProvider,
+  telephonySettingsQueryKey,
+} from '@/hooks/useTelephonySettings';
 import { toast } from 'sonner';
 import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings, Facebook, Plug } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,7 +50,6 @@ const whatsappSchema = z.object({
   callerdesk_api_key: z.string().optional().or(z.literal('')),
   callerdesk_secret_key: z.string().optional().or(z.literal('')),
   callerdesk_integration_key: z.string().optional().or(z.literal('')),
-  callerdesk_bridge_number: z.string().optional().or(z.literal('')),
   callerdesk_virtual_number: z.string().optional().or(z.literal('')),
 });
 
@@ -53,6 +57,7 @@ type CompanyFormData = z.infer<typeof companySchema>;
 type WhatsAppFormData = z.infer<typeof whatsappSchema>;
 
 export function CompanySettingsView() {
+  const queryClient = useQueryClient();
   const { data: company, isLoading: companyLoading } = useCurrentCompany();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const updateCompany = useUpdateCompany();
@@ -100,7 +105,6 @@ export function CompanySettingsView() {
       callerdesk_api_key: '',
       callerdesk_secret_key: '',
       callerdesk_integration_key: '',
-      callerdesk_bridge_number: '',
       callerdesk_virtual_number: '',
     },
   });
@@ -135,7 +139,6 @@ export function CompanySettingsView() {
         callerdesk_api_key: (whatsappSettings as any).callerdesk_api_key || '',
         callerdesk_secret_key: (whatsappSettings as any).callerdesk_secret_key || '',
         callerdesk_integration_key: (whatsappSettings as any).callerdesk_integration_key || '',
-        callerdesk_bridge_number: (whatsappSettings as any).callerdesk_bridge_number || '',
         callerdesk_virtual_number: (whatsappSettings as any).callerdesk_virtual_number || '',
       });
     }
@@ -179,7 +182,6 @@ export function CompanySettingsView() {
           callerdesk_api_key: data.callerdesk_api_key || null,
           callerdesk_secret_key: data.callerdesk_secret_key || null,
           callerdesk_integration_key: integrationKey,
-          callerdesk_bridge_number: data.callerdesk_bridge_number || null,
           callerdesk_virtual_number: data.callerdesk_virtual_number || null,
         } as any);
       } else {
@@ -195,10 +197,14 @@ export function CompanySettingsView() {
           callerdesk_api_key: data.callerdesk_api_key || null,
           callerdesk_secret_key: data.callerdesk_secret_key || null,
           callerdesk_integration_key: integrationKey,
-          callerdesk_bridge_number: data.callerdesk_bridge_number || null,
           callerdesk_virtual_number: data.callerdesk_virtual_number || null,
         } as any);
       }
+
+      const savedProvider = data.telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio';
+      applyOptimisticTelephonyProvider(queryClient, company.id, savedProvider);
+      await queryClient.invalidateQueries({ queryKey: telephonySettingsQueryKey(company.id) });
+      toast.success('Telephony settings saved');
     } catch (error: any) {
       toast.error(error.message || 'Failed to save WhatsApp settings');
     }
@@ -209,6 +215,9 @@ export function CompanySettingsView() {
 
     const prev = whatsappForm.getValues('telephony_provider') || 'twilio';
     whatsappForm.setValue('telephony_provider', nextProvider, { shouldDirty: true, shouldTouch: true });
+
+    // Instant sync for Telephony dialer + analytics (before API completes)
+    applyOptimisticTelephonyProvider(queryClient, company.id, nextProvider);
 
     setIsSavingTelephonyProvider(true);
     try {
@@ -228,9 +237,11 @@ export function CompanySettingsView() {
         } as any);
       }
 
+      await queryClient.invalidateQueries({ queryKey: telephonySettingsQueryKey(company.id) });
       toast.success(`Telephony provider set to ${nextProvider === 'twilio' ? 'Twilio' : 'CallerDesk'}`);
     } catch (error: any) {
       whatsappForm.setValue('telephony_provider', prev as any, { shouldDirty: true });
+      applyOptimisticTelephonyProvider(queryClient, company.id, prev as 'twilio' | 'callerdesk');
       toast.error(error.message || 'Failed to update Telephony provider');
     } finally {
       setIsSavingTelephonyProvider(false);
@@ -748,7 +759,7 @@ export function CompanySettingsView() {
                             <li>Create a TwiML App in Twilio Console → Voice → Manage → TwiML Apps</li>
                             <li>Set Voice Request URL: <code>https://your-project.supabase.co/functions/v1/voice-router</code></li>
                             <li>Set Status Callback URL: <code>https://your-project.supabase.co/functions/v1/voice-status</code></li>
-                            <li>Each agent needs an "Agent Identity" set in their profile settings</li>
+                            <li>Each agent needs a Twilio <strong>Agent Identity</strong> in Profile Settings (not the CallerDesk bridge number)</li>
                             <li>Enable telephony for leads by checking "Enable Telephony" in lead details</li>
                           </ol>
                         </div>
@@ -810,19 +821,11 @@ export function CompanySettingsView() {
                           )}
                         />
 
-                        <FormField
-                          control={whatsappForm.control}
-                          name="callerdesk_bridge_number"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bridge Number (Agent)</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="e.g. +9198XXXXXXXX" className="font-mono text-sm" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3 bg-muted/20">
+                          Each team member sets their own <strong>Bridge Number (Agent)</strong> in{' '}
+                          <strong>Profile Settings</strong> (CallerDesk Bridge Number). Admins only configure
+                          integration key and virtual number here.
+                        </p>
 
                         <FormField
                           control={whatsappForm.control}
@@ -842,6 +845,11 @@ export function CompanySettingsView() {
                         />
 
                         <div className="border rounded-md p-4 bg-muted/30 space-y-2">
+                          <p className="text-xs text-muted-foreground rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-3 mb-3">
+                            <strong>Important:</strong> Each agent bridge mobile must be a CallerDesk member in a
+                            Call Group linked to this virtual number. Reports with &quot;Call Group: Not Assigned&quot;
+                            usually fail to connect the customer (Leg B).
+                          </p>
                           <p className="text-sm font-medium leading-none">CallerDesk Webhook URL</p>
                           <div className="flex items-center gap-2">
                             <Input readOnly value={callerdeskWebhookUrl} className="font-mono text-xs" />

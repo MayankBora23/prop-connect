@@ -1,14 +1,15 @@
 /*
  * CALLERDESK CLICK-TO-CALL SETUP NOTES:
  *
- * - CALLERDESK SETTINGS REQUIRED in whatsapp_settings table:
+ * Company (whatsapp_settings — admin, Company Settings):
  *   - telephony_provider = 'callerdesk'
- *   - callerdesk_integration_key = your authcode from CallerDesk API settings
- *   - callerdesk_bridge_number = agent's mobile number (10 digits, no country code)
- *   - callerdesk_virtual_number = CallerDesk DID/IVR virtual number (digits; usually includes STD/country code)
+ *   - callerdesk_integration_key = click-to-call authcode
+ *   - callerdesk_virtual_number = CallerDesk DID/IVR virtual number
  *
- * - This function triggers CallerDesk click_to_call_v2. CallerDesk will first ring the agent number
- *   (bridge/deskphone) and then connect to the customer number.
+ * Per user (profiles — each agent, Profile Settings):
+ *   - callerdesk_bridge_number = agent mobile (10 digits, no country code)
+ *
+ * This function rings the authenticated user's bridge number, then connects the customer.
  */
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -23,6 +24,36 @@ const corsHeaders = {
 const normalizePhone = (value?: string | null) => {
   if (!value) return ''
   return value.toString().trim().replace(/^\+/, '').replace(/[^\d]/g, '')
+}
+
+/** Profile bridge: last 10 digits (matches Profile Settings save). */
+const normalizeBridgeNumber = (value?: string | null) => normalizePhone(value).slice(-10)
+
+/** Lead/customer number for calling_party_b — must include country code (>10 digits). */
+const normalizeWithCountryCode = (raw: string): string => {
+  const digits = normalizePhone(raw)
+  if (!digits) return ''
+  if (digits.length === 10) return `91${digits}`
+  if (
+    (digits.startsWith('91') ||
+      digits.startsWith('971') ||
+      digits.startsWith('966') ||
+      digits.startsWith('974')) &&
+    digits.length > 10
+  ) {
+    return digits
+  }
+  return digits
+}
+
+/** Virtual/IVR — match webhook DestinationNumber (often 0-prefixed). */
+const formatCallerDeskVirtualNumber = (raw: string): string => {
+  const digits = normalizePhone(raw)
+  if (!digits) return ''
+  if (digits.length === 11 && digits.startsWith('0')) return digits
+  if (digits.length === 10) return `0${digits}`
+  if (digits.length === 12 && digits.startsWith('91')) return `0${digits.slice(-10)}`
+  return digits
 }
 
 const normalizeAuthCode = (value?: string | null) => {
@@ -59,26 +90,45 @@ const extractIntegrationKeyForApi = (raw: string): string => {
 
 const buildCallerDeskUrl = (
   authcode: string,
-  agentNumber: string, // calling_party_a — agent mobile without country code
-  customerNumber: string, // calling_party_b — customer WITH country code
-  virtualNumber: string // deskphone — CallerDesk IVR/DID number
+  bridgeNumber: string, // calling_party_a — agent mobile (10 digits, no country code)
+  customerNumberFull: string, // calling_party_b — lead with country code
+  virtualNumber: string, // deskphone — virtual/IVR
+  useDeskphone: boolean
 ): string => {
-  // Agent number: last 10 digits, no country code
-  const agentDigits = agentNumber.replace(/\D/g, '').slice(-10)
-  // Customer number: full digits with country code
-  const customerDigits = customerNumber.replace(/\D/g, '')
-  // Virtual/IVR number: full digits
+  const agentDigits = bridgeNumber.replace(/\D/g, '').slice(-10)
+  const customerDigits = customerNumberFull.replace(/\D/g, '')
   const virtualDigits = virtualNumber.replace(/\D/g, '')
 
   const params = new URLSearchParams({
     calling_party_a: agentDigits,
     calling_party_b: customerDigits,
-    deskphone: virtualDigits, // virtual/IVR number, NOT agent number
     call_from_did: '1',
     authcode: authcode.trim(),
   })
+  if (useDeskphone && virtualDigits) {
+    params.set('deskphone', virtualDigits)
+  }
 
   return `https://app.callerdesk.io/api/click_to_call_v2?${params.toString()}`
+}
+
+const parseCallerDeskApiBody = (text: string) => {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('{')) return { error: null as string | null, campid: null as string | null }
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      type?: string
+      message?: string
+      campid?: string | number
+      CallSid?: string | number
+    }
+    const error =
+      parsed?.type === 'error' && parsed.message ? parsed.message.trim() : null
+    const campid = (parsed.campid ?? parsed.CallSid)?.toString().trim() || null
+    return { error, campid }
+  } catch {
+    return { error: null, campid: null }
+  }
 }
 
 serve(async (req) => {
@@ -101,19 +151,27 @@ serve(async (req) => {
     }
 
     const body = (await req.json().catch(() => ({}))) as { customer_number?: string }
-    const customerNumberRaw = normalizePhone(body.customer_number)
-    // CallerDesk expects customer number with country code digits.
-    const customerNumber = customerNumberRaw.length === 10 ? `91${customerNumberRaw}` : customerNumberRaw
-    if (!customerNumber) {
+    const customerNumberDigits = (body.customer_number ?? '').toString().replace(/[^\d]/g, '')
+    if (!customerNumberDigits) {
       return new Response('Missing customer_number', { status: 400, headers: corsHeaders })
     }
+    const customerNumberFull = normalizeWithCountryCode(customerNumberDigits)
+    if (customerNumberFull.length <= 10) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'Invalid customer phone number. Use a 10-digit Indian mobile or include country code (e.g. 91xxxxxxxxxx).',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const customerLast10 = customerNumberFull.slice(-10)
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    // Resolve company_id from profile
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .select('company_id')
+      .select('company_id, callerdesk_bridge_number')
       .eq('user_id', userData.user.id)
       .maybeSingle()
 
@@ -121,10 +179,12 @@ serve(async (req) => {
       return new Response('Missing company context', { status: 400, headers: corsHeaders })
     }
 
+    const bridgeNumber = normalizeBridgeNumber((profile as any)?.callerdesk_bridge_number)
+
     // Load CallerDesk telephony settings for this company
     const { data: settings, error: settingsErr } = await supabase
       .from('whatsapp_settings')
-      .select('id, updated_at, telephony_provider, callerdesk_integration_key, callerdesk_bridge_number, callerdesk_virtual_number')
+      .select('id, updated_at, telephony_provider, callerdesk_integration_key, callerdesk_virtual_number')
       .eq('company_id', profile.company_id)
       .maybeSingle()
 
@@ -140,16 +200,38 @@ serve(async (req) => {
     const integrationKey = extractIntegrationKeyForApi(
       ((settings as any)?.callerdesk_integration_key || '').toString()
     )
-    const bridgeNumber = normalizePhone((settings as any)?.callerdesk_bridge_number || '')
-    const virtualNumber = normalizePhone((settings as any)?.callerdesk_virtual_number || '')
+    const virtualNumber = formatCallerDeskVirtualNumber(
+      ((settings as any)?.callerdesk_virtual_number || '').toString()
+    )
     if (!integrationKey || !bridgeNumber || !virtualNumber) {
+      const missing: string[] = []
+      if (!integrationKey || !virtualNumber) {
+        missing.push('company integration key and/or virtual/IVR number (Company Settings)')
+      }
+      if (!bridgeNumber) {
+        missing.push('your Bridge Number (Agent) (Profile Settings)')
+      }
       return new Response(
         JSON.stringify({
-          error:
-            'CallerDesk not fully configured. Missing: ' +
-            (!integrationKey ? 'integration_key ' : '') +
-            (!bridgeNumber ? 'bridge_number ' : '') +
-            (!virtualNumber ? 'virtual_number' : ''),
+          error: `CallerDesk not fully configured. Missing: ${missing.join('; ')}.`,
+          missing: {
+            integration_key: !integrationKey,
+            virtual_number: !virtualNumber,
+            profile_bridge_number: !bridgeNumber,
+          },
+          hint: !bridgeNumber
+            ? 'Each agent sets their own 10-digit bridge number in Profile Settings → CallerDesk Bridge Number (Agent).'
+            : undefined,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (bridgeNumber.length !== 10) {
+      return new Response(
+        JSON.stringify({
+          error: 'Invalid bridge number. Use exactly 10 digits (no country code) in Profile Settings.',
+          hint: 'Profile Settings → CallerDesk Bridge Number (Agent), e.g. 9876543210',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -162,84 +244,127 @@ serve(async (req) => {
       telephonyProvider: (settings as any)?.telephony_provider ?? null,
       integrationKeyPrefix: integrationKey ? `${integrationKey.slice(0, 8)}...` : 'MISSING',
       bridgeNumber,
+      customerNumberFull,
       virtualNumber,
     })
 
-    if (customerNumber.endsWith(bridgeNumber)) {
-      console.warn('CallerDesk call warning: customer number appears to match bridge/agent number', {
-        bridgeNumber,
-        customerNumber,
-      })
-    }
-
-    // Create initial call log entry (server-side; bypasses RLS)
-    const { error: logErr } = await supabase.from('call_logs').insert({
-      company_id: profile.company_id,
-      agent_id: userData.user.id,
-      direction: 'outgoing',
-      status: 'initiated',
-      callerdesk_bridge_number: bridgeNumber,
-      callerdesk_customer_number: customerNumber,
-    })
-    if (logErr) console.error('Failed to insert call_log:', logErr)
-
-    // Trigger CallerDesk (server-side; no CORS)
-    const url = buildCallerDeskUrl(integrationKey, bridgeNumber, customerNumber, virtualNumber)
-    console.log('CallerDesk call attempt:', {
-      integrationKey: integrationKey ? `${integrationKey.slice(0, 8)}...` : 'MISSING',
-      bridgeNumber,
-      customerNumber,
-      virtualNumber,
-      url: url.replace(integrationKey, 'REDACTED'),
-    })
-
-    const res = await fetch(url, { method: 'GET' })
-    const text = await res.text().catch(() => '')
-    console.log('CallerDesk response:', { status: res.status, body: text, url })
-
-    if (!res.ok) {
-      console.error('CallerDesk trigger failed:', { url, status: res.status, body: text })
+    if (customerLast10 === bridgeNumber) {
       return new Response(
-        JSON.stringify({ ok: false, error: `CallerDesk HTTP ${res.status}`, detail: text }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error:
+            'Lead phone number is the same as your CallerDesk bridge number. Use a different lead or update your bridge number in Profile Settings.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // CallerDesk often returns HTTP 200 with JSON { type: "error", message: "..." } — treat as failure.
-    let callerDeskError: string | null = null
-    const trimmed = text.trim()
-    if (trimmed.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(trimmed) as { type?: string; message?: string }
-        if (parsed?.type === 'error' && parsed.message) {
-          callerDeskError = parsed.message.trim()
-        }
-      } catch {
-        /* not JSON */
+    const { data: insertedLog, error: logErr } = await supabase
+      .from('call_logs')
+      .insert({
+        company_id: profile.company_id,
+        agent_id: userData.user.id,
+        direction: 'outgoing',
+        status: 'initiated',
+        provider: 'callerdesk',
+        customer_number: customerLast10,
+        agent_number: bridgeNumber,
+        callerdesk_bridge_number: bridgeNumber,
+        callerdesk_customer_number: customerNumberFull,
+        callerdesk_source_number: customerNumberFull,
+      })
+      .select('id')
+      .single()
+    if (logErr) console.error('Failed to insert call_log:', logErr)
+
+    const triggerCallerDesk = async (useDeskphone: boolean) => {
+      const url = buildCallerDeskUrl(
+        integrationKey,
+        bridgeNumber,
+        customerNumberFull,
+        virtualNumber,
+        useDeskphone
+      )
+      console.log('CallerDesk call attempt:', {
+        useDeskphone,
+        bridgeNumber,
+        customerNumberFull,
+        customerLast10,
+        virtualNumber: useDeskphone ? virtualNumber : '(omitted — single virtual number mode)',
+        url: url.replace(integrationKey, 'REDACTED'),
+      })
+      const agentDigits = bridgeNumber.replace(/\D/g, '').slice(-10)
+      const customerDigits = customerNumberFull.replace(/\D/g, '')
+      const virtualDigits = virtualNumber.replace(/\D/g, '')
+      console.log('CallerDesk leg mapping:', {
+        'Leg A (rings first - agent)': agentDigits,
+        'Leg B (rings second - customer)': customerDigits,
+        'Deskphone (virtual IVR)': virtualDigits,
+      })
+      const res = await fetch(url, { method: 'GET' })
+      const text = await res.text().catch(() => '')
+      console.log('CallerDesk response:', { useDeskphone, status: res.status, body: text })
+      return { res, text, parsed: parseCallerDeskApiBody(text) }
+    }
+
+    let { res, text: lastText, parsed } = await triggerCallerDesk(true)
+
+    if (!res.ok || parsed.error) {
+      const errLower = `${parsed.error || ''} ${lastText}`.toLowerCase()
+      const deskphoneIssue =
+        errLower.includes('deskphone') ||
+        errLower.includes('virtual') ||
+        errLower.includes('did') ||
+        errLower.includes('ivr')
+      if (deskphoneIssue) {
+        console.warn('CallerDesk deskphone error — retrying with empty deskphone (single-VN mode)')
+        ;({ res, text: lastText, parsed } = await triggerCallerDesk(false))
       }
     }
 
-    if (callerDeskError) {
-      console.error('CallerDesk API error (body):', callerDeskError)
-      const lower = callerDeskError.toLowerCase()
+    if (!res.ok || parsed.error) {
+      const lower = (parsed.error || '').toLowerCase()
       const authHint =
         lower.includes('auth') || lower.includes('invalid')
-          ? 'Re-copy the Integration key from CallerDesk → API (same account as your virtual number). If it still fails, regenerate that key in CallerDesk or ask support whether click-to-call expects a different credential. Ensure Click-to-call coin balance is not zero.'
+          ? 'Re-copy the Integration key from CallerDesk → API (same account as your virtual number). Ensure Click-to-call coins are not zero.'
           : undefined
       return new Response(
         JSON.stringify({
           ok: false,
-          error: callerDeskError,
+          error: parsed.error || `CallerDesk HTTP ${res.status}`,
+          detail: lastText,
           hint: authHint,
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    return new Response(JSON.stringify({ ok: true, response: text }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    const campid = parsed.campid
+
+    if (campid && insertedLog?.id) {
+      await supabase
+        .from('call_logs')
+        .update({ callerdesk_call_sid: campid })
+        .eq('id', insertedLog.id)
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        campid,
+        response: lastText,
+        dialed: {
+          calling_party_a: bridgeNumber,
+          calling_party_b: customerNumberFull,
+          deskphone: virtualNumber,
+        },
+        hint:
+          'Answer the virtual-number call within a few rings and stay on the line for the customer leg. In CallerDesk: add this agent mobile to a Call Group linked to your virtual number (reports showing "Call Group: Not Assigned" mean Leg B may not connect).',
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    )
   } catch (e) {
     console.error('callerdesk-make-call unexpected error:', e)
     return new Response('Internal server error', { status: 500, headers: corsHeaders })

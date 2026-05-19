@@ -11,10 +11,9 @@
  * https://YOUR_PROJECT.supabase.co/functions/v1/callerdesk-webhook?ping=1
  * Should return: { "status": "callerdesk-webhook alive" }
  *
- * CALLERDESK SETTINGS REQUIRED in whatsapp_settings table:
- * - telephony_provider = 'callerdesk'
- * - callerdesk_integration_key = your authcode from CallerDesk API settings
- * - callerdesk_bridge_number = agent's mobile/desk number (10 digits, no country code)
+ * Company (whatsapp_settings): telephony_provider, integration key, virtual number.
+ * Per agent (profiles.callerdesk_bridge_number): bridge mobile — used to match DialWhomNumber
+ * from webhooks to company + agent_id.
  */
 // @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -43,6 +42,92 @@ type CallerDeskReport = {
 const normalizePhone = (value?: string | null) => {
   if (!value) return ''
   return value.toString().trim().replace(/^\+/, '').replace(/[^\d]/g, '')
+}
+
+const normalizeBridgeNumber = (value?: string | null) => normalizePhone(value).slice(-10)
+
+/** Match customer numbers across 0-prefix, 91-prefix, and bare 10-digit storage. */
+const customerNumbersMatch = (stored?: string | null, webhookSource?: string | null) => {
+  const a = normalizeBridgeNumber(stored)
+  const b = normalizeBridgeNumber(webhookSource)
+  return !!a && !!b && a === b
+}
+
+type BridgeResolution = {
+  companyId: string
+  bridgeNumber: string
+  agentUserId: string | null
+  source: 'profile' | 'legacy_company_settings'
+}
+
+/** Resolve company + agent from webhook phone fields via profiles.callerdesk_bridge_number. */
+async function resolveBridgeFromCandidates(
+  supabase: ReturnType<typeof createClient>,
+  candidates: string[]
+): Promise<BridgeResolution | null> {
+  for (const candidate of candidates) {
+    const last10 = normalizeBridgeNumber(candidate)
+    if (last10.length < 10) continue
+
+    const { data: profileRow, error: profileErr } = await supabase
+      .from('profiles')
+      .select('company_id, user_id, callerdesk_bridge_number')
+      .eq('callerdesk_bridge_number', last10)
+      .limit(1)
+      .maybeSingle()
+
+    if (!profileErr && profileRow?.company_id) {
+      return {
+        companyId: profileRow.company_id,
+        bridgeNumber: last10,
+        agentUserId: profileRow.user_id ?? null,
+        source: 'profile',
+      }
+    }
+
+    // Legacy rows saved with country prefix — compare last 10 digits
+    const { data: profileCandidates } = await supabase
+      .from('profiles')
+      .select('company_id, user_id, callerdesk_bridge_number')
+      .not('callerdesk_bridge_number', 'is', null)
+      .like('callerdesk_bridge_number', `%${last10}`)
+      .limit(20)
+
+    for (const row of profileCandidates || []) {
+      if (normalizeBridgeNumber(row.callerdesk_bridge_number) === last10 && row.company_id) {
+        return {
+          companyId: row.company_id,
+          bridgeNumber: last10,
+          agentUserId: row.user_id ?? null,
+          source: 'profile',
+        }
+      }
+    }
+  }
+
+  // Deprecated: company-wide bridge on whatsapp_settings (pre–Profile Settings migration)
+  for (const candidate of candidates) {
+    const last10 = normalizeBridgeNumber(candidate)
+    if (last10.length < 10) continue
+
+    const { data, error } = await supabase
+      .from('whatsapp_settings')
+      .select('company_id, callerdesk_bridge_number')
+      .eq('callerdesk_bridge_number', last10)
+      .limit(1)
+      .maybeSingle()
+
+    if (!error && data?.company_id) {
+      return {
+        companyId: data.company_id,
+        bridgeNumber: last10,
+        agentUserId: null,
+        source: 'legacy_company_settings',
+      }
+    }
+  }
+
+  return null
 }
 
 const mapCallerDeskStatus = (raw: string, duration: number) => {
@@ -107,8 +192,18 @@ serve(async (req) => {
     const status = mapCallerDeskStatus((payload.Status || '').toString(), Number.isFinite(duration) ? duration : 0)
     const recordingUrl = payload.CallRecordingUrl ? payload.CallRecordingUrl.toString().trim() : null
 
+    const legBStarted =
+      payload.LegB_Start_time &&
+      payload.LegB_Start_time !== '0' &&
+      payload.LegB_Start_time.toString().trim() !== ''
+    if (!legBStarted && dialWhomNumber) {
+      console.warn(
+        'CallerDesk Leg B never started — customer was not dialed. Stay on the line after answering; verify lead mobile and Click-to-call balance in CallerDesk.'
+      )
+    }
+
     // CallerDesk sample payload always includes SourceNumber and DialWhomNumber for call reports.
-    // We use DialWhomNumber (agent) to resolve company because whatsapp_settings stores bridge/agent number.
+    // We use DialWhomNumber (agent) to resolve company via profiles.callerdesk_bridge_number.
     if (!dialWhomNumber && !destinationNumber && !sourceNumber) {
       return new Response('Missing caller identifiers', { status: 400, headers: corsHeaders })
     }
@@ -125,30 +220,26 @@ serve(async (req) => {
       return new Response('Missing caller identifiers', { status: 400, headers: corsHeaders })
     }
 
-    // Try each candidate one at a time until we find a match
-    let companyId: string | null = null
-    let bridgeNumber: string | null = null
+    const resolved = await resolveBridgeFromCandidates(supabase, candidates)
 
-    for (const candidate of candidates) {
-      const { data, error } = await supabase
-        .from('whatsapp_settings')
-        .select('company_id, callerdesk_bridge_number')
-        .eq('callerdesk_bridge_number', candidate)
-        .limit(1)
-        .maybeSingle()
-
-      if (!error && data?.company_id) {
-        companyId = data.company_id
-        bridgeNumber = data.callerdesk_bridge_number
-        break
-      }
-    }
-
-    if (!companyId) {
-      console.error('Could not resolve company from numbers:', candidates)
-      // Return 200 anyway so CallerDesk doesn't keep retrying
+    if (!resolved) {
+      console.error('Could not resolve company/agent from bridge numbers:', candidates)
       return new Response('Unknown bridge number', { status: 200, headers: corsHeaders })
     }
+
+    const { companyId, bridgeNumber, agentUserId, source } = resolved
+    const customerLast10 = normalizeBridgeNumber(sourceNumber)
+    console.log('CallerDesk bridge resolved:', {
+      companyId,
+      bridgeNumber,
+      agentUserId,
+      source,
+      customerLast10,
+      dialWhomNumber,
+      destinationNumber,
+    })
+
+    const agentBridgeDigits = normalizeBridgeNumber(dialWhomNumber) || bridgeNumber
 
     const updateData: Record<string, unknown> = {
       status,
@@ -157,7 +248,16 @@ serve(async (req) => {
       callerdesk_call_sid: callSid || null,
       callerdesk_source_number: sourceNumber,
       callerdesk_customer_number: sourceNumber || null,
+      provider: 'callerdesk',
+      customer_number: customerLast10 || sourceNumber,
+      agent_number: agentBridgeDigits,
+      started_at: payload.StartTime ? new Date(payload.StartTime).toISOString() : null,
+      ended_at: payload.EndTime ? new Date(payload.EndTime).toISOString() : null,
       updated_at: new Date().toISOString(),
+    }
+
+    if (agentUserId) {
+      updateData.agent_id = agentUserId
     }
 
     if (status === 'completed') {
@@ -182,48 +282,60 @@ serve(async (req) => {
       }
     }
 
-    // 2) Fallback: update the most recent initiated outgoing call for this bridge+customer
-    const customerNumber = sourceNumber || null
-    if (customerNumber) {
+    // 2) Fallback: match initiated call by bridge + customer (last 10 digits)
+    if (customerLast10) {
       const { data: recent, error: recentErr } = await supabase
         .from('call_logs')
-        .select('id')
+        .select('id, callerdesk_customer_number, customer_number')
         .eq('company_id', companyId)
         .eq('direction', 'outgoing')
         .eq('status', 'initiated')
         .eq('callerdesk_bridge_number', bridgeNumber)
-        .eq('callerdesk_customer_number', customerNumber)
         .order('created_at', { ascending: false })
-        .limit(1)
+        .limit(10)
 
       if (recentErr) {
         console.error('Failed to find recent initiated call log:', recentErr)
-      } else if (recent && recent.length > 0) {
-        const id = (recent[0] as any).id as string
-        const { error: updateByIdErr } = await supabase
-          .from('call_logs')
-          .update(updateData)
-          .eq('id', id)
+      } else {
+        const matched = (recent || []).find(
+          (row) =>
+            customerNumbersMatch((row as any).callerdesk_customer_number, sourceNumber) ||
+            customerNumbersMatch((row as any).customer_number, sourceNumber)
+        )
 
-        if (!updateByIdErr) {
-          return new Response('', { status: 200, headers: corsHeaders })
+        if (matched) {
+          const id = (matched as any).id as string
+          const { error: updateByIdErr } = await supabase
+            .from('call_logs')
+            .update(updateData)
+            .eq('id', id)
+
+          if (!updateByIdErr) {
+            return new Response('', { status: 200, headers: corsHeaders })
+          }
+          console.error('Failed to update call log by id fallback:', updateByIdErr)
         }
-        console.error('Failed to update call log by id fallback:', updateByIdErr)
       }
     }
 
     // 3) Last resort: insert new call log
     const insertData: Record<string, unknown> = {
       company_id: companyId,
+      agent_id: agentUserId,
       direction: 'outgoing',
       status,
       duration: (updateData.duration as number) ?? 0,
       recording_url: recordingUrl,
       callerdesk_call_sid: callSid || null,
       callerdesk_source_number: sourceNumber,
-      callerdesk_customer_number: customerNumber,
+      callerdesk_customer_number: sourceNumber,
+      customer_number: customerLast10 || sourceNumber,
       callerdesk_bridge_number: bridgeNumber,
       completed_at: updateData.completed_at ?? null,
+      provider: 'callerdesk',
+      agent_number: agentBridgeDigits,
+      started_at: payload.StartTime ? new Date(payload.StartTime).toISOString() : null,
+      ended_at: payload.EndTime ? new Date(payload.EndTime).toISOString() : null,
     }
 
     const { error: insertErr } = await supabase.from('call_logs').insert(insertData)

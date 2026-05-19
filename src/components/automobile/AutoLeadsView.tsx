@@ -1,13 +1,29 @@
 import { useState } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
-import { useAutoLeads, type AutoLead } from '@/hooks/useAutoLeads';
+import { useAutoLeads, useUpdateAutoLead, useDeleteAutoLead, type AutoLead } from '@/hooks/useAutoLeads';
 import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone, History, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { LeadHistorySheet } from '@/components/history/LeadHistorySheet';
 import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
+import { useProfiles } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { EditAutoLeadDialog } from './EditAutoLeadDialog';
+import { format } from 'date-fns';
 
 // Cast supabase to any to bypass type checking for automobile tables
 const supabaseAny = supabase as any;

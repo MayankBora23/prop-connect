@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Device } from '@twilio/voice-sdk';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProfile } from './useProfiles';
 import { useIndustry } from './useIndustry';
 import { toast } from 'sonner';
-import { normalizeCallerDeskIntegrationInput } from '@/lib/callerdeskAuthCode';
+import {
+  telephonySettingsQueryKey,
+  useTelephonySettings,
+  type TelephonySettingsSnapshot,
+} from './useTelephonySettings';
+import { isCallerDeskUserReady } from '@/lib/telephonyReady';
 import type { Lead } from './useLeads';
 import type { Student } from './useStudents';
 import type { InternalLead } from './useInternalLeads';
@@ -53,16 +59,21 @@ async function readFunctionsHttpErrorPayload(
 }
 
 export function TelephonyProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [callStatus, setCallStatus] = useState<CallStatus>('Idle');
   const [currentLead, setCurrentLead] = useState<TelephonyContact | null>(null);
   const [device, setDevice] = useState<Device | null>(null);
   const [isDeviceReady, setIsDeviceReady] = useState(false);
-  const [telephonyProvider, setTelephonyProvider] = useState<TelephonyProviderKey>('twilio');
-  const [isCallerDeskConfigured, setIsCallerDeskConfigured] = useState(false);
-  const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
-  const [currentIndustry, setCurrentIndustry] = useState<string | null>(null);
+  const { data: telephonySettingsSnapshot } = useTelephonySettings();
   const { data: profile } = useCurrentProfile();
   const { data: industry } = useIndustry();
+  const telephonyProvider: TelephonyProviderKey =
+    telephonySettingsSnapshot?.telephony_provider ?? 'twilio';
+  const profileBridge = (profile as { callerdesk_bridge_number?: string | null } | undefined)
+    ?.callerdesk_bridge_number;
+  const isCallerDeskConfigured = isCallerDeskUserReady(telephonySettingsSnapshot, profileBridge);
+  const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
+  const [currentIndustry, setCurrentIndustry] = useState<string | null>(null);
 
   // Create a unique key for company+industry combination
   const contextKey = `${profile?.company_id || 'no-company'}-${industry || 'no-industry'}`;
@@ -132,13 +143,19 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     return value.toString().trim().replace(/^\+/, '').replace(/[^\d]/g, '');
   };
 
-  const loadTelephonySettings = async () => {
+  const loadTelephonySettings = async (): Promise<
+    TelephonySettingsSnapshot & Record<string, unknown>
+  > => {
     const companyId = profile?.company_id;
     if (!companyId) {
-      setTelephonyProvider('twilio');
-      setIsCallerDeskConfigured(false);
-      return {} as any;
+      return { telephony_provider: 'twilio', isCallerDeskCompanyReady: false } as TelephonySettingsSnapshot &
+        Record<string, unknown>;
     }
+
+    await queryClient.invalidateQueries({ queryKey: telephonySettingsQueryKey(companyId) });
+    const snapshot = queryClient.getQueryData<TelephonySettingsSnapshot>(
+      telephonySettingsQueryKey(companyId)
+    );
 
     const { data, error } = await supabase
       .from('whatsapp_settings')
@@ -148,63 +165,12 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.warn('Failed to load telephony settings', error);
-      setTelephonyProvider('twilio');
-      setIsCallerDeskConfigured(false);
-      return {} as any;
+      return (snapshot || { telephony_provider: 'twilio', isCallerDeskCompanyReady: false }) as TelephonySettingsSnapshot &
+        Record<string, unknown>;
     }
 
-    const provider: TelephonyProviderKey =
-      (data as any)?.telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio';
-    setTelephonyProvider(provider);
-
-    const integrationKey = normalizeCallerDeskIntegrationInput(
-      ((data as any)?.callerdesk_integration_key || '').toString()
-    );
-    const bridgeNumberRaw = ((data as any)?.callerdesk_bridge_number || '').toString().trim();
-    const virtualRaw = ((data as any)?.callerdesk_virtual_number || '').toString().trim();
-    setIsCallerDeskConfigured(
-      !!integrationKey && !!bridgeNumberRaw && !!virtualRaw.replace(/\D/g, '')
-    );
-
-    return (data || {}) as any;
+    return (data || snapshot || {}) as TelephonySettingsSnapshot & Record<string, unknown>;
   };
-
-  useEffect(() => {
-    // Keep provider/config in sync for the current company context
-    // (ignore errors; UI will fall back to Twilio behavior)
-    loadTelephonySettings().catch((e) => console.warn('Failed to load telephony settings', e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.company_id]);
-
-  useEffect(() => {
-    // Realtime sync: when Company Settings saves telephony_provider/CallerDesk keys,
-    // switch Telephony UI immediately without requiring a refresh.
-    const companyId = profile?.company_id;
-    if (!companyId) return;
-
-    const channel = supabase
-      .channel(`telephony-settings-${companyId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'whatsapp_settings',
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          loadTelephonySettings().catch((e) =>
-            console.warn('Failed to refresh telephony settings from realtime', e)
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.company_id]);
 
   const initializeDevice = async () => {
     console.log('=== STARTING DEVICE INITIALIZATION ===');
@@ -394,19 +360,10 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       setCallStatus('Dialing');
 
       const phoneNumber = (contact as any).phone || (contact as any).phone_no;
-      const providerSettings = await loadTelephonySettings();
-      const provider = ((providerSettings as any)?.telephony_provider || telephonyProvider) as string;
-
-      if (provider === 'callerdesk') {
-        const integrationKey = normalizeCallerDeskIntegrationInput(
-          (providerSettings?.callerdesk_integration_key || '').toString()
-        );
-        const bridgeNumberRaw = (providerSettings?.callerdesk_bridge_number || '').toString().trim();
-        const virtualRaw = (providerSettings?.callerdesk_virtual_number || '').toString().trim();
-
-        if (!integrationKey || !bridgeNumberRaw || !virtualRaw.replace(/\D/g, '')) {
+      if (telephonyProvider === 'callerdesk') {
+        if (!isCallerDeskUserReady(telephonySettingsSnapshot, profileBridge)) {
           toast.error(
-            'CallerDesk is not fully configured. Set Integration key, Bridge (agent) number, and Virtual/IVR number in Company Settings, then save.'
+            'CallerDesk is not fully configured. Set Integration key and Virtual/IVR in Company Settings, and your Bridge Number (Agent) in Profile Settings.'
           );
           setCallStatus('Idle');
           setCurrentLead(null);
@@ -432,13 +389,30 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
         }
 
         console.log('CallerDesk call initiated:', data);
-        toast.success('Call initiated');
+        const hint =
+          typeof data === 'object' && data && 'hint' in data
+            ? String((data as { hint?: string }).hint)
+            : null;
+        toast.success(
+          hint ||
+            'Call initiated — answer your phone, then stay on the line until the customer is connected.',
+          { duration: 8000 }
+        );
         return;
       }
 
-      // Default: Twilio voice SDK (existing behavior)
+      // Default: Twilio voice SDK — uses profiles.agent_identity (Profile Settings)
+      if (!profile?.agent_identity?.trim()) {
+        toast.error(
+          'Set your Twilio Agent Identity in Profile Settings before calling. CallerDesk uses your Bridge Number (Agent) from Profile Settings instead.'
+        );
+        setCallStatus('Idle');
+        setCurrentLead(null);
+        return;
+      }
+
       if (!device || !isDeviceReady) {
-        toast.error('Telephony not configured. Please ensure Twilio settings are configured and your agent identity is set.');
+        toast.error('Twilio telephony not ready. Configure Twilio Voice in Company Settings and initialize the device.');
         setCallStatus('Idle');
         setCurrentLead(null);
         return;
@@ -447,7 +421,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       const connection = await device.connect({
         params: {
           To: phoneNumber,
-          agent_identity: profile?.agent_identity || 'unknown_agent'
+          agent_identity: profile.agent_identity.trim(),
         }
       });
 

@@ -58,7 +58,10 @@ serve(async (req) => {
       to = formData.get('params.To') as string
     }
 
-    const agentIdentity = formData.get('agent_identity') as string // Custom parameter for outgoing calls
+    const agentIdentityParam = formData.get('agent_identity') as string // Custom parameter for outgoing calls
+    const agentIdentityFromClient =
+      from && from.startsWith('client:') ? from.replace(/^client:/, '').trim() : ''
+    const twilioAgentIdentity = (agentIdentityParam || agentIdentityFromClient || '').trim()
 
     console.log('📋 Extracted form parameters:')
     console.log('   CallSid:', callSid)
@@ -67,7 +70,7 @@ serve(async (req) => {
     console.log('   To (direct):', formData.get('To'))
     console.log('   params.To (nested):', formData.get('params.To'))
     console.log('   Final To:', to)
-    console.log('   AgentIdentity:', agentIdentity)
+    console.log('   AgentIdentity:', twilioAgentIdentity)
 
     // DEBUG: Log all form data entries
     console.log('🔍 ALL FORM DATA ENTRIES:')
@@ -80,7 +83,7 @@ serve(async (req) => {
     console.log('🔥 Direction:', direction)
     console.log('🔥 From:', from)
     console.log('🔥 To:', to)
-    console.log('🔥 AgentIdentity:', agentIdentity)
+    console.log('🔥 AgentIdentity:', twilioAgentIdentity)
     console.log('🔥 Timestamp:', new Date().toISOString())
     console.log('🔥 Raw To parameter:', JSON.stringify(to))
     console.log('====================================')
@@ -112,11 +115,11 @@ serve(async (req) => {
       // Resolve company_id from profiles.agent_identity (required for billing)
       let companyId: string | null = null
       let agentId: string | null = null
-      if (agentIdentity) {
+      if (twilioAgentIdentity) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('user_id, company_id')
-          .eq('agent_identity', agentIdentity)
+          .eq('agent_identity', twilioAgentIdentity)
           .single()
 
         if (profile) {
@@ -163,6 +166,9 @@ serve(async (req) => {
               status: 'failed',
               blocked_reason: balResult.reason,
               destination_country: destinationCountry,
+              provider: 'twilio',
+              customer_number: to,
+              agent_number: twilioAgentIdentity || null,
               twilio_call_sid: callSid,
               twilio_from_number: from,
               twilio_to_number: to,
@@ -213,12 +219,12 @@ serve(async (req) => {
       let agentId = null
       let destinationCountry: string | null = null
 
-      if (agentIdentity) {
-        // For outgoing calls, find the agent by identity
+      if (twilioAgentIdentity) {
+        // For outgoing calls, find the agent by Twilio client identity (Profile Settings)
         const { data: profile } = await supabase
           .from('profiles')
           .select('user_id, company_id')
-          .eq('agent_identity', agentIdentity)
+          .eq('agent_identity', twilioAgentIdentity)
           .single()
 
         if (profile) {
@@ -238,10 +244,13 @@ serve(async (req) => {
             agent_id: agentId,
             direction: direction === 'inbound' ? 'incoming' : 'outgoing',
             status: 'initiated',
+            provider: 'twilio',
+            customer_number: to,
+            agent_number: twilioAgentIdentity || null,
             twilio_call_sid: callSid,
             twilio_from_number: from,
             twilio_to_number: to,
-            destination_country: destinationCountry
+            destination_country: destinationCountry,
           })
 
         if (logError) {
