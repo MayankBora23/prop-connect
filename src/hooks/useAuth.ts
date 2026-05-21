@@ -20,7 +20,7 @@ export function useAuth() {
           // Clear React Query cache for company and profile data
           queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
           queryClient.invalidateQueries({ queryKey: ['currentProfile'] });
-          queryClient.invalidateQueries({ queryKey: ['profiles'] });
+          queryClient.invalidateQueries({ queryKey: ['team-members'] });
           queryClient.invalidateQueries({ queryKey: ['team_chat_messages'] });
         }
 
@@ -90,7 +90,7 @@ export function useAuth() {
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/dashboard`;
 
     const { error } = await supabase.auth.signUp({
       email,

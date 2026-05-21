@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Device } from '@twilio/voice-sdk';
 import { FunctionsHttpError } from '@supabase/supabase-js';
@@ -72,70 +72,56 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
   const profileBridge = (profile as { callerdesk_bridge_number?: string | null } | undefined)
     ?.callerdesk_bridge_number;
   const isCallerDeskConfigured = isCallerDeskUserReady(telephonySettingsSnapshot, profileBridge);
-  const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
-  const [currentIndustry, setCurrentIndustry] = useState<string | null>(null);
 
-  // Create a unique key for company+industry combination
-  const contextKey = `${profile?.company_id || 'no-company'}-${industry || 'no-industry'}`;
+  const profileUserId = profile?.user_id ?? null;
+  const companyId = profile?.company_id ?? null;
+  const industryKey = industry ?? null;
 
-  // Reset device state when company+industry context changes or user logs out/in
+  const deviceRef = useRef<Device | null>(null);
+  const prevContextRef = useRef({
+    profileUserId: null as string | null,
+    companyId: null as string | null,
+    industryKey: null as string | null,
+  });
+
   useEffect(() => {
-    const isLoggingOut = !profile && (currentCompanyId || currentIndustry);
-    const isCompanyChanged = profile?.company_id !== currentCompanyId;
-    const isIndustryChanged = industry !== currentIndustry;
+    deviceRef.current = device;
+  }, [device]);
+
+  // Reset device state when user, company, or industry context changes
+  useEffect(() => {
+    const prev = prevContextRef.current;
+    const isLoggingOut = !profileUserId && (prev.profileUserId || prev.companyId);
+    const isCompanyChanged = companyId !== prev.companyId;
+    const isIndustryChanged = industryKey !== prev.industryKey;
     const shouldReset = isLoggingOut || isCompanyChanged || isIndustryChanged;
 
-    console.log('Device state check:', {
-      contextKey,
-      isLoggingOut,
-      isCompanyChanged,
-      isIndustryChanged,
-      shouldReset,
-      hasProfile: !!profile,
-      hasIndustry: !!industry,
-      currentCompanyId,
-      currentIndustry,
-      isDeviceReady,
-      hasDevice: !!device
-    });
-
     if (shouldReset) {
-      console.log('Resetting device state due to logout/company/industry change');
-
-      // Reset all device-related state
       setCallStatus('Idle');
       setCurrentLead(null);
       setIsDeviceReady(false);
 
-      // Update current context
-      setCurrentCompanyId(profile?.company_id || null);
-      setCurrentIndustry(industry || null);
-
-      // Destroy device if it exists
-      if (device) {
+      const activeDevice = deviceRef.current;
+      if (activeDevice) {
         try {
-          console.log('Destroying device due to context change');
-          device.destroy();
-          console.log('Device destroyed successfully');
+          activeDevice.destroy();
         } catch (error) {
           console.error('Error destroying device:', error);
         }
+        deviceRef.current = null;
         setDevice(null);
       }
-
-      console.log('Device state fully reset for context:', contextKey);
     }
-  }, [profile, industry, device, currentCompanyId, currentIndustry]);
 
-  // Cleanup effect to destroy device when component unmounts
+    prevContextRef.current = { profileUserId, companyId, industryKey };
+  }, [profileUserId, companyId, industryKey]);
+
   useEffect(() => {
     return () => {
-      console.log('TelephonyProvider unmounting, destroying device');
-      if (device) {
-        device.destroy();
-      }
+      deviceRef.current?.destroy();
+      deviceRef.current = null;
     };
-  }, [device]);
+  }, []);
 
   const normalizePhone = (value?: string | null) => {
     if (!value) return '';
@@ -178,10 +164,8 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       device: !!device,
       isDeviceReady,
       hasProfile: !!profile,
-      companyId: profile?.company_id,
-      industry: industry,
-      currentCompanyId,
-      currentIndustry
+      companyId,
+      industry: industryKey,
     });
 
     // Ensure we use the provider selected in settings (source of truth)

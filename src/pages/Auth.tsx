@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateCompanyWithUser } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
 import { Industry } from '@/hooks/useIndustry';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,11 +36,67 @@ export default function Auth() {
   const [industry, setIndustry] = useState<Industry>('real_estate');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isPasswordSetup, setIsPasswordSetup] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const { signIn } = useAuth();
   const createCompanyWithUser = useCreateCompanyWithUser();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery') || hash.includes('type=invite')) {
+      setIsPasswordSetup(true);
+      setIsLogin(true);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordSetup(true);
+        setIsLogin(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+
+    try {
+      passwordSchema.parse(password);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        setErrors({ password: err.errors[0].message });
+        return;
+      }
+    }
+
+    if (password !== confirmPassword) {
+      setErrors({ password: 'Passwords do not match' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+
+      toast({
+        title: 'Password set',
+        description: 'Your password is ready. You are now signed in.',
+      });
+      window.history.replaceState({}, document.title, '/auth');
+      navigate('/');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to set password';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
@@ -93,6 +150,11 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isPasswordSetup) {
+      await handleSetPassword(e);
+      return;
+    }
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -127,8 +189,9 @@ export default function Auth() {
         });
 
         toast({
-          title: 'Success',
-          description: 'Company registered successfully! You are now the Super Admin.',
+          title: 'Account created',
+          description:
+            'Account created! We have sent a confirmation email from support@aileadx.in. Please check your inbox.',
         });
         navigate('/');
       }
@@ -168,18 +231,58 @@ export default function Auth() {
         <Card className="card-elevated border-0">
           <CardHeader className="text-center">
             <CardTitle className="text-xl">
-              {isLogin ? 'Welcome back' : 'Register your company'}
+              {isPasswordSetup
+                ? 'Set your password'
+                : isLogin
+                  ? 'Welcome back'
+                  : 'Register your company'}
             </CardTitle>
             <CardDescription>
-              {isLogin
-                ? 'Sign in to access your CRM dashboard'
-                : 'Create your company account and become the Super Admin'}
+              {isPasswordSetup
+                ? 'Create a password for your invited account, then you will be signed in.'
+                : isLogin
+                  ? 'Sign in to access your CRM dashboard'
+                  : 'Create your company account and become the Super Admin'}
             </CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
-              {!isLogin && (
+              {isPasswordSetup ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">New password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {errors.password && (
+                      <p className="text-xs text-destructive">{errors.password}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : !isLogin && (
                 <>
                   {/* Company Details */}
                   <div className="space-y-2">
@@ -279,6 +382,7 @@ export default function Auth() {
                 </>
               )}
 
+              {!isPasswordSetup && (
               <div className="space-y-2">
                 <Label htmlFor="email">{isLogin ? 'Email' : 'Your Email'}</Label>
                 <div className="relative">
@@ -296,7 +400,9 @@ export default function Auth() {
                   <p className="text-xs text-destructive">{errors.email}</p>
                 )}
               </div>
+              )}
 
+              {!isPasswordSetup && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -314,6 +420,7 @@ export default function Auth() {
                   <p className="text-xs text-destructive">{errors.password}</p>
                 )}
               </div>
+              )}
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
@@ -322,9 +429,16 @@ export default function Auth() {
                 className="w-full gradient-primary border-0"
                 disabled={loading}
               >
-                {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Register Company')}
+                {loading
+                  ? 'Please wait...'
+                  : isPasswordSetup
+                    ? 'Save password'
+                    : isLogin
+                      ? 'Sign In'
+                      : 'Register Company'}
               </Button>
 
+              {!isPasswordSetup && (
               <p className="text-sm text-center text-muted-foreground">
                 {isLogin ? "Don't have a company account? " : "Already have an account? "}
                 <button
@@ -338,6 +452,7 @@ export default function Auth() {
                   {isLogin ? 'Register company' : 'Sign in'}
                 </button>
               </p>
+              )}
             </CardFooter>
           </form>
         </Card>

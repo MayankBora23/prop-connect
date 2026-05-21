@@ -1,6 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
+
+async function readInviteFunctionError(error: unknown): Promise<string | null> {
+  if (!(error instanceof FunctionsHttpError)) return null;
+  const ctx = error.context;
+  if (!(ctx instanceof Response)) return null;
+  try {
+    const text = (await ctx.text()).trim();
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text) as { error?: string };
+      return parsed.error ?? text;
+    } catch {
+      return text;
+    }
+  } catch {
+    return null;
+  }
+}
+
+function mapInviteErrorMessage(message: string): string {
+  if (message.includes('rate limit')) {
+    return 'Too many invitation attempts. Please wait about an hour before trying again, or contact support if you need help adding this user.';
+  }
+  if (message.includes('already been registered') || message.includes('already exists')) {
+    return 'A user with this email already exists. They may already be on your team or registered with another company.';
+  }
+  if (message.includes('Team member limit')) {
+    return message;
+  }
+  return message;
+}
 
 export type Company = {
   id: string;
@@ -80,7 +112,7 @@ export function useCreateCompanyWithUser() {
     }) => {
       // Sign up the user with company info in metadata
       // The handle_new_user trigger will create the company
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/dashboard`;
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: userEmail,
         password,
@@ -195,205 +227,49 @@ export function useInviteTeamMember() {
       name,
       role,
       companyId,
-      password
+      password,
     }: {
       email: string;
       name: string;
       role: AppRole;
       companyId: string;
-      password?: string;
+      password: string;
     }) => {
-      const redirectUrl = `${window.location.origin}/`;
-
-      // Use provided password or generate a secure one
-      const userPassword = password || generateSecurePassword();
-
-      // For team member invitations, we'll create the user without requiring email confirmation
-      // This allows immediate login with the provided credentials
-      // For team member invitations, we want immediate access without email confirmation
-      // We'll try to create the user account with auto-confirmation
-      console.log('Creating team member with email:', email, 'password length:', userPassword.length);
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: userPassword,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            name,
-            company_id: companyId,
-            role,
-            temp_password: userPassword, // Store for email sending
-          },
+      const { data, error } = await supabase.functions.invoke('invite-team-member', {
+        body: {
+          email: email.trim(),
+          role,
+          companyId,
+          name: name.trim(),
+          password,
         },
       });
 
-      // If signup fails due to email confirmation being required,
-      // we'll try a different approach
-      if (error && error.message.includes('Email not confirmed')) {
-        console.log('Email confirmation required, trying alternative approach');
-
-        // For now, we'll throw an error explaining the issue
-        throw new Error('Team member invitations require email confirmation. Please ask the team member to check their email and confirm their account before signing in.');
-      }
-
       if (error) {
-        console.error('Signup error:', error);
-        throw new Error(`Failed to create user account: ${error.message}`);
+        const detail = await readInviteFunctionError(error);
+        const raw = detail || error.message || 'Failed to invite team member';
+        throw new Error(mapInviteErrorMessage(raw));
       }
 
-      console.log('Signup result:', {
-        user: data.user ? 'created' : 'not created',
-        emailConfirmed: data.user?.email_confirmed_at ? true : false,
-        userId: data.user?.id,
-        userData: data.user
-      });
-
-      if (data.user) {
-        console.log('User metadata:', data.user.user_metadata);
-        console.log('User app metadata:', data.user.app_metadata);
+      if (data?.error) {
+        throw new Error(mapInviteErrorMessage(String(data.error)));
       }
 
-      // Wait a moment for the database trigger to execute
-      console.log('Waiting for database trigger to create profile and role records...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Check if profile was created
-      const { data: profileCheck, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, email, company_id')
-        .eq('user_id', data.user?.id)
-        .maybeSingle();
-
-      console.log('Profile creation check:', {
-        profile: profileCheck ? 'created' : 'not found',
-        profileData: profileCheck,
-        profileError
-      });
-
-      // Check if user role was created
-      const { data: roleCheck, error: roleError } = await (supabase as any)
-        .from('user_roles')
-        .select('role, company_id')
-        .eq('user_id', data.user?.id)
-        .maybeSingle();
-
-      console.log('Role creation check:', {
-        role: roleCheck ? 'created' : 'not found',
-        roleData: roleCheck,
-        roleError
-      });
-
-      // If the user was created but not confirmed, we'll still proceed
-      // The user should be able to sign in with the provided credentials
-
-      // Manual fallback: Ensure profile and role records exist
-      if (data.user && !profileCheck) {
-        console.log('Profile not found, creating manually...');
-        try {
-          const { error: manualProfileError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: data.user.id,
-              name: name,
-              email: email,
-              company_id: companyId
-            });
-
-          if (manualProfileError) {
-            console.error('Failed to create profile manually:', manualProfileError);
-          } else {
-            console.log('Profile created manually');
-          }
-        } catch (err) {
-          console.error('Error creating profile manually:', err);
-        }
+      const invitedUser = data?.user;
+      if (!invitedUser?.id) {
+        throw new Error('Invitation completed but no user was returned. Please refresh the team list.');
       }
 
-      if (data.user && !roleCheck) {
-        console.log('Role not found, creating manually...');
-        try {
-          const { error: manualRoleError } = await (supabase as any)
-            .from('user_roles')
-            .insert({
-              user_id: data.user.id,
-              company_id: companyId,
-              role: role
-            });
-
-          if (manualRoleError) {
-            console.error('Failed to create role manually:', manualRoleError);
-          } else {
-            console.log('Role created manually');
-          }
-        } catch (err) {
-          console.error('Error creating role manually:', err);
-        }
-      }
-
-      if (error) throw error;
-
-      // Send welcome email with login credentials and confirmation instructions
-      try {
-        await sendWelcomeEmail(email, name, userPassword, role, !data.user?.email_confirmed_at);
-      } catch (emailError) {
-        console.warn('Failed to send welcome email:', emailError);
-        // Don't fail the invitation if email fails
-      }
-
-      return { ...data, password: userPassword };
+      return { user: invitedUser, emailSent: data?.emailSent !== false };
     },
-    onSuccess: (data) => {
-      console.log('Invitation successful, refreshing data...', data);
-      // Force refresh of profiles and related data
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       queryClient.invalidateQueries({ queryKey: ['currentProfile'] });
       queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
-
-      // Also refresh any cached user role data
       queryClient.invalidateQueries({ queryKey: ['userRoles'] });
+      queryClient.invalidateQueries({ queryKey: ['companyTeamCount'] });
     },
   });
-}
-
-// Generate a secure random password
-function generateSecurePassword(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
-
-// Send welcome email with login credentials
-async function sendWelcomeEmail(email: string, name: string, password: string, role: AppRole, needsConfirmation: boolean = false): Promise<void> {
-  // For now, we'll log the email details. In production, you'd integrate with an email service
-  console.log('Sending welcome email:', {
-    to: email,
-    subject: 'Welcome to RealCRM - Your Account Details',
-    body: `
-      Hi ${name},
-
-      Welcome to RealCRM! Your account has been created successfully.
-
-      ${needsConfirmation ? `
-      IMPORTANT: Please check your email and click the confirmation link before attempting to sign in.
-      ` : ''}
-
-      Login Details:
-      Email: ${email}
-      Password: ${password}
-      Role: ${role.replace('_', ' ')}
-
-      Please log in at ${window.location.origin}/auth and change your password immediately.
-
-      best regards,
-      RealCRM Team
-    `
-  });
-
-  // TODO: Integrate with email service like SendGrid, Mailgun, etc.
 }
 
 export function useAllCompanies() {
@@ -435,7 +311,7 @@ export function useUpdateTeamMemberRole() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
     },
   });
 }
@@ -536,8 +412,7 @@ export function useRemoveTeamMember() {
       return true;
     },
     onSuccess: () => {
-      // Force refetch of profiles to ensure UI updates immediately
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       queryClient.invalidateQueries({ queryKey: ['currentProfile'] });
       // Also invalidate any cached company data
       queryClient.invalidateQueries({ queryKey: ['currentCompany'] });

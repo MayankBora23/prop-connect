@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -157,8 +157,7 @@ export function InviteTeamMemberDialog({
     }
 
     try {
-      console.log('Starting invitation process for:', { name, email, role, passwordMode });
-      const result = await inviteMember.mutateAsync({
+      await inviteMember.mutateAsync({
         name,
         email,
         role,
@@ -166,11 +165,9 @@ export function InviteTeamMemberDialog({
         password: finalPassword,
       });
 
-      console.log('Invitation result:', result);
-
       toast({
-        title: 'Success',
-        description: `Successfully invited ${name} as ${role.replace('_', ' ')}. They will appear in the team list shortly.`,
+        title: 'Invitation sent',
+        description: `Account created for ${name}. Login details were emailed from support@aileadx.in.`,
       });
 
       // Reset form
@@ -203,6 +200,9 @@ export function InviteTeamMemberDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Invite Team Member</DialogTitle>
+          <DialogDescription className="sr-only">
+            Invite a team member with a generated or custom password. Login details are emailed from support@aileadx.in.
+          </DialogDescription>
         </DialogHeader>
 
         {/* ADDED: inline info about current usage and limit */}

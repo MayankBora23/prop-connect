@@ -82,6 +82,7 @@ const AppContent = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

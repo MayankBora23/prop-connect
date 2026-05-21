@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.deduct-credits]
 verify_jwt = false
+
+[functions.invite-team-member]
+verify_jwt = true

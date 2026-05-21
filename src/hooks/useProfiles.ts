@@ -12,7 +12,7 @@ export type ProfileWithRole = Profile & {
 
 export function useProfiles() {
   return useQuery({
-    queryKey: ['profiles'],
+    queryKey: ['team-members'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -100,7 +100,7 @@ export function useUpdateProfile() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
       queryClient.invalidateQueries({ queryKey: ['currentProfile'] });
     },
   });
