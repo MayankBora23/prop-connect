@@ -135,6 +135,10 @@
   .gradient-info {
     background: var(--gradient-info);
   }
+
+  .auto-dashboard-section {
+    @apply scroll-mt-6;
+  }
 }
 
 @layer utilities {

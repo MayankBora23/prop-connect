@@ -1,141 +1,139 @@
-import { useVehicles } from '@/hooks/useVehicles';
-import { useAutoLeads } from '@/hooks/useAutoLeads';
-import { useTestDrives } from '@/hooks/useTestDrives';
-import { useDeals } from '@/hooks/useDeals';
-import { StatCard } from '@/components/dashboard/StatCard';
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Car, Users, Calendar, Briefcase, TrendingUp, DollarSign } from 'lucide-react';
+import { useAutomobileDashboard } from '@/hooks/useAutomobileDashboard';
+import { useCurrentProfile } from '@/hooks/useProfiles';
+import { AutomobileDashboardHeader } from './dashboard/AutomobileDashboardHeader';
+import { DashboardFilters } from './dashboard/DashboardFilters';
+import { AutoAnalyticsCard } from './dashboard/AutoAnalyticsCard';
+import { DashboardCharts } from './dashboard/DashboardCharts';
+import { InventoryInsights } from './dashboard/InventoryInsights';
+import { TestDriveStats } from './dashboard/TestDriveStats';
+import {
+  Car,
+  Users,
+  Calendar,
+  Briefcase,
+  TrendingUp,
+  DollarSign,
+  Wallet,
+  Clock,
+  Truck,
+  Flame,
+  Bookmark,
+  Package,
+  Banknote,
+} from 'lucide-react';
 
 export function AutomobileDashboard() {
-  const { data: vehicles, isLoading: vehiclesLoading } = useVehicles();
-  const { data: leads, isLoading: leadsLoading } = useAutoLeads();
-  const { data: testDrives, isLoading: testDrivesLoading } = useTestDrives();
-  const { data: deals, isLoading: dealsLoading } = useDeals();
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: profile } = useCurrentProfile();
+  const {
+    dateFilter,
+    setDateFilter,
+    setCustomRange,
+    customRange,
+    isLoading,
+    metrics,
+    revenueTrend,
+    vehicleSalesByMonth,
+    paymentCollection,
+    leadFunnel,
+    brandInventory,
+    categoryDistribution,
+    testDriveStats,
+    testDriveConversionChart,
+    inventoryInsights,
+    company,
+  } = useAutomobileDashboard();
 
-  const isLoading = vehiclesLoading || leadsLoading || testDrivesLoading || dealsLoading;
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-36 w-full rounded-2xl" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 13 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-96 w-full rounded-2xl" />
+      </div>
+    );
+  }
 
-  const totalVehicles = vehicles?.length || 0;
-  const availableVehicles = vehicles?.filter(v => v.status === 'available').length || 0;
-  const totalLeads = leads?.length || 0;
-  const newLeads = leads?.filter(l => l.status === 'new').length || 0;
-  const todayTestDrives = testDrives?.filter(td =>
-    new Date(td.test_drive_date).toDateString() === new Date().toDateString()
-  ).length || 0;
-  const totalDeals = deals?.length || 0;
-  const completedDeals = deals?.filter(d => d.status === 'completed').length || 0;
-  const totalRevenue = deals?.filter(d => d.status === 'completed').reduce((sum, deal) => sum + deal.final_price, 0) || 0;
+  const m = metrics;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Welcome Message */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Welcome to Automobile CRM</h1>
-        <p className="text-muted-foreground">Manage your vehicle inventory, leads, and sales efficiently.</p>
-      </div>
+    <div className="space-y-8 animate-fade-in pb-8">
+      <AutomobileDashboardHeader
+        companyName={company?.name}
+        userName={profile?.name ?? undefined}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))
-        ) : (
-          <>
-            <StatCard
-              title="Total Vehicles"
-              value={totalVehicles}
-              icon={Car}
-              iconBg="bg-blue-500"
-            />
-            <StatCard
-              title="Available Vehicles"
-              value={availableVehicles}
-              icon={Car}
-              iconBg="bg-green-500"
-            />
-            <StatCard
-              title="Total Leads"
-              value={totalLeads}
-              icon={Users}
-              iconBg="bg-orange-500"
-            />
-            <StatCard
-              title="New Leads"
-              value={newLeads}
-              icon={Users}
-              iconBg="bg-yellow-500"
-            />
-            <StatCard
-              title="Today's Test Drives"
-              value={todayTestDrives}
-              icon={Calendar}
-              iconBg="bg-purple-500"
-            />
-            <StatCard
-              title="Completed Deals"
-              value={completedDeals}
-              icon={Briefcase}
-              iconBg="bg-red-500"
-            />
-          </>
-        )}
-      </div>
-
-      {/* Revenue Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-elevated p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-green-100">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Total Revenue</h3>
-              <p className="text-sm text-muted-foreground">From completed deals</p>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-green-600">
-            ₹{totalRevenue.toLocaleString()}
-          </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Analytics Overview</h2>
+          <p className="text-sm text-muted-foreground">
+            Real-time dealership metrics · updates live via WebSocket
+          </p>
         </div>
-
-        <div className="card-elevated p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-blue-100">
-              <Briefcase className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Deal Pipeline</h3>
-              <p className="text-sm text-muted-foreground">Active deals in progress</p>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-blue-600">
-            {totalDeals - completedDeals}
-          </div>
-        </div>
+        <DashboardFilters
+          dateFilter={dateFilter}
+          onFilterChange={setDateFilter}
+          customFrom={customRange?.start}
+          customTo={customRange?.end}
+          onCustomRange={(from, to) => setCustomRange({ start: from, end: to })}
+        />
       </div>
 
-      {/* Quick Actions */}
-      <div className="card-elevated p-6">
-        <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center gap-2 p-4 rounded-lg border border-dashed border-border hover:bg-secondary/50 transition-colors">
-            <Car className="w-6 h-6 text-muted-foreground" />
-            <span className="text-sm font-medium">Add Vehicle</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 rounded-lg border border-dashed border-border hover:bg-secondary/50 transition-colors">
-            <Users className="w-6 h-6 text-muted-foreground" />
-            <span className="text-sm font-medium">Add Lead</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 rounded-lg border border-dashed border-border hover:bg-secondary/50 transition-colors">
-            <Calendar className="w-6 h-6 text-muted-foreground" />
-            <span className="text-sm font-medium">Schedule Test Drive</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 rounded-lg border border-dashed border-border hover:bg-secondary/50 transition-colors">
-            <Briefcase className="w-6 h-6 text-muted-foreground" />
-            <span className="text-sm font-medium">Create Booking</span>
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+        <AutoAnalyticsCard title="Total Vehicles" value={m.totalVehicles} icon={Car} gradient="bg-gradient-to-br from-blue-500 to-blue-700" trend={m.trends.vehicles} />
+        <AutoAnalyticsCard title="Available Vehicles" value={m.availableVehicles} icon={Package} gradient="bg-gradient-to-br from-cyan-500 to-teal-600" />
+        <AutoAnalyticsCard title="Total Leads" value={m.totalLeads} icon={Users} gradient="bg-gradient-to-br from-violet-500 to-purple-600" trend={m.trends.leads} />
+        <AutoAnalyticsCard title="New Leads" value={m.newLeads} icon={TrendingUp} gradient="bg-gradient-to-br from-amber-500 to-orange-600" />
+        <AutoAnalyticsCard title="Today's Test Drives" value={m.todayTestDrives} icon={Calendar} gradient="bg-gradient-to-br from-orange-500 to-red-500" trend={m.trends.testDrives} />
+        <AutoAnalyticsCard title="Completed Deals" value={m.completedDeals} icon={Briefcase} gradient="bg-gradient-to-br from-emerald-500 to-green-700" trend={m.trends.deals} />
+        <AutoAnalyticsCard title="Total Payment" value={m.totalPayment} formatValue icon={Banknote} gradient="bg-gradient-to-br from-sky-500 to-blue-600" />
+        <AutoAnalyticsCard title="Collected Payment" value={m.collectedPayment} formatValue icon={Wallet} gradient="bg-gradient-to-br from-teal-500 to-emerald-600" />
+        <AutoAnalyticsCard title="Remaining Payment" value={m.remainingPayment} formatValue icon={Clock} gradient="bg-gradient-to-br from-amber-500 to-yellow-600" />
+        <AutoAnalyticsCard title="Pending Deliveries" value={m.pendingDeliveries} icon={Truck} gradient="bg-gradient-to-br from-indigo-500 to-blue-600" />
+        <AutoAnalyticsCard title="Monthly Revenue" value={m.monthlyRevenue} formatValue icon={DollarSign} gradient="bg-gradient-to-br from-green-500 to-emerald-700" />
+        <AutoAnalyticsCard title="Hot Leads" value={m.hotLeads} icon={Flame} gradient="bg-gradient-to-br from-red-500 to-orange-600" />
+        <AutoAnalyticsCard title="Active Bookings" value={m.activeBookings} icon={Bookmark} gradient="bg-gradient-to-br from-pink-500 to-rose-600" />
       </div>
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Revenue & Sales Analytics</h2>
+        <DashboardCharts
+          revenueTrend={revenueTrend}
+          vehicleSalesByMonth={vehicleSalesByMonth}
+          paymentCollection={paymentCollection}
+          leadFunnel={leadFunnel}
+          testDriveConversionChart={testDriveConversionChart}
+        />
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Inventory Analytics</h2>
+        <InventoryInsights
+          totalValue={inventoryInsights.totalValue}
+          fastMoving={inventoryInsights.fastMoving}
+          unsold={inventoryInsights.unsold}
+          recentlyAdded={inventoryInsights.recentlyAdded}
+          lowStock={inventoryInsights.lowStock}
+          brandInventory={brandInventory}
+          categoryDistribution={categoryDistribution}
+        />
+      </section>
+
+      <TestDriveStats
+        total={testDriveStats.total}
+        completed={testDriveStats.completed}
+        cancelled={testDriveStats.cancelled}
+        upcoming={testDriveStats.upcoming}
+        conversion={testDriveStats.conversion}
+      />
     </div>
   );
 }

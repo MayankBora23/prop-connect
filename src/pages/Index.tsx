@@ -468,12 +468,14 @@ const Index = () => {
         )}
       >
         <div className={cn(activeTab === 'reports' && 'print:hidden')}>
-          <Header
-            title={config.title}
-            subtitle={config.subtitle}
-            onAddNew={config.addLabel ? handleAddNew : undefined}
-            addNewLabel={config.addLabel}
-          />
+          {!(isAutomobileDealers && activeTab === 'dashboard') && (
+            <Header
+              title={config.title}
+              subtitle={config.subtitle}
+              onAddNew={config.addLabel ? handleAddNew : undefined}
+              addNewLabel={config.addLabel}
+            />
+          )}
         </div>
 
         <div className="p-6">
