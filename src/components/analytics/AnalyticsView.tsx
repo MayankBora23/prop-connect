@@ -1,12 +1,11 @@
 import { useLeads } from '@/hooks/useLeads';
 import { useProperties } from '@/hooks/useProperties';
 import { useSiteVisits } from '@/hooks/useSiteVisits';
-import { useFollowUps } from '@/hooks/useFollowUps';
-import { useProfiles } from '@/hooks/useProfiles';
+import { useCurrentCompany } from '@/hooks/useCompany';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { TrendingUp, Users, Target, Share2, DollarSign } from 'lucide-react';
+import { TrendingUp, Users, Target, Share2, Home } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format, subDays, isAfter, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
 const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
 
@@ -14,9 +13,9 @@ export function AnalyticsView() {
   const { data: leads, isLoading: leadsLoading } = useLeads();
   const { data: properties, isLoading: propertiesLoading } = useProperties();
   const { data: siteVisits, isLoading: visitsLoading } = useSiteVisits();
-  const { data: profiles, isLoading: profilesLoading } = useProfiles();
+  const { data: company } = useCurrentCompany();
 
-  const isLoading = leadsLoading || propertiesLoading || visitsLoading || profilesLoading;
+  const isLoading = leadsLoading || propertiesLoading || visitsLoading;
 
   if (isLoading) {
     return (
@@ -108,9 +107,28 @@ export function AnalyticsView() {
     };
   });
 
+  const currentDate = format(new Date(), 'EEEE, MMMM d, yyyy');
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Beautiful Banner */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background p-6 md:p-8">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shrink-0 shadow-lg">
+              <Home className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                Real Estate Analytics
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">{company?.name || 'Your Company'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{currentDate}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card-elevated p-6">

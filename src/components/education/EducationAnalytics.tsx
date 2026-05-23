@@ -3,6 +3,8 @@ import { useCourses } from '@/hooks/useCourses';
 import { useBatches } from '@/hooks/useBatches';
 import { useEnrollments } from '@/hooks/useEnrollments';
 import { useAttendance, useTeacherAttendance } from '@/hooks/useAttendance';
+import { useCurrentCompany } from '@/hooks/useCompany';
+import { useCurrentProfile } from '@/hooks/useProfiles';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
 import { TrendingUp, Users, GraduationCap, DollarSign, Calendar, BookOpen, Target, Award } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +17,8 @@ export function EducationAnalytics() {
   const { data: courses, isLoading: coursesLoading } = useCourses();
   const { data: batches, isLoading: batchesLoading } = useBatches();
   const { data: enrollments, isLoading: enrollmentsLoading } = useEnrollments();
+  const { data: company } = useCurrentCompany();
+  const { data: profile } = useCurrentProfile();
 
   const isLoading = studentsLoading || coursesLoading || batchesLoading || enrollmentsLoading;
 
@@ -112,8 +116,28 @@ export function EducationAnalytics() {
     };
   }).reverse();
 
+  const currentDate = format(new Date(), 'EEEE, MMMM d, yyyy');
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Beautiful Banner */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background p-6 md:p-8">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shrink-0 shadow-lg">
+              <GraduationCap className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                Education Analytics
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">{company?.name || 'Your Institute'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{currentDate}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card-elevated p-6">

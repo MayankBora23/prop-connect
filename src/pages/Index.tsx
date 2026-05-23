@@ -37,6 +37,7 @@ import { AddBatchDialog } from '@/components/education/AddBatchDialog';
 import { AddTeacherDialog } from '@/components/education/AddTeacherDialog';
 import { EducationAnalytics } from '@/components/education/EducationAnalytics';
 import { AutomobileDashboard } from '@/components/automobile/AutomobileDashboard';
+import { AutomobileAnalytics } from '@/components/automobile/AutomobileAnalytics';
 import { VehiclesView } from '@/components/automobile/VehiclesView';
 import { AutoLeadsView } from '@/components/automobile/AutoLeadsView';
 import { TestDrivesView } from '@/components/automobile/TestDrivesView';
@@ -392,7 +393,7 @@ const Index = () => {
         case 'team':
           return <TeamView />;
         case 'analytics':
-          return <AnalyticsView />;
+          return <AutomobileAnalytics />;
         case 'reports':
           return <TeamReportView />;
         case 'credits':

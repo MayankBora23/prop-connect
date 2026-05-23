@@ -1,8 +1,10 @@
-import { Users, TrendingUp, Calendar, CheckCircle2, XCircle, Flame, DollarSign, Wallet, CreditCard, Clock } from 'lucide-react';
+import { Users, TrendingUp, Calendar, CheckCircle2, XCircle, Flame, Wallet, CreditCard, Clock, Home } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { useLeads } from '@/hooks/useLeads';
 import { useFollowUps } from '@/hooks/useFollowUps';
 import { useSiteVisits } from '@/hooks/useSiteVisits';
+import { useCurrentCompany } from '@/hooks/useCompany';
+import { useCurrentProfile } from '@/hooks/useProfiles';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, startOfWeek, startOfMonth, startOfYear, isWithinInterval } from 'date-fns';
@@ -16,6 +18,8 @@ export function Dashboard() {
   const { data: leads, isLoading: leadsLoading } = useLeads();
   const { data: followUps, isLoading: followUpsLoading } = useFollowUps();
   const { data: siteVisits, isLoading: visitsLoading } = useSiteVisits();
+  const { data: company } = useCurrentCompany();
+  const { data: profile } = useCurrentProfile();
 
   const isLoading = leadsLoading || followUpsLoading || visitsLoading;
 
@@ -95,6 +99,7 @@ export function Dashboard() {
   }, 0);
 
   const totalPending = totalCommission - totalCollected;
+  const currentDate = format(new Date(), 'EEEE, MMMM d, yyyy');
 
   if (isLoading) {
     return (
@@ -114,6 +119,24 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Beautiful Banner */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background p-6 md:p-8">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shrink-0 shadow-lg">
+              <Home className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                Welcome back, {profile?.name || 'User'}!
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">{company?.name || 'Your Company'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{currentDate}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard
@@ -292,7 +315,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-sm truncate">{lead.name}</p>
-                  <p className="text-xs text-muted-foreground">{lead.property_type || 'Unknown'} • {lead.budget_max ? `₹${lead.budget_max.toLocaleString()}` : 'No budget'}</p>
+                  <p className="text-xs text-muted-foreground">{lead.property_type || 'Unknown'} • {lead.budget || 'No budget'}</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                   lead.stage === 'new' ? 'bg-info/10 text-info' :
