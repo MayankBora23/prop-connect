@@ -1,19 +1,64 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { clearCompanyIdCache } from './useTeamChat';
 import { useQueryClient } from '@tanstack/react-query';
 
+const PENDING_PASSWORD_SETUP_KEY = 'pending_password_setup';
+
+function isPasswordSetupUrl() {
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery') || hash.includes('type=invite')) {
+    return true;
+  }
+  if (window.location.pathname === '/auth') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('code') || params.has('token_hash')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function readPendingPasswordSetup() {
+  return isPasswordSetupUrl() || sessionStorage.getItem(PENDING_PASSWORD_SETUP_KEY) === 'true';
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingPasswordSetup, setPendingPasswordSetup] = useState(readPendingPasswordSetup);
   const queryClient = useQueryClient();
 
+  const markPendingPasswordSetup = useCallback(() => {
+    sessionStorage.setItem(PENDING_PASSWORD_SETUP_KEY, 'true');
+    setPendingPasswordSetup(true);
+  }, []);
+
+  const clearPendingPasswordSetup = useCallback(() => {
+    sessionStorage.removeItem(PENDING_PASSWORD_SETUP_KEY);
+    setPendingPasswordSetup(false);
+  }, []);
+
   useEffect(() => {
+    if (isPasswordSetupUrl()) {
+      markPendingPasswordSetup();
+    }
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          markPendingPasswordSetup();
+        } else if (
+          event === 'SIGNED_IN' &&
+          window.location.pathname === '/auth' &&
+          (isPasswordSetupUrl() || sessionStorage.getItem(PENDING_PASSWORD_SETUP_KEY) === 'true')
+        ) {
+          markPendingPasswordSetup();
+        }
+
         // Clear caches when auth state changes (login/logout/sign in different user)
         if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
           clearCompanyIdCache();
@@ -118,6 +163,9 @@ export function useAuth() {
     user,
     session,
     loading,
+    pendingPasswordSetup,
+    markPendingPasswordSetup,
+    clearPendingPasswordSetup,
     signIn,
     signUp,
     signOut,

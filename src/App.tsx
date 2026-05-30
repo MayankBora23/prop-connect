@@ -16,7 +16,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, pendingPasswordSetup } = useAuth();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const { data: company, isLoading: companyLoading } = useCurrentCompany();
 
@@ -44,11 +44,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
+  if (pendingPasswordSetup) {
+    return <Navigate to="/auth" replace />;
+  }
+
   return <>{children}</>;
 }
 
 function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, pendingPasswordSetup } = useAuth();
 
   if (loading) {
     return (
@@ -58,7 +62,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user) {
+  if (user && !pendingPasswordSetup) {
     return <Navigate to="/" replace />;
   }
 

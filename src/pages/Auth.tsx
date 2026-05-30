@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Mail, Lock, User, Briefcase, GraduationCap, Home, Car } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,10 +37,14 @@ export default function Auth() {
   const [industry, setIndustry] = useState<Industry>('real_estate');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isPasswordSetup, setIsPasswordSetup] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
-  const { signIn } = useAuth();
+  const { signIn, pendingPasswordSetup, markPendingPasswordSetup, clearPendingPasswordSetup } = useAuth();
+  const isPasswordSetup = pendingPasswordSetup;
   const createCompanyWithUser = useCreateCompanyWithUser();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -47,19 +52,35 @@ export default function Auth() {
   useEffect(() => {
     const hash = window.location.hash;
     if (hash.includes('type=recovery') || hash.includes('type=invite')) {
-      setIsPasswordSetup(true);
+      markPendingPasswordSetup();
       setIsLogin(true);
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setIsPasswordSetup(true);
+        markPendingPasswordSetup();
         setIsLogin(true);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [markPendingPasswordSetup]);
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    try {
+      await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+      setForgotSent(true);
+    } catch {
+      // Always show success — never reveal if email exists
+      setForgotSent(true);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +105,7 @@ export default function Auth() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
+      clearPendingPasswordSetup();
       toast({
         title: 'Password set',
         description: 'Your password is ready. You are now signed in.',
@@ -453,9 +475,94 @@ export default function Auth() {
                 </button>
               </p>
               )}
+
+              {isLogin && !isPasswordSetup && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(true);
+                    setForgotSent(false);
+                    setForgotEmail('');
+                  }}
+                  className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              )}
             </CardFooter>
           </form>
         </Card>
+
+        <Dialog
+          open={isForgotPassword}
+          onOpenChange={(open) => {
+            setIsForgotPassword(open);
+            setForgotSent(false);
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Reset your password</DialogTitle>
+              <DialogDescription>
+                Enter your email address and we&apos;ll send you a reset link.
+              </DialogDescription>
+            </DialogHeader>
+
+            {!forgotSent ? (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="pl-9"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleForgotPassword();
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full gradient-primary border-0"
+                  disabled={forgotLoading || !forgotEmail.trim()}
+                  onClick={handleForgotPassword}
+                >
+                  {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-4 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                  <Mail className="w-6 h-6 text-green-600" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  If an account exists for <strong>{forgotEmail}</strong>, a password reset link has been sent. Check
+                  your inbox and spam folder.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setForgotSent(false);
+                  }}
+                >
+                  Back to sign in
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

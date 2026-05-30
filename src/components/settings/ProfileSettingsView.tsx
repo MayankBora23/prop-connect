@@ -1,17 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useUpdateProfile } from '@/hooks/useProfiles';
 import { useTelephonySettings } from '@/hooks/useTelephonySettings';
 import { normalizeCallerDeskBridgeNumber } from '@/lib/callerdeskPhone';
 import { toast } from 'sonner';
-import { User, Loader2, Phone } from 'lucide-react';
+import { User, Loader2, Phone, Lock } from 'lucide-react';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -26,6 +28,10 @@ export function ProfileSettingsView() {
   const { data: telephonySettings } = useTelephonySettings();
   const updateProfile = useUpdateProfile();
   const telephonyProvider = telephonySettings?.telephony_provider ?? 'twilio';
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -46,6 +52,31 @@ export function ProfileSettingsView() {
       });
     }
   }, [profile, form]);
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success('Password changed successfully');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to change password';
+      setPasswordError(message);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const onSubmit = async (data: ProfileFormData) => {
     if (!profile?.id) return;
@@ -217,6 +248,56 @@ export function ProfileSettingsView() {
               </Button>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5" />
+            Change Password
+          </CardTitle>
+          <CardDescription>Update your login password</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="confirm-new-password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+          <Button
+            type="button"
+            onClick={handleChangePassword}
+            disabled={passwordLoading || !newPassword || !confirmNewPassword}
+            className="w-full"
+          >
+            {passwordLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Update Password
+          </Button>
         </CardContent>
       </Card>
     </div>
