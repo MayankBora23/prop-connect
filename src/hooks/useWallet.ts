@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Wallet, WalletTransaction, UsageLog, ServicePricing } from '@/types/credits';
@@ -78,6 +79,7 @@ export function useWallet() {
 }
 
 export interface WalletTransactionFilters {
+  type?: 'credit' | 'debit';
   provider?: 'twilio' | 'meta';
   service_type?: 'whatsapp' | 'call';
   date_from?: string;
@@ -96,9 +98,9 @@ export function useWalletTransactions(filters?: WalletTransactionFilters) {
         .from('wallet_transactions')
         .select('*')
         .eq('company_id', companyId)
-        .eq('type', 'debit')
         .order('created_at', { ascending: false });
 
+      if (filters?.type) q = q.eq('type', filters.type);
       if (filters?.provider) {
         q = q.eq('provider', filters.provider);
       }
@@ -297,6 +299,64 @@ export function useDailyCreditsLast30Days() {
       }
 
       return Array.from(map.entries()).map(([date, credits]) => ({ date, credits }));
+    },
+  });
+}
+
+async function readRazorpayOrderError(error: unknown): Promise<string | null> {
+  if (!(error instanceof FunctionsHttpError)) return null;
+  const ctx = error.context;
+  if (!(ctx instanceof Response)) return null;
+  try {
+    const text = (await ctx.text()).trim();
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text) as {
+        error?: string;
+        detail?: { error?: { description?: string } };
+      };
+      if (parsed.detail?.error?.description) return parsed.detail.error.description;
+      return parsed.error ?? text;
+    } catch {
+      return text;
+    }
+  } catch {
+    return null;
+  }
+}
+
+export function useCreateRazorpayOrder() {
+  return useMutation({
+    mutationFn: async (amount_inr: number) => {
+      const companyId = await getCompanyId();
+      if (!companyId) throw new Error('No company found');
+      const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
+        body: { company_id: companyId, amount_inr },
+      });
+      if (error) {
+        const msg = await readRazorpayOrderError(error);
+        throw new Error(msg ?? error.message);
+      }
+      const raw = (typeof data === 'string' ? JSON.parse(data) : data) as Record<string, unknown>;
+      const order_id = String(raw?.order_id ?? '');
+      const key_id = String(raw?.key_id ?? '');
+      const amount = Number(raw?.amount);
+      const currency = String(raw?.currency ?? 'INR');
+      if (!order_id || !key_id || !Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Invalid response from payment server');
+      }
+      return { order_id, amount, currency, key_id };
+    },
+  });
+}
+
+export function useConfirmRazorpayPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      await queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
     },
   });
 }

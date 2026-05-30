@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Car, Users, Calendar, Briefcase, TrendingUp, DollarSign, 
   CheckCircle, Clock, Flame, ShoppingCart, CreditCard, 
-  Package, PieChart, BarChart3, Activity, Gauge 
+  Package, PieChart, BarChart3, Activity, Gauge, Zap, AlertTriangle, Plus
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, BarChart, Bar, 
@@ -21,6 +21,8 @@ import {
 } from 'recharts';
 import { format, startOfToday, startOfWeek, startOfMonth, startOfYear, isWithinInterval } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
 
 export function AutomobileDashboard() {
   const { data: vehicles, isLoading: vehiclesLoading } = useVehicles();
@@ -86,73 +88,108 @@ export function AutomobileDashboard() {
   const todayTestDrives = testDrives?.filter(td =>
     new Date(td.test_drive_date).toDateString() === new Date().toDateString()
   ).length || 0;
-  const completedDeals = filteredDeals.filter(d => d.deal_status === 'completed').length;
+  // Count qualifying deals (completed/delivered/payment completed/delivery delivered)
+  const qualifyingDeals = filteredDeals.filter(d => 
+    d.deal_status === 'completed' || 
+    d.deal_status === 'delivered' ||
+    d.payment_status === 'completed' || 
+    d.delivery_status === 'delivered'
+  );
+  const completedDeals = qualifyingDeals.length;
   const totalDeals = deals?.length || 0;
-  const totalPayment = filteredDeals.reduce((sum, deal) => sum + deal.total_on_road_price, 0);
-  const collectedPayment = filteredDeals.reduce((sum, deal) => sum + deal.total_paid, 0);
+  const totalPayment = qualifyingDeals.reduce((sum, deal) => sum + (deal.total_on_road_price || 0), 0);
+  const collectedPayment = qualifyingDeals.reduce((sum, deal) => sum + (deal.total_paid || 0), 0);
   const remainingPayment = totalPayment - collectedPayment;
   const pendingDeliveries = filteredDeals.filter(d => d.delivery_status === 'pending').length;
-  const monthlyRevenue = filteredDeals.filter(d => d.deal_status === 'completed').reduce((sum, deal) => sum + deal.total_on_road_price, 0);
+  const monthlyRevenue = qualifyingDeals.reduce((sum, deal) => sum + (deal.total_on_road_price || 0), 0);
   const activeBookings = bookings?.filter(b => b.status === 'confirmed').length || 0;
 
-  // Mock data for charts
-  const revenueTrendData = [
-    { month: 'Jan', revenue: 450000 },
-    { month: 'Feb', revenue: 520000 },
-    { month: 'Mar', revenue: 480000 },
-    { month: 'Apr', revenue: 610000 },
-    { month: 'May', revenue: 580000 },
-    { month: 'Jun', revenue: 720000 },
-  ];
-
-  const vehicleSalesData = [
-    { month: 'Jan', sales: 12 },
-    { month: 'Feb', sales: 15 },
-    { month: 'Mar', sales: 11 },
-    { month: 'Apr', sales: 18 },
-    { month: 'May', sales: 16 },
-    { month: 'Jun', sales: 21 },
-  ];
+  // Real data for charts - last 6 months
+  const getMonthlyData = (monthOffset: number) => {
+    const now = new Date();
+    const targetDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+    const monthName = format(targetDate, 'MMM');
+    const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+    const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    
+    const allDeals = deals || [];
+    const monthDeals = allDeals.filter(deal => {
+      const isQualifying = 
+        deal.deal_status === 'completed' || 
+        deal.deal_status === 'delivered' ||
+        deal.payment_status === 'completed' || 
+        deal.delivery_status === 'delivered';
+      const dealDate = new Date(deal.updated_at || deal.created_at);
+      const isDateMatch = dealDate >= monthStart && dealDate <= monthEnd;
+      return isQualifying && isDateMatch;
+    });
+    
+    return {
+      month: monthName,
+      revenue: monthDeals.reduce((sum, deal) => sum + (deal.total_on_road_price || 0), 0),
+      sales: monthDeals.length,
+    };
+  };
+  
+  const revenueTrendData = Array.from({ length: 6 }).map((_, i) => getMonthlyData(5 - i));
+  const vehicleSalesData = revenueTrendData.map(d => ({ month: d.month, sales: d.sales }));
 
   const paymentCollectionData = [
     { name: 'Paid', value: collectedPayment, color: '#22c55e' },
-    { name: 'Partial', value: filteredDeals.filter(d => d.payment_status === 'partial').reduce((sum, d) => sum + d.total_paid, 0), color: '#eab308' },
+    { name: 'Partial', value: filteredDeals.filter(d => d.payment_status === 'partial').reduce((sum, d) => sum + (d.total_paid || 0), 0), color: '#eab308' },
     { name: 'Pending', value: remainingPayment, color: '#ef4444' },
   ].filter(item => item.value > 0);
 
   const leadConversionData = [
-    { name: 'New Lead', value: totalLeads },
-    { name: 'Follow-up', value: Math.round(totalLeads * 0.8) },
-    { name: 'Test Drive', value: Math.round(totalLeads * 0.6) },
-    { name: 'Booking', value: Math.round(totalLeads * 0.4) },
+    { name: 'New Lead', value: filteredLeads.filter(l => l.status === 'new').length },
+    { name: 'Follow-up', value: filteredLeads.filter(l => l.status === 'follow_up' || l.status === 'contacted').length },
+    { name: 'Test Drive', value: filteredTestDrives.length },
+    { name: 'Booking', value: activeBookings },
     { name: 'Delivered', value: completedDeals },
   ];
 
-  const dealPipelineData = [
-    { stage: 'New Lead', count: filteredLeads.filter(l => l.status === 'new').length, color: '#3b82f6' },
-    { stage: 'Contacted', count: filteredLeads.filter(l => l.status === 'contacted').length, color: '#8b5cf6' },
-    { stage: 'Interested', count: filteredLeads.filter(l => l.status === 'interested').length, color: '#06b6d4' },
-    { stage: 'Test Drive', count: filteredTestDrives.filter(td => td.status === 'scheduled').length, color: '#f59e0b' },
-    { stage: 'Negotiation', count: Math.round(filteredLeads.length * 0.2), color: '#ef4444' },
-    { stage: 'Booking', count: activeBookings, color: '#10b981' },
-    { stage: 'Delivery', count: pendingDeliveries, color: '#6366f1' },
-    { stage: 'Closed', count: completedDeals, color: '#14b8a6' },
-  ];
+  // Calculate Inventory Analytics
+  const totalInventoryValue = (vehicles || []).reduce((sum: number, v: any) => sum + (v.price || 0), 0) || 0;
+  const availableVehiclesList = (vehicles || []).filter((v: any) => v.status === 'available')
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4);
+  const recentlyAddedVehicles = (vehicles || [])
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4);
+  const brandCounts = (vehicles || []).reduce((acc: Record<string, number>, v: any) => {
+    acc[v.brand] = (acc[v.brand] || 0) + 1;
+    return acc;
+  }, {});
+  const lowStockBrands = Object.entries(brandCounts)
+    .filter(([_, count]) => (count as number) <= 2)
+    .map(([brand]) => brand);
 
-  const brandWiseInventory = useMemo(() => {
-    const brands: Record<string, number> = {};
-    vehicles?.forEach(vehicle => {
-      brands[vehicle.brand] = (brands[vehicle.brand] || 0) + 1;
-    });
-    return Object.entries(brands).map(([brand, count]) => ({ brand, count }));
-  }, [vehicles]);
+  // Vehicle category distribution
+  const vehicleCategories = (vehicles || []).reduce((acc: Record<string, number>, vehicle: any) => {
+    const category = vehicle.vehicle_type || 'Unknown';
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) || {};
 
+  const categoryDistributionData = Object.entries(vehicleCategories)
+    .map(([category, count]) => ({ 
+      category: category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()), 
+      count 
+    }))
+    .sort((a, b) => (b.count as number) - (a.count as number));
+
+  // Test Drive vs Booking Conversion
   const testDriveAnalytics = {
     total: testDrives?.length || 0,
     completed: testDrives?.filter(td => td.status === 'completed').length || 0,
     cancelled: testDrives?.filter(td => td.status === 'cancelled').length || 0,
     upcoming: testDrives?.filter(td => td.status === 'scheduled').length || 0,
   };
+
+  const testDriveBookingData = [
+    { name: 'Test Drives', value: testDrives?.length || 0, color: '#3b82f6' },
+    { name: 'Bookings', value: bookings?.length || 0, color: '#10b981' },
+  ];
 
   if (isLoading) {
     return (
@@ -412,6 +449,174 @@ export function AutomobileDashboard() {
           </div>
         </div>
 
+        {/* Category Distribution */}
+        <div className="card-elevated p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-foreground">Category Distribution</h3>
+              <p className="text-sm text-muted-foreground">By vehicle type</p>
+            </div>
+            <Package className="w-5 h-5 text-primary" />
+          </div>
+          <div className="h-64">
+            {categoryDistributionData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPie>
+                  <Pie
+                    data={categoryDistributionData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="count"
+                    nameKey="category"
+                    label={({ category, percent }) => `${category} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={false}
+                  >
+                    {categoryDistributionData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                </RechartsPie>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                No data available
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Inventory Analytics */}
+      <div className="space-y-6">
+        <h3 className="font-semibold text-foreground">Inventory Analytics</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Inventory Value */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-800 flex items-center justify-center shrink-0">
+                <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mt-3">Total Inventory Value</p>
+            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">₹{(totalInventoryValue / 10000000).toFixed(2)} Cr</p>
+          </div>
+
+          {/* Fast-moving */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <h4 className="text-sm font-medium text-foreground">Fast-moving</h4>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {availableVehiclesList.length === 0 ? 'No data' : `${availableVehiclesList.length} vehicles`}
+            </div>
+          </div>
+
+          {/* Unsold (Available) */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Car className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <h4 className="text-sm font-medium text-foreground">Unsold (available)</h4>
+            </div>
+            {availableVehiclesList.length > 0 ? (
+              <div className="space-y-2">
+                {availableVehiclesList.map((v: any) => (
+                  <div key={v.id} className="flex justify-between text-sm">
+                    <span className="text-foreground">
+                      {v.brand?.charAt(0).toUpperCase() + v.brand?.slice(1) || ''} {v.model?.charAt(0).toUpperCase() + v.model?.slice(1) || ''}
+                    </span>
+                    <span className="text-muted-foreground">₹{(v.price / 100000).toFixed(1)}L</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">No available vehicles</div>
+            )}
+          </div>
+
+          {/* Recently Added */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Car className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <h4 className="text-sm font-medium text-foreground">Recently added</h4>
+            </div>
+            {recentlyAddedVehicles.length > 0 ? (
+              <div className="space-y-2">
+                {recentlyAddedVehicles.map((v: any) => (
+                  <div key={v.id} className="flex justify-between text-sm">
+                    <span className="text-foreground">
+                      {v.brand?.charAt(0).toUpperCase() + v.brand?.slice(1) || ''} {v.model?.charAt(0).toUpperCase() + v.model?.slice(1) || ''}
+                    </span>
+                    <span className="text-muted-foreground">₹{(v.price / 100000).toFixed(1)}L</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">No recently added vehicles</div>
+            )}
+          </div>
+        </div>
+
+        {/* Low Stock Alert */}
+        {lowStockBrands.length > 0 && (
+          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-orange-900 dark:text-orange-100">Low stock alert</h4>
+                <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                  {lowStockBrands.map(brand => brand?.charAt(0).toUpperCase() + brand?.slice(1)).join(', ')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Test Drive vs Booking & Lead Conversion */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Test Drive vs Booking Conversion */}
+        <div className="card-elevated p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-foreground">Test Drive vs Booking</h3>
+              <p className="text-sm text-muted-foreground">Conversion overview</p>
+            </div>
+            <Activity className="w-5 h-5 text-info" />
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={testDriveBookingData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  {testDriveBookingData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         {/* Lead Conversion Funnel */}
         <div className="card-elevated p-6">
           <div className="flex items-center justify-between mb-4">
@@ -437,88 +642,31 @@ export function AutomobileDashboard() {
         </div>
       </div>
 
-      {/* Deal Pipeline Section */}
+      {/* Test Drive Analytics - Full Width */}
       <div className="card-elevated p-6">
-        <h3 className="font-semibold text-foreground mb-4">Deal Pipeline</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          {dealPipelineData.map((stage, index) => (
-            <div 
-              key={stage.stage} 
-              className="p-4 rounded-xl border border-border hover:shadow-lg transition-all hover:scale-105"
-            >
-              <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center mb-2"
-                style={{ backgroundColor: `${stage.color}20` }}
-              >
-                <div 
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: stage.color }}
-                />
-              </div>
-              <p className="text-sm font-medium text-foreground">{stage.stage}</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{stage.count}</p>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-foreground">Test Drive Analytics</h3>
+            <p className="text-sm text-muted-foreground">Test drive statistics</p>
+          </div>
+          <Calendar className="w-5 h-5 text-warning" />
         </div>
-      </div>
-
-      {/* Inventory Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-foreground">Brand-wise Inventory</h3>
-              <p className="text-sm text-muted-foreground">Vehicles by brand</p>
-            </div>
-            <Package className="w-5 h-5 text-primary" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-lg bg-blue-500/10">
+            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="text-2xl font-bold text-blue-600">{testDriveAnalytics.total}</p>
           </div>
-          <div className="h-64">
-            {brandWiseInventory.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={brandWiseInventory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="brand" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                  />
-                  <Bar dataKey="count" fill="hsl(230, 80%, 55%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                No inventory data available
-              </div>
-            )}
+          <div className="p-4 rounded-lg bg-green-500/10">
+            <p className="text-sm text-muted-foreground">Completed</p>
+            <p className="text-2xl font-bold text-green-600">{testDriveAnalytics.completed}</p>
           </div>
-        </div>
-
-        {/* Test Drive Analytics */}
-        <div className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-foreground">Test Drive Analytics</h3>
-              <p className="text-sm text-muted-foreground">Test drive statistics</p>
-            </div>
-            <Calendar className="w-5 h-5 text-warning" />
+          <div className="p-4 rounded-lg bg-red-500/10">
+            <p className="text-sm text-muted-foreground">Cancelled</p>
+            <p className="text-2xl font-bold text-red-600">{testDriveAnalytics.cancelled}</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-blue-500/10">
-              <p className="text-sm text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold text-blue-600">{testDriveAnalytics.total}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-green-500/10">
-              <p className="text-sm text-muted-foreground">Completed</p>
-              <p className="text-2xl font-bold text-green-600">{testDriveAnalytics.completed}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-red-500/10">
-              <p className="text-sm text-muted-foreground">Cancelled</p>
-              <p className="text-2xl font-bold text-red-600">{testDriveAnalytics.cancelled}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-yellow-500/10">
-              <p className="text-sm text-muted-foreground">Upcoming</p>
-              <p className="text-2xl font-bold text-yellow-600">{testDriveAnalytics.upcoming}</p>
-            </div>
+          <div className="p-4 rounded-lg bg-yellow-500/10">
+            <p className="text-sm text-muted-foreground">Upcoming</p>
+            <p className="text-2xl font-bold text-yellow-600">{testDriveAnalytics.upcoming}</p>
           </div>
         </div>
       </div>

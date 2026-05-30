@@ -396,6 +396,9 @@ export function CompanySettingsView() {
       const projectRef = url.hostname.split('.')[0];
       if (projectRef) {
         metaWhatsAppWebhookUrl = `https://${projectRef}.supabase.co/functions/v1/whatsapp-meta-webhook`;
+        if (company?.webhook_token) {
+          metaWhatsAppWebhookUrl += `?token=${company.webhook_token}`;
+        }
       }
     } catch {
       // keep placeholder
@@ -1000,19 +1003,24 @@ export function CompanySettingsView() {
                       />
                     </div>
 
-                    <div className="border-t pt-4 space-y-2">
-                      <p className="text-sm font-medium leading-none">Webhook URL</p>
-                      <div className="flex items-center gap-2">
-                        <Input readOnly value={metaWhatsAppWebhookUrl} className="font-mono text-xs" />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => copyToClipboard(metaWhatsAppWebhookUrl, 'Webhook URL')}
-                          disabled={!metaWhatsAppWebhookUrl}
-                          className="shrink-0"
-                        >
-                          Copy URL
-                        </Button>
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium leading-none">Meta Webhook URL</p>
+                        <div className="flex items-center gap-2">
+                          <Input readOnly value={metaWhatsAppWebhookUrl} className="font-mono text-xs" />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => copyToClipboard(metaWhatsAppWebhookUrl, 'Meta Webhook URL')}
+                            disabled={!metaWhatsAppWebhookUrl}
+                            className="shrink-0"
+                          >
+                            Copy Full Webhook URL
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Paste this complete URL (including token) in Meta Developers → Webhooks → WhatsApp Business Account → Callback URL
+                        </p>
                       </div>
                     </div>
 

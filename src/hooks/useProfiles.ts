@@ -8,6 +8,7 @@ export type ProfileUpdate = TablesUpdate<'profiles'>;
 
 export type ProfileWithRole = Profile & {
   role: AppRole | null;
+  agent_availability?: string | null;
 };
 
 export function useProfiles() {

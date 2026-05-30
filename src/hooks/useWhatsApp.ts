@@ -1,6 +1,13 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
+import type { Database } from '@/integrations/supabase/types'
 import { toast } from 'sonner'
+
+type WhatsAppConversationRow = Database['public']['Tables']['whatsapp_conversations']['Row']
+type WhatsAppConversationUpdate = Database['public']['Tables']['whatsapp_conversations']['Update']
+type ChatAssignmentHistoryInsert = Database['public']['Tables']['chat_assignment_history']['Insert']
+type ChatAssignmentHistoryRow = Database['public']['Tables']['chat_assignment_history']['Row']
 
 export interface WhatsAppSettings {
   id: string
@@ -32,6 +39,13 @@ export interface WhatsAppConversation {
   is_new_user?: boolean
   ai_enabled?: boolean
   current_step?: number
+  chat_status?: string
+  assigned_to?: string | null
+  assigned_by?: string | null
+  assigned_at?: string | null
+  human_requested_at?: string | null
+  agent_availability?: string | null
+  assigned_profile?: { id: string; name: string } | null
   // Real estate columns
   purpose?: string
   property_type?: string
@@ -65,6 +79,49 @@ export interface WhatsAppMessage {
 export interface WhatsAppMessageWithConversation extends WhatsAppMessage {
   whatsapp_conversations: WhatsAppConversation
   // reply_to_message removed to avoid complex nested selects in REST queries
+}
+
+export interface ChatAssignmentHistoryEntry {
+  id: string
+  company_id: string
+  conversation_id: string
+  action_type: string
+  old_assigned_to: string | null
+  new_assigned_to: string | null
+  changed_by: string | null
+  notes: string | null
+  created_at: string
+  changed_by_profile?: { id: string; name: string } | null
+  old_assigned_profile?: { id: string; name: string } | null
+  new_assigned_profile?: { id: string; name: string } | null
+}
+
+/** Drop duplicate rows (same Twilio/Meta message_sid, or same id). */
+function dedupeWhatsAppMessages<T extends { id: string; message_sid?: string | null }>(
+  messages: T[]
+): T[] {
+  const seen = new Set<string>()
+  const result: T[] = []
+  for (const msg of messages) {
+    const key = msg.message_sid || msg.id
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(msg)
+  }
+  return result
+}
+
+async function getCurrentProfileId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  return profile?.id ?? null
 }
 
 // WhatsApp Settings Hooks
@@ -161,7 +218,32 @@ export function useWhatsAppConversations() {
         .order('last_message_at', { ascending: false })
 
       if (error) throw error
-      return data as WhatsAppConversation[]
+
+      const rows = (data || []) as WhatsAppConversationRow[]
+      if (rows.length === 0) return [] as WhatsAppConversation[]
+
+      const assignedIds = [
+        ...new Set(rows.map((c) => c.assigned_to).filter((id): id is string => !!id)),
+      ]
+
+      const profileMap = new Map<string, { id: string; name: string }>()
+      if (assignedIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', assignedIds)
+
+        for (const profile of profiles || []) {
+          profileMap.set(profile.id, { id: profile.id, name: profile.name || '' })
+        }
+      }
+
+      return rows.map((conv) => ({
+        ...conv,
+        assigned_profile: conv.assigned_to
+          ? profileMap.get(conv.assigned_to) ?? null
+          : null,
+      })) as WhatsAppConversation[]
     },
   })
 }
@@ -354,7 +436,7 @@ export function useWhatsAppMessages(conversationId: string) {
       const replySids = Array.from(new Set(msgs.map(m => m.reply_to_message_sid).filter(Boolean))) as string[]
 
       if (replyIds.length === 0 && replySids.length === 0) {
-        return msgs
+        return dedupeWhatsAppMessages(msgs)
       }
 
       // Fetch replied-to messages by id
@@ -378,7 +460,7 @@ export function useWhatsAppMessages(conversationId: string) {
 
       if (repliesError) {
         console.warn('Failed to fetch reply messages:', repliesError)
-        return msgs
+        return dedupeWhatsAppMessages(msgs)
       }
 
       const combinedReplies = [...(byIdResult.data || []), ...(bySidResult.data || [])] as any[]
@@ -399,7 +481,7 @@ export function useWhatsAppMessages(conversationId: string) {
         return m
       })
 
-      return augmented
+      return dedupeWhatsAppMessages(augmented)
     },
     enabled: !!conversationId,
   })
@@ -480,7 +562,7 @@ export function useWhatsAppMessagesRealtime(conversationId: string) {
       const replySids = Array.from(new Set(msgs.map(m => m.reply_to_message_sid).filter(Boolean))) as string[]
 
       if (replyIds.length === 0 && replySids.length === 0) {
-        return { data: msgs, subscription }
+        return { data: dedupeWhatsAppMessages(msgs), subscription }
       }
 
       const repliesByIdPromise = replyIds.length > 0
@@ -502,7 +584,7 @@ export function useWhatsAppMessagesRealtime(conversationId: string) {
 
       if (repliesError) {
         console.warn('Failed to fetch reply messages:', repliesError)
-        return { data: msgs, subscription }
+        return { data: dedupeWhatsAppMessages(msgs), subscription }
       }
 
       const combinedReplies = [...(byIdResult.data || []), ...(bySidResult.data || [])] as any[]
@@ -523,10 +605,377 @@ export function useWhatsAppMessagesRealtime(conversationId: string) {
       })
 
       return {
-        data: augmented,
+        data: dedupeWhatsAppMessages(augmented),
         subscription,
       }
     },
     enabled: !!conversationId,
+  })
+}
+
+export function useConversationRealtime(conversationId: string) {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (!conversationId) return
+
+    const channel = supabase
+      .channel(`whatsapp-conversation-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+          filter: `id=eq.${conversationId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversation', conversationId] })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [conversationId, queryClient])
+}
+
+export function useToggleAI() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ conversationId, enabled }: { conversationId: string; enabled: boolean }) => {
+      const profileId = await getCurrentProfileId()
+
+      const { data: currentRaw, error: fetchError } = await supabase
+        .from('whatsapp_conversations')
+        .select('company_id, chat_status')
+        .eq('id', conversationId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const current = currentRaw as Pick<WhatsAppConversationRow, 'company_id' | 'chat_status'>
+
+      const chatStatus = enabled
+        ? 'ai_handling'
+        : current.chat_status === 'assigned'
+          ? 'assigned'
+          : 'pending'
+
+      const updates: WhatsAppConversationUpdate = {
+        ai_enabled: enabled,
+        chat_status: chatStatus,
+      }
+
+      const { data, error } = await supabase
+        .from('whatsapp_conversations')
+        .update(updates)
+        .eq('id', conversationId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const historyRow: ChatAssignmentHistoryInsert = {
+        company_id: current.company_id,
+        conversation_id: conversationId,
+        action_type: 'ai_toggled',
+        changed_by: profileId,
+        notes: enabled ? 'AI enabled' : 'AI disabled',
+      }
+      await supabase.from('chat_assignment_history').insert(historyRow)
+
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+      toast.success('AI setting updated')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update AI setting')
+    },
+  })
+}
+
+export function useAssignChat() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      conversationId,
+      assignToProfileId,
+      companyId,
+    }: {
+      conversationId: string
+      assignToProfileId: string | null
+      companyId: string
+    }) => {
+      const profileId = await getCurrentProfileId()
+
+      const { data: currentRaw, error: fetchError } = await supabase
+        .from('whatsapp_conversations')
+        .select('assigned_to')
+        .eq('id', conversationId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const current = currentRaw as Pick<WhatsAppConversationRow, 'assigned_to'>
+      const oldAssignedTo = current.assigned_to
+      let actionType: string
+
+      if (!assignToProfileId) {
+        actionType = 'unassigned'
+        const unassignUpdates: WhatsAppConversationUpdate = {
+          assigned_to: null,
+          assigned_by: null,
+          assigned_at: null,
+          chat_status: 'pending',
+        }
+        const { error } = await supabase
+          .from('whatsapp_conversations')
+          .update(unassignUpdates)
+          .eq('id', conversationId)
+
+        if (error) throw error
+      } else {
+        actionType =
+          oldAssignedTo && oldAssignedTo !== assignToProfileId ? 'reassigned' : 'assigned'
+
+        const assignUpdates: WhatsAppConversationUpdate = {
+          assigned_to: assignToProfileId,
+          assigned_by: profileId,
+          assigned_at: new Date().toISOString(),
+          chat_status: 'assigned',
+          ai_enabled: false,
+        }
+        const { error } = await supabase
+          .from('whatsapp_conversations')
+          .update(assignUpdates)
+          .eq('id', conversationId)
+
+        if (error) throw error
+
+        const { data: assigneeProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('id', assignToProfileId)
+          .maybeSingle()
+
+        if (assigneeProfile?.user_id) {
+          const { error: notifError } = await (supabase as any).from('notifications').insert({
+            user_id: assigneeProfile.user_id,
+            type: 'system_alert',
+            title: 'Chat Assigned to You',
+            message: 'A WhatsApp conversation has been assigned to you',
+            related_id: conversationId,
+            company_id: companyId,
+            read: false,
+          })
+          if (notifError) throw notifError
+        }
+      }
+
+      const historyRow: ChatAssignmentHistoryInsert = {
+        company_id: companyId,
+        conversation_id: conversationId,
+        action_type: actionType,
+        old_assigned_to: oldAssignedTo,
+        new_assigned_to: assignToProfileId,
+        changed_by: profileId,
+      }
+      await supabase.from('chat_assignment_history').insert(historyRow)
+
+      return { conversationId }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+      toast.success('Chat assignment updated')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to assign chat')
+    },
+  })
+}
+
+export function useUpdateAgentAvailability() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ availability }: { availability: 'available' | 'busy' | 'offline' }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ agent_availability: availability })
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['currentProfile'] })
+      queryClient.invalidateQueries({ queryKey: ['team-members'] })
+      if (variables.availability === 'offline') {
+        toast('Tip: Enable AI auto-handling to ensure customers get responses while you\'re offline.')
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update availability')
+    },
+  })
+}
+
+export function useChatAssignmentHistory(conversationId: string) {
+  return useQuery({
+    queryKey: ['chat-assignment-history', conversationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chat_assignment_history')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const rows = (data || []) as ChatAssignmentHistoryRow[]
+      if (rows.length === 0) return [] as ChatAssignmentHistoryEntry[]
+
+      const profileIds = [
+        ...new Set(
+          rows
+            .flatMap((r) => [r.changed_by, r.old_assigned_to, r.new_assigned_to])
+            .filter((id): id is string => !!id)
+        ),
+      ]
+
+      const profileMap = new Map<string, { id: string; name: string }>()
+      if (profileIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', profileIds)
+
+        for (const profile of profiles || []) {
+          profileMap.set(profile.id, { id: profile.id, name: profile.name || '' })
+        }
+      }
+
+      return rows.map((entry) => ({
+        ...entry,
+        changed_by_profile: entry.changed_by
+          ? profileMap.get(entry.changed_by) ?? null
+          : null,
+        old_assigned_profile: entry.old_assigned_to
+          ? profileMap.get(entry.old_assigned_to) ?? null
+          : null,
+        new_assigned_profile: entry.new_assigned_to
+          ? profileMap.get(entry.new_assigned_to) ?? null
+          : null,
+      })) as ChatAssignmentHistoryEntry[]
+    },
+    enabled: !!conversationId,
+  })
+}
+
+export function useHumanTakeover() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ conversationId, companyId }: { conversationId: string; companyId: string }) => {
+      const profileId = await getCurrentProfileId()
+
+      const { data: currentRaw, error: fetchError } = await supabase
+        .from('whatsapp_conversations')
+        .select('assigned_to')
+        .eq('id', conversationId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const current = currentRaw as Pick<WhatsAppConversationRow, 'assigned_to'>
+
+      const takeoverUpdates: WhatsAppConversationUpdate = {
+        ai_enabled: false,
+        chat_status: 'human_requested',
+        human_requested_at: new Date().toISOString(),
+      }
+
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update(takeoverUpdates)
+        .eq('id', conversationId)
+
+      if (error) throw error
+
+      const historyRow: ChatAssignmentHistoryInsert = {
+        company_id: companyId,
+        conversation_id: conversationId,
+        action_type: 'human_requested',
+        changed_by: profileId,
+      }
+      await supabase.from('chat_assignment_history').insert(historyRow)
+
+      if (current.assigned_to) {
+        const { data: assigneeProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('id', current.assigned_to)
+          .maybeSingle()
+
+        if (assigneeProfile?.user_id) {
+          await (supabase as any).from('notifications').insert({
+            user_id: assigneeProfile.user_id,
+            type: 'system_alert',
+            title: 'Human Support Requested',
+            message: 'Customer requested human agent in WhatsApp chat',
+            related_id: conversationId,
+            company_id: companyId,
+            read: false,
+          })
+        }
+      }
+
+      const { data: adminRoles, error: arErr } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('company_id', companyId)
+        .in('role', ['super_admin', 'admin'])
+
+      if (arErr) throw arErr
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const notifRows = (adminRoles || [])
+        .filter((r) => r.user_id && r.user_id !== user?.id)
+        .map((r) => ({
+          user_id: r.user_id as string,
+          type: 'system_alert' as const,
+          title: 'Human Support Requested',
+          message: 'Customer requested human agent in WhatsApp chat',
+          related_id: conversationId,
+          company_id: companyId,
+          read: false,
+        }))
+
+      if (notifRows.length > 0) {
+        const { error: nErr } = await (supabase as any).from('notifications').insert(notifRows)
+        if (nErr) throw nErr
+      }
+
+      return { conversationId }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to request human takeover')
+    },
   })
 }

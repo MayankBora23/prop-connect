@@ -15,11 +15,27 @@ verify_jwt = false
 [functions.party-lead-webhook]
 verify_jwt = false
 
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.whatsapp-meta-webhook]
+verify_jwt = false
+
+[functions.send-whatsapp-message]
+verify_jwt = false
+
 [functions.check-balance]
 verify_jwt = false
 
 [functions.deduct-credits]
 verify_jwt = false
 
+[functions.create-razorpay-order]
+verify_jwt = true
+
+[functions.razorpay-webhook]
+verify_jwt = false
+
 [functions.invite-team-member]
 verify_jwt = true
+

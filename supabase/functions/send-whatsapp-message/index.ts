@@ -43,6 +43,10 @@ function pricingDestinationCountry(provider: WhatsappProvider, rawCountry: strin
   return rawCountry
 }
 
+function normalizeMetaRecipient(raw: string): string {
+  return raw.replace(/[^\d]/g, '')
+}
+
 async function postEdgeFunction<T>(functionName: string, payload: Record<string, unknown>): Promise<T> {
   const base = Deno.env.get('SUPABASE_URL') ?? ''
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -154,54 +158,10 @@ serve(async (req) => {
 
     const to_number = conversation.contact_phone
     const destination_country_raw = getCountryCode(to_number)
-    const pricing_country = pricingDestinationCountry(provider, destination_country_raw)
-
-    const { data: priceRow, error: priceErr } = await supabase
-      .from('service_pricing')
-      .select('client_price_inr')
-      .eq('provider', provider)
-      .eq('service_type', 'whatsapp')
-      .eq('destination_country', pricing_country)
-      .eq('message_category', message_category)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (priceErr || !priceRow) {
-      console.error('service_pricing lookup failed:', priceErr, {
-        provider,
-        pricing_country,
-        message_category,
-      })
-      return new Response(
-        JSON.stringify({ error: 'pricing_not_found', destination_country: pricing_country, message_category }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const client_price_inr = Number(priceRow.client_price_inr)
-
-    const balanceCheck = await postEdgeFunction<{
-      allowed?: boolean
-      reason?: string
-      balance?: number
-      min_threshold?: number
-    }>('check-balance', {
-      company_id: conversation.company_id,
-      provider,
-      service_type: 'whatsapp',
-      estimated_cost_inr: client_price_inr,
-    })
-
-    if (!balanceCheck.allowed) {
-      return new Response(
-        JSON.stringify({
-          error: balanceCheck.reason ?? 'insufficient_balance',
-          balance: balanceCheck.balance,
-          min_threshold: balanceCheck.min_threshold,
-        }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    // NOTE: Wallet/balance enforcement removed.
+    // We still keep destination country normalization (used by logs/analytics elsewhere).
+    // Pricing + balance checks are intentionally bypassed to avoid blocking sends.
+    const _pricing_country = pricingDestinationCountry(provider, destination_country_raw)
 
     // Build message body for Twilio, including quoted reply context if provided
     const twilioBody = body || ''
@@ -310,21 +270,6 @@ serve(async (req) => {
       console.log('Meta message sent successfully:', outboundMessageSid)
     }
 
-    if (outboundMessageSid) {
-      const deduct = await postEdgeFunction<{ success?: boolean; reason?: string }>('deduct-credits', {
-        company_id: conversation.company_id,
-        provider,
-        service_type: 'whatsapp',
-        destination_country: destination_country_raw,
-        message_category,
-        usage_quantity: 1,
-        reference_id: outboundMessageSid,
-      })
-      if (!deduct.success) {
-        console.error('deduct-credits failed after send:', deduct)
-      }
-    }
-
     // Store the sent message in database
     const messageDataToInsert: any = {
       conversation_id: conversation_id,
@@ -390,6 +335,7 @@ async function sendMetaWhatsAppMessage(params: {
     const { phoneNumberId, accessToken, to, body, fileUrl, fileName, fileType } = params
 
     const toE164 = to.trim().startsWith('+') ? to.trim() : `+${to.trim()}`
+    const toMeta = normalizeMetaRecipient(toE164)
     const trimmedBody = body ?? ''
 
     let payload: any
@@ -401,7 +347,7 @@ async function sendMetaWhatsAppMessage(params: {
         payload = {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: toE164,
+          to: toMeta,
           type: 'image',
           image: {
             link: fileUrl,
@@ -413,7 +359,7 @@ async function sendMetaWhatsAppMessage(params: {
         payload = {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: toE164,
+          to: toMeta,
           type: 'document',
           document: {
             link: fileUrl,
@@ -426,7 +372,7 @@ async function sendMetaWhatsAppMessage(params: {
       payload = {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to: toE164,
+        to: toMeta,
         type: 'text',
         text: {
           body: trimmedBody,

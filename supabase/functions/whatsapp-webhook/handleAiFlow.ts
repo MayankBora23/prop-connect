@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.21.0'
+import { sendWhatsAppMessage, type WhatsappProvider } from './sendWhatsAppMessage.ts'
+import { processHumanTakeover } from './humanTakeover.ts'
 
-export type WhatsappProvider = 'twilio' | 'meta'
+export type { WhatsappProvider } from './sendWhatsAppMessage.ts'
 
 interface TwilioWebhookPayload {
   To: string
@@ -24,8 +26,8 @@ interface TwilioWhatsAppSettings {
 
 interface MetaWhatsAppSettings {
   company_id: string
-  meta_phone_number_id: string
-  meta_access_token: string
+  meta_phone_number_id: string | null
+  meta_access_token: string | null
 }
 
 type WhatsAppSettings = TwilioWhatsAppSettings | MetaWhatsAppSettings
@@ -213,54 +215,23 @@ export async function handleAiFlow({
     // Get industry-specific step configurations
     const STEP_CONFIGS = getStepConfigs(industry)
 
-    // Log the incoming user message to whatsapp_messages.
-    // Note: Twilio webhook also writes an incoming row before calling this flow,
-    // so this intentionally keeps the same behavior.
-    try {
-      const { error: logError } = await supabase
-        .from('whatsapp_messages')
-        .insert({
-          conversation_id: conversationId,
-          company_id: whatsappSettings.company_id,
-          direction: 'incoming',
-          body: payload.Body,
-          status: 'delivered',
-          message_sid: payload.MessageSid
-        })
-
-      if (logError) {
-        console.error('❌ Failed to log incoming message:', logError)
-      } else {
-        console.log('✅ Incoming user message logged to database')
-      }
-    } catch (logError) {
-      console.error('💥 Error logging incoming message:', logError)
-    }
+    // Incoming message is stored by whatsapp-webhook / whatsapp-meta-webhook before handleAiFlow runs.
 
     const userInput = payload.Body.trim().toLowerCase()
 
-    // Safety check: If user types "agent" or "help", exit AI flow
+    // Safety check: exact "agent" / "help" (webhook keyword list uses phrases like "help me")
     if (userInput === 'agent' || userInput === 'help') {
-      console.log('User requested agent help, exiting AI flow')
-      await supabase
-        .from('whatsapp_conversations')
-        .update({ ai_enabled: false })
-        .eq('id', conversationId)
-
-      // Send confirmation message
-      const confirmationMessage = "I've connected you with our human agent. They'll assist you shortly."
-      await sendWhatsAppMessage(whatsappSettings, provider, payload.From, confirmationMessage, accountSid)
-
-      // Store bot response in database
-      await supabase.from("whatsapp_messages").insert({
-        conversation_id: conversationId,
-        company_id: whatsappSettings.company_id,
-        body: confirmationMessage,
-        direction: 'outgoing',
-        status: 'sent'
+      await processHumanTakeover({
+        supabase,
+        conversationId,
+        companyId: whatsappSettings.company_id,
+        assignedTo: (conversationData as { assigned_to?: string | null }).assigned_to ?? null,
+        chatStatus: (conversationData as { chat_status?: string | null }).chat_status ?? null,
+        recipientAddress: payload.From,
+        whatsappSettings,
+        provider,
+        accountSid,
       })
-      console.log('✅ Agent bypass message stored in whatsapp_messages table')
-
       return new Response('', { status: 200, headers: corsHeaders })
     }
 
@@ -689,76 +660,6 @@ async function sendStepMessage(
     console.log('✅ Bot response stored in whatsapp_messages table')
   } catch (error) {
     console.error('❌ Error in sendStepMessage:', error)
-  }
-}
-
-async function sendWhatsAppMessage(
-  whatsappSettings: WhatsAppSettings,
-  provider: WhatsappProvider,
-  to: string,
-  message: string,
-  accountSid?: string
-) {
-  if (provider === 'twilio') {
-    if (!accountSid) {
-      throw new Error('Missing accountSid for Twilio send')
-    }
-
-    const twilioSettings = whatsappSettings as TwilioWhatsAppSettings
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
-
-    const formData = new FormData()
-    formData.append('To', to)
-    formData.append('From', `whatsapp:${twilioSettings.whatsapp_number}`)
-    formData.append('Body', message)
-
-    const response = await fetch(twilioUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${btoa(`${accountSid}:${twilioSettings.twilio_auth_token}`)}`
-      },
-      body: formData
-    })
-
-    if (!response.ok) {
-      console.error('Failed to send WhatsApp message:', response.statusText)
-      const errorText = await response.text()
-      console.error('Twilio error details:', errorText)
-      throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
-    }
-
-    return
-  }
-
-  // Meta provider
-  const metaSettings = whatsappSettings as MetaWhatsAppSettings
-
-  const toTrimmed = to.trim()
-  const recipientRaw = toTrimmed.startsWith('whatsapp:') ? toTrimmed.replace('whatsapp:', '') : toTrimmed
-  const toE164 = recipientRaw.startsWith('+') ? recipientRaw : `+${recipientRaw}`
-
-  const url = `https://graph.facebook.com/v18.0/${metaSettings.meta_phone_number_id}/messages`
-
-  const payload = {
-    messaging_product: 'whatsapp',
-    recipient_type: 'individual',
-    to: toE164,
-    type: 'text',
-    text: { body: message },
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${metaSettings.meta_access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Meta API error: HTTP ${response.status}: ${errorText}`)
   }
 }
 

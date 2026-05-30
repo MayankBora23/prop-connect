@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useWhatsAppConversations,
@@ -7,9 +7,14 @@ import {
   useWhatsAppMessagesRealtime,
   useDeleteWhatsAppConversation,
   useClearWhatsAppChat,
-  useDeleteWhatsAppMessage
+  useDeleteWhatsAppMessage,
+  useConversationRealtime,
 } from '@/hooks/useWhatsApp';
+import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useLeads } from '@/hooks/useLeads';
+import { ChatHeaderControls } from './ChatHeaderControls';
+import { HumanTakeoverBanner } from './HumanTakeoverBanner';
+import { AgentAvailabilitySelector } from './AgentAvailabilitySelector';
 import { cn } from '@/lib/utils';
 import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, User, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Home, SendHorizontal, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,6 +52,11 @@ export function WhatsAppInbox() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [replyToMessage, setReplyToMessage] = useState<WhatsAppMessage | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const { data: currentProfile } = useCurrentProfile();
+  const currentUserRole = currentProfile?.role || 'sales';
+  const currentProfileId = currentProfile?.id || '';
 
   // Filter states for bulk send
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>('all');
@@ -129,6 +139,21 @@ export function WhatsAppInbox() {
   const activeConversation = selectedConversationId ? conversations?.find(c => c.id === selectedConversationId) : null;
   const activeMessages = messagesData?.data || [];
   const [missingOriginals, setMissingOriginals] = useState<Record<string, boolean>>({});
+
+  useConversationRealtime(selectedConversationId || '');
+
+  useEffect(() => {
+    setBannerDismissed(false);
+  }, [selectedConversationId]);
+
+  const canSendMessage = useMemo(() => {
+    if (!activeConversation) return false;
+    if (['super_admin', 'admin', 'manager'].includes(currentUserRole)) return true;
+    if (activeConversation.chat_status === 'ai_handling') return false;
+    if (activeConversation.assigned_to === currentProfileId) return true;
+    if (!activeConversation.assigned_to) return true;
+    return false;
+  }, [activeConversation, currentUserRole, currentProfileId]);
 
   const handleFileSelect = (files: FileList | null) => {
     if (files) {
@@ -373,7 +398,7 @@ export function WhatsAppInbox() {
       }
 
       const filterBudgetValue = budgetFilter ? parseBudgetString(budgetFilter) : null;
-      const leadBudgetValue = (lead as any).budget ? parseBudgetString((lead as any).budget) : (lead.budget_max || 0);
+      const leadBudgetValue = lead.budget ? parseBudgetString(lead.budget) : 0;
 
       if (filterBudgetValue !== null && leadBudgetValue < filterBudgetValue) {
         return false;
@@ -519,7 +544,7 @@ export function WhatsAppInbox() {
   };
 
   const handleSendMessage = async () => {
-    if ((!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId) return;
+    if ((!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendMessage) return;
 
     try {
       let fileUrls: string[] = [];
@@ -617,6 +642,7 @@ export function WhatsAppInbox() {
         <div className="p-4 border-b border-border space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground flex-1">Conversations</h2>
+            <AgentAvailabilitySelector />
             <Button
               variant="ghost"
               size="sm"
@@ -704,6 +730,14 @@ export function WhatsAppInbox() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {activeConversation && currentProfile?.company_id && (
+                <ChatHeaderControls
+                  conversation={activeConversation}
+                  companyId={currentProfile.company_id}
+                  currentUserRole={currentUserRole}
+                  currentProfileId={currentProfileId}
+                />
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -746,6 +780,14 @@ export function WhatsAppInbox() {
               </DropdownMenu>
             </div>
           </div>
+
+          {activeConversation && currentProfile?.company_id && !bannerDismissed && (
+            <HumanTakeoverBanner
+              conversation={activeConversation}
+              companyId={currentProfile.company_id}
+              onDismiss={() => setBannerDismissed(true)}
+            />
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-secondary/30">
@@ -907,12 +949,17 @@ export function WhatsAppInbox() {
 
           {/* Input Area */}
           <div className="p-4 border-t border-border bg-card">
+            {!canSendMessage && activeConversation?.assigned_to && (
+              <div className="mb-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                This chat is assigned to {activeConversation.assigned_profile?.name || 'another agent'}. Only they can reply.
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPropertySuggestionsOpen(true)}
                 className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
                 title="Send property suggestion"
-                disabled={!selectedConversationId}
+                disabled={!selectedConversationId || !canSendMessage}
               >
                 <Home className="w-5 h-5" />
               </button>
@@ -942,13 +989,14 @@ export function WhatsAppInbox() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder={selectedFiles.length > 0 ? `Sending ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}...` : "Type a message..."}
                 className="flex-1"
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                disabled={!canSendMessage}
+                onKeyDown={(e) => e.key === 'Enter' && canSendMessage && handleSendMessage()}
               />
               <Button
                 size="icon"
                 className="gradient-primary border-0 rounded-full"
                 onClick={handleSendMessage}
-                disabled={createMessage.isPending || (!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId}
+                disabled={createMessage.isPending || (!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendMessage}
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -1377,8 +1425,8 @@ export function WhatsAppInbox() {
                               const cleanLeadPhone = lead.phone.replace(/^\+91/, '').replace(/\D/g, '');
                               return cleanLeadPhone === cleanConvPhone;
                             });
-                            if (lead?.city) {
-                              return <span className="ml-1">• {lead.city}</span>;
+                            if (lead?.location) {
+                              return <span className="ml-1">• {lead.location}</span>;
                             }
                             return null;
                           })()}

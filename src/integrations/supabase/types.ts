@@ -336,6 +336,7 @@ export interface Database {
       }
       profiles: {
         Row: {
+          agent_availability: string | null
           agent_identity: string | null
           company_id: string | null
           created_at: string
@@ -347,6 +348,7 @@ export interface Database {
           allow_login: boolean
         }
         Insert: {
+          agent_availability?: string | null
           agent_identity?: string | null
           company_id?: string | null
           created_at?: string
@@ -358,6 +360,7 @@ export interface Database {
           allow_login?: boolean
         }
         Update: {
+          agent_availability?: string | null
           agent_identity?: string | null
           company_id?: string | null
           created_at?: string
@@ -1005,6 +1008,78 @@ export interface Database {
           }
         ]
       }
+      chat_assignment_history: {
+        Row: {
+          id: string
+          company_id: string
+          conversation_id: string
+          action_type: string
+          old_assigned_to: string | null
+          new_assigned_to: string | null
+          changed_by: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          conversation_id: string
+          action_type: string
+          old_assigned_to?: string | null
+          new_assigned_to?: string | null
+          changed_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          conversation_id?: string
+          action_type?: string
+          old_assigned_to?: string | null
+          new_assigned_to?: string | null
+          changed_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_assignment_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_assignment_history_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_assignment_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_assignment_history_old_assigned_to_fkey"
+            columns: ["old_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_assignment_history_new_assigned_to_fkey"
+            columns: ["new_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversations: {
         Row: {
           id: string
@@ -1014,6 +1089,24 @@ export interface Database {
           last_message_at: string
           created_at: string
           updated_at: string
+          is_new_user: boolean | null
+          ai_enabled: boolean | null
+          current_step: number | null
+          purpose: string | null
+          property_type: string | null
+          budget: string | null
+          location: string | null
+          vehicle_type: string | null
+          brand: string | null
+          interest: string | null
+          course: string | null
+          study_mode: string | null
+          chat_status: string
+          assigned_to: string | null
+          assigned_by: string | null
+          assigned_at: string | null
+          human_requested_at: string | null
+          agent_availability: string | null
         }
         Insert: {
           id?: string
@@ -1023,6 +1116,24 @@ export interface Database {
           last_message_at?: string
           created_at?: string
           updated_at?: string
+          is_new_user?: boolean | null
+          ai_enabled?: boolean | null
+          current_step?: number | null
+          purpose?: string | null
+          property_type?: string | null
+          budget?: string | null
+          location?: string | null
+          vehicle_type?: string | null
+          brand?: string | null
+          interest?: string | null
+          course?: string | null
+          study_mode?: string | null
+          chat_status?: string
+          assigned_to?: string | null
+          assigned_by?: string | null
+          assigned_at?: string | null
+          human_requested_at?: string | null
+          agent_availability?: string | null
         }
         Update: {
           id?: string
@@ -1032,6 +1143,24 @@ export interface Database {
           last_message_at?: string
           created_at?: string
           updated_at?: string
+          is_new_user?: boolean | null
+          ai_enabled?: boolean | null
+          current_step?: number | null
+          purpose?: string | null
+          property_type?: string | null
+          budget?: string | null
+          location?: string | null
+          vehicle_type?: string | null
+          brand?: string | null
+          interest?: string | null
+          course?: string | null
+          study_mode?: string | null
+          chat_status?: string
+          assigned_to?: string | null
+          assigned_by?: string | null
+          assigned_at?: string | null
+          human_requested_at?: string | null
+          agent_availability?: string | null
         }
         Relationships: [
           {
@@ -1040,7 +1169,21 @@ export interface Database {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
-          }
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_messages: {

@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 // @ts-ignore Deno URL import (resolved in Supabase Edge runtime)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { handleAiFlow } from './handleAiFlow.ts'
+import { containsHumanKeyword, processHumanTakeover } from './humanTakeover.ts'
 
 declare const Deno: {
   env: {
@@ -28,7 +29,7 @@ interface TwilioWebhookPayload {
   ProfileName?: string
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -93,6 +94,8 @@ serve(async (req) => {
     }
 
     // Log full incoming form data for debugging (includes possible replied SID fields)
+    const tempContactPhone = payload.From.replace('whatsapp:', '')
+    console.log(`Real incoming message received from ${tempContactPhone}: ${payload.Body}`)
     console.log('Received WhatsApp webhook:', payload)
     // Log raw form entries
     try {
@@ -225,16 +228,116 @@ serve(async (req) => {
       conversationId = newConversation.id
     }
 
-    // GATEKEEPER: Check if we should route to AI flow
+    // Check for replied-to message SID sent by Twilio (OriginalRepliedMessageSid / QuotedMessageSid variants)
+    const originalRepliedSid = formData.get('OriginalRepliedMessageSid') || formData.get('QuotedMessageSid') || formData.get('RepliedMessageSid') || formData.get('Context') || null
+
+    let reply_to_message_id = null
+    if (originalRepliedSid) {
+      try {
+        let sidToFind = originalRepliedSid as string
+        try {
+          const parsed = JSON.parse(String(originalRepliedSid))
+          if (parsed && parsed.message_sid) {
+            sidToFind = parsed.message_sid
+          }
+        } catch {
+          // not JSON, keep as-is
+        }
+
+        const { data: repliedRow, error: findError } = await supabase
+          .from('whatsapp_messages')
+          .select('id')
+          .eq('message_sid', sidToFind)
+          .single()
+        if (!findError && repliedRow) {
+          reply_to_message_id = repliedRow.id
+        }
+      } catch (e) {
+        console.warn('Error finding replied message by SID:', e)
+      }
+    }
+
+    // Insert the incoming user message (idempotent on Twilio MessageSid)
+    if (payload.MessageSid) {
+      const { data: existingMsg } = await supabase
+        .from('whatsapp_messages')
+        .select('id')
+        .eq('message_sid', payload.MessageSid)
+        .maybeSingle()
+
+      if (existingMsg) {
+        console.log('Incoming message already stored, skipping duplicate insert:', payload.MessageSid)
+      } else {
+        const { error: messageError } = await supabase
+          .from('whatsapp_messages')
+          .insert({
+            conversation_id: conversationId,
+            company_id: whatsappSettings.company_id,
+            direction: 'incoming',
+            body: payload.Body,
+            status: 'delivered',
+            message_sid: payload.MessageSid,
+            reply_to_message_id,
+          })
+
+        if (messageError) {
+          console.error('Error inserting incoming message:', messageError)
+          return new Response('Database error', { status: 500, headers: corsHeaders })
+        }
+
+        console.log('✅ Incoming user message stored in database')
+      }
+    } else {
+      const { error: messageError } = await supabase
+        .from('whatsapp_messages')
+        .insert({
+          conversation_id: conversationId,
+          company_id: whatsappSettings.company_id,
+          direction: 'incoming',
+          body: payload.Body,
+          status: 'delivered',
+          reply_to_message_id,
+        })
+
+      if (messageError) {
+        console.error('Error inserting incoming message:', messageError)
+        return new Response('Database error', { status: 500, headers: corsHeaders })
+      }
+
+      console.log('✅ Incoming user message stored in database')
+    }
+
     const { data: conversationData, error: conversationFetchError } = await supabase
       .from('whatsapp_conversations')
-      .select('is_new_user, ai_enabled, current_step')
+      .select('is_new_user, ai_enabled, current_step, assigned_to, company_id, chat_status')
       .eq('id', conversationId)
       .single()
 
     if (conversationFetchError) {
       console.error('Error fetching conversation data:', conversationFetchError)
       return new Response('Database error', { status: 500, headers: corsHeaders })
+    }
+
+    // Human takeover keyword detection (before AI — never auto-reply when triggered)
+    if (containsHumanKeyword(payload.Body)) {
+      await processHumanTakeover({
+        supabase,
+        conversationId,
+        companyId: whatsappSettings.company_id,
+        assignedTo: conversationData.assigned_to ?? null,
+        chatStatus: conversationData.chat_status ?? null,
+        recipientAddress: payload.From,
+        whatsappSettings,
+        provider: 'twilio',
+        accountSid: payload.AccountSid,
+      })
+      return new Response('', { status: 200, headers: corsHeaders })
+    }
+
+    // Skip AI when disabled on conversation
+    if (conversationData.ai_enabled === false) {
+      console.log('AI disabled for conversation, skipping AI flow:', conversationId)
+      return new Response('', { status: 200, headers: corsHeaders })
     }
 
     // Route to AI flow if new user and AI enabled
@@ -262,70 +365,7 @@ serve(async (req) => {
       }
     }
 
-    console.log('Continuing with existing Human Inbox logic')
-
-    // Check for replied-to message SID sent by Twilio (OriginalRepliedMessageSid / QuotedMessageSid variants)
-    // Extract possible replied-message identifiers from webhook payload
-    const originalRepliedSid = formData.get('OriginalRepliedMessageSid') || formData.get('QuotedMessageSid') || formData.get('RepliedMessageSid') || formData.get('Context') || null
-
-    if (!originalRepliedSid) {
-      console.log('No replied-message SID found in webhook payload for MessageSid:', payload.MessageSid)
-    } else {
-      console.log('Webhook contains replied-message identifier:', originalRepliedSid)
-    }
-
-    // Try to resolve replied-message SID to a local DB id (if provided)
-    let reply_to_message_id = null
-    if (originalRepliedSid) {
-      try {
-        // If Context was provided as JSON with message_sid, parse that
-        let sidToFind = originalRepliedSid as string
-        try {
-          const parsed = JSON.parse(String(originalRepliedSid))
-          if (parsed && parsed.message_sid) {
-            sidToFind = parsed.message_sid
-          }
-        } catch {
-          // not JSON, keep as-is
-        }
-
-        const { data: repliedRow, error: findError } = await supabase
-          .from('whatsapp_messages')
-          .select('id')
-          .eq('message_sid', sidToFind)
-          .single()
-        if (!findError && repliedRow) {
-          reply_to_message_id = repliedRow.id
-        } else {
-          console.log('Replied SID not found in DB:', sidToFind)
-        }
-      } catch (e) {
-        console.warn('Error finding replied message by SID:', e)
-      }
-    }
-
-    // Insert the incoming user message
-    const { error: messageError } = await supabase
-      .from('whatsapp_messages')
-      .insert({
-        conversation_id: conversationId,
-        company_id: whatsappSettings.company_id,
-        direction: 'incoming',  // Database ENUM expects lowercase
-        body: payload.Body,
-        status: 'delivered',
-        message_sid: payload.MessageSid
-      })
-
-    if (messageError) {
-      console.error('Error inserting incoming message:', messageError)
-      return new Response('Database error', { status: 500, headers: corsHeaders })
-    }
-
-    console.log('✅ Incoming user message stored in database')
-
-    console.log('Successfully processed WhatsApp message')
-
-    // Return empty response with 200 status (Twilio expects this)
+    console.log('Successfully processed WhatsApp message (no AI flow)')
     return new Response('', { status: 200, headers: corsHeaders })
 
   } catch (error) {
