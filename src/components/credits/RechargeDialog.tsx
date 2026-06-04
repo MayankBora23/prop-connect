@@ -101,7 +101,7 @@ export function RechargeDialog({ open, onOpenChange }: RechargeDialogProps) {
         order_id: order.order_id,
         amount: order.amount,
         currency: order.currency,
-        name: 'MynkCRM',
+        name: 'AiLeadX',
         description: 'Wallet Recharge',
         prefill: {
           name: profile?.name ?? undefined,

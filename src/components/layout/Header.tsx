@@ -1,10 +1,14 @@
-import { Bell, Search, Plus, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, Search, Plus, LogOut, Crown, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useNavigate } from 'react-router-dom';
 import { NotificationCenter } from '@/components/workspace/NotificationCenter';
+import { useCompanySubscription } from '@/hooks/useSubscription';
+import { useCurrentCompany } from '@/hooks/useCompany';
+import { UpgradeDialog } from '@/components/subscription/UpgradeDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +27,10 @@ interface HeaderProps {
 export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { data: profile } = useCurrentProfile();
+  const { data: company } = useCurrentCompany();
+  const { data: subscriptionData } = useCompanySubscription();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const isInternalCRM = company?.industry === 'internal_crm';
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -48,6 +56,39 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: H
           </div>
 
           <NotificationCenter />
+
+          {!isInternalCRM && subscriptionData && (
+            <button
+              type="button"
+              onClick={() => setUpgradeOpen(true)}
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                subscriptionData.isTrialActive && subscriptionData.daysLeftInTrial <= 3
+                  ? 'bg-red-50 border-red-200 text-red-700 animate-pulse'
+                  : subscriptionData.isTrialActive
+                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                    : subscriptionData.isActive &&
+                        subscriptionData.daysUntilBilling !== null &&
+                        subscriptionData.daysUntilBilling <= 5
+                      ? 'bg-blue-50 border-blue-200 text-blue-700'
+                      : subscriptionData.isActive
+                        ? 'bg-green-50 border-green-200 text-green-700'
+                        : 'bg-red-50 border-red-200 text-red-700'
+              }`}
+            >
+              {subscriptionData.isTrialActive && <Clock className="w-3 h-3" />}
+              {subscriptionData.isActive && <Crown className="w-3 h-3" />}
+              <span>
+                {subscriptionData.isTrialActive
+                  ? `Trial: ${subscriptionData.daysLeftInTrial}d left`
+                  : subscriptionData.isActive
+                    ? `${subscriptionData.plan_name || 'Active'} ✓`
+                    : 'Trial Expired'}
+              </span>
+            </button>
+          )}
+          {!isInternalCRM && (
+            <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+          )}
 
           {onAddNew && (
             <Button onClick={onAddNew} className="gradient-primary border-0">

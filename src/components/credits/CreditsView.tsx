@@ -2,10 +2,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WalletCard } from './WalletCard';
 import { WhatsAppUsageStats } from './WhatsAppUsageStats';
 import { TransactionHistory } from './TransactionHistory';
+import { SubscriptionInfoCard } from '@/components/subscription/SubscriptionInfoCard';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export function CreditsView() {
+  const { data: company } = useCurrentCompany();
+  const isInternalCRM = company?.industry === 'internal_crm';
+
   return (
     <div className="space-y-8 animate-fade-in">
+      {!isInternalCRM && <SubscriptionInfoCard />}
       <WalletCard />
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>

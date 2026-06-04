@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -43,9 +43,15 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form';
-import { format } from 'date-fns';
-import { Building2, Mail, Phone, MapPin, Edit, Trash2, Loader2, Settings as SettingsIcon, ShieldCheck, ShieldAlert, ShieldX, Clock } from 'lucide-react';
+import { format, addDays } from 'date-fns';
+import { Building2, Mail, Phone, MapPin, Edit, Trash2, Loader2, Settings as SettingsIcon, ShieldCheck, ShieldAlert, ShieldX, Clock, Timer } from 'lucide-react';
 import { useAllCompanies, useUpdateCompany, useDeleteCompany, useUpdateCompanySettings, useCompanyTeamCount, type Company } from '@/hooks/useCompany';
+import {
+  useExtendTrial,
+  useAllCompanySubscriptions,
+  computeExtendedTrialEnd,
+  type AllCompanySubscriptionRow,
+} from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 
 const editCompanySchema = z.object({
@@ -68,15 +74,57 @@ const settingsSchema = z.object({
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
+function getSubscriptionStatusBadge(sub: AllCompanySubscriptionRow | undefined) {
+    if (!sub) return null;
+    const now = new Date();
+    const trialEnd = new Date(sub.trial_ends_at);
+    const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000));
+
+    if (sub.status === 'active') {
+        const planName = sub.subscription_plans?.name ?? sub.plan_slug;
+        return (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                Active — {planName}
+            </Badge>
+        );
+    }
+    if (sub.status === 'trial' && trialEnd > now) {
+        return (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                Trial {daysLeft}d
+            </Badge>
+        );
+    }
+    return (
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            Trial Expired
+        </Badge>
+    );
+}
+
 export const CompaniesView = () => {
     const { data: companies, isLoading } = useAllCompanies();
+    const { data: allSubscriptions = [] } = useAllCompanySubscriptions();
     const updateCompany = useUpdateCompany();
     const deleteCompany = useDeleteCompany();
+    const extendTrialMutation = useExtendTrial();
     const isInternalCRM = useIsInternalCRM();
+
+    const subscriptionByCompany = useMemo(() => {
+        const map = new Map<string, AllCompanySubscriptionRow>();
+        for (const s of allSubscriptions) {
+            map.set(s.company_id, s);
+        }
+        return map;
+    }, [allSubscriptions]);
 
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+    const [extendTrialOpen, setExtendTrialOpen] = useState(false);
+    const [subscriptionCompany, setSubscriptionCompany] = useState<Company | null>(null);
+    const [extendDays, setExtendDays] = useState(7);
+    const [extendNotes, setExtendNotes] = useState('');
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
     const form = useForm<EditCompanyFormData>({
@@ -127,6 +175,13 @@ export const CompaniesView = () => {
     const handleDeleteClick = (company: Company) => {
         setSelectedCompany(company);
         setDeleteDialogOpen(true);
+    };
+
+    const openExtendTrialDialog = (company: Company) => {
+        setSubscriptionCompany(company);
+        setExtendDays(7);
+        setExtendNotes(subscriptionByCompany.get(company.id)?.trial_extend_notes ?? '');
+        setExtendTrialOpen(true);
     };
 
     const onSubmitEdit = async (data: EditCompanyFormData) => {
@@ -245,7 +300,13 @@ export const CompaniesView = () => {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3">{getIndustryBadge(company.industry)}</td>
+                                    <td className="px-4 py-3">
+                                        <div className="flex flex-col gap-1.5">
+                                            {getIndustryBadge(company.industry)}
+                                            {company.industry !== 'internal_crm' &&
+                                                getSubscriptionStatusBadge(subscriptionByCompany.get(company.id))}
+                                        </div>
+                                    </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                                             <MapPin className="w-3.5 h-3.5" />
@@ -275,6 +336,17 @@ export const CompaniesView = () => {
                                                 >
                                                     <SettingsIcon className="h-4 w-4" />
                                                 </Button>
+                                                {company.industry !== 'internal_crm' && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="text-orange-600 border-orange-200 hover:bg-orange-50 h-8 w-8 p-0"
+                                                        onClick={() => openExtendTrialDialog(company)}
+                                                        title="Extend trial period"
+                                                    >
+                                                        <Timer className="w-4 h-4" />
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -443,6 +515,115 @@ export const CompaniesView = () => {
                     onOpenChange={setSettingsDialogOpen}
                 />
             )}
+
+            <Dialog open={extendTrialOpen} onOpenChange={setExtendTrialOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Extend Trial — {subscriptionCompany?.name}</DialogTitle>
+                        <DialogDescription>
+                            Current trial end:{' '}
+                            {subscriptionCompany &&
+                            subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at
+                                ? format(
+                                      new Date(
+                                          subscriptionByCompany.get(subscriptionCompany.id)!
+                                              .trial_ends_at
+                                      ),
+                                      'dd MMM yyyy'
+                                  )
+                                : '—'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Extend by (days)</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={365}
+                                value={extendDays}
+                                onChange={(e) => setExtendDays(Number(e.target.value))}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                New trial end will be:{' '}
+                                {subscriptionCompany &&
+                                subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at
+                                    ? format(
+                                          computeExtendedTrialEnd(
+                                              subscriptionByCompany.get(subscriptionCompany.id)!
+                                                  .trial_ends_at,
+                                              extendDays
+                                          ),
+                                          'dd MMM yyyy'
+                                      )
+                                    : subscriptionCompany
+                                      ? format(addDays(new Date(), extendDays), 'dd MMM yyyy')
+                                      : '—'}
+                            </p>
+                            {subscriptionCompany &&
+                                subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at &&
+                                new Date(
+                                    subscriptionByCompany.get(subscriptionCompany.id)!.trial_ends_at
+                                ) <= new Date() && (
+                                    <p className="text-xs text-amber-700">
+                                        Trial already expired — extension starts from today, not the old end date.
+                                    </p>
+                                )}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Reason / Notes</Label>
+                            <Textarea
+                                placeholder="e.g. Client requested more time to evaluate"
+                                value={extendNotes}
+                                onChange={(e) => setExtendNotes(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setExtendTrialOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            className="gradient-primary border-0"
+                            disabled={extendTrialMutation.isPending || !subscriptionCompany}
+                            onClick={() => {
+                                if (!subscriptionCompany) return;
+                                extendTrialMutation.mutate(
+                                    {
+                                        company_id: subscriptionCompany.id,
+                                        extra_days: extendDays,
+                                        notes: extendNotes,
+                                    },
+                                    {
+                                        onSuccess: (result) => {
+                                            toast.success(
+                                                `Trial extended by ${extendDays} days (ends ${format(
+                                                    new Date(result.trial_ends_at),
+                                                    'dd MMM yyyy'
+                                                )})${extendNotes.trim() ? ' — notes saved' : ''}`
+                                            );
+                                            setExtendTrialOpen(false);
+                                            setExtendNotes('');
+                                        },
+                                        onError: (err) =>
+                                            toast.error(
+                                                err instanceof Error
+                                                    ? err.message
+                                                    : 'Failed to extend trial'
+                                            ),
+                                    }
+                                );
+                            }}
+                        >
+                            {extendTrialMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                `Extend by ${extendDays} days`
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 };

@@ -69,6 +69,8 @@ import { CreditsView } from '@/components/credits/CreditsView';
 import { LowBalanceAlert } from '@/components/credits/LowBalanceAlert';
 import { SupportView } from '@/components/support/SupportView';
 import { TeamReportView } from '@/components/reports/TeamReportView';
+import { SubscriptionGate } from '@/components/subscription/SubscriptionGate';
+import { TrialBanner } from '@/components/subscription/TrialBanner';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -477,13 +479,20 @@ const Index = () => {
           />
         </div>
 
-        <div className="p-6">
-          {!isInternalCRM && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className={cn('p-6 flex-1 flex flex-col overflow-hidden', activeTab === 'reports' && 'print:p-0')}>
+            {!isInternalCRM && (
+              <div className={cn(activeTab === 'reports' && 'print:hidden')}>
+                <LowBalanceAlert />
+              </div>
+            )}
             <div className={cn(activeTab === 'reports' && 'print:hidden')}>
-              <LowBalanceAlert />
+              <TrialBanner />
             </div>
-          )}
-          {renderContent()}
+            <SubscriptionGate>
+              <div className="flex-1 overflow-auto">{renderContent()}</div>
+            </SubscriptionGate>
+          </div>
         </div>
       </main>
 
