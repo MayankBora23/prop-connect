@@ -273,11 +273,13 @@ export default function Auth() {
               {isPasswordSetup ? (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="password">New password</Label>
+                    <Label htmlFor="new-password">New password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        id="password"
+                        id="new-password"
+                        name="new-password"
+                        autoComplete="new-password"
                         type="password"
                         placeholder="••••••••"
                         value={password}
@@ -295,6 +297,8 @@ export default function Auth() {
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="confirmPassword"
+                        name="confirmPassword"
+                        autoComplete="new-password"
                         type="password"
                         placeholder="••••••••"
                         value={confirmPassword}
@@ -313,6 +317,8 @@ export default function Auth() {
                       <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="companyName"
+                        name="companyName"
+                        autoComplete="organization"
                         type="text"
                         placeholder="Acme Real Estate"
                         value={companyName}
@@ -324,13 +330,15 @@ export default function Auth() {
                       <p className="text-xs text-destructive">{errors.companyName}</p>
                     )}
                   </div>
-
+ 
                   <div className="space-y-2">
                     <Label htmlFor="companyEmail">Company Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="companyEmail"
+                        name="companyEmail"
+                        autoComplete="email"
                         type="email"
                         placeholder="contact@company.com"
                         value={companyEmail}
@@ -343,7 +351,7 @@ export default function Auth() {
                     )}
                     <p className="text-xs text-muted-foreground">Leave empty to use your personal email</p>
                   </div>
-
+ 
                   <div className="space-y-2">
                     <Label htmlFor="industry">Industry Type *</Label>
                     <Select value={industry} onValueChange={(value: 'real_estate' | 'education' | 'automobile_dealers') => setIndustry(value)}>
@@ -379,17 +387,19 @@ export default function Auth() {
                       </SelectContent>
                     </Select>
                   </div>
-
+ 
                   <div className="border-t border-border my-4 pt-4">
                     <p className="text-sm font-medium text-muted-foreground mb-3">Your Account (Super Admin)</p>
                   </div>
-
+ 
                   <div className="space-y-2">
                     <Label htmlFor="name">Your Full Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         id="name"
+                        name="name"
+                        autoComplete="name"
                         type="text"
                         placeholder="John Doe"
                         value={name}
@@ -403,7 +413,7 @@ export default function Auth() {
                   </div>
                 </>
               )}
-
+ 
               {!isPasswordSetup && (
               <div className="space-y-2">
                 <Label htmlFor="email">{isLogin ? 'Email' : 'Your Email'}</Label>
@@ -411,6 +421,8 @@ export default function Auth() {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="email"
+                    name="email"
+                    autoComplete="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
@@ -423,7 +435,7 @@ export default function Auth() {
                 )}
               </div>
               )}
-
+ 
               {!isPasswordSetup && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -431,6 +443,8 @@ export default function Auth() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="password"
+                    name="password"
+                    autoComplete={isLogin ? "current-password" : "new-password"}
                     type="password"
                     placeholder="••••••••"
                     value={password}
@@ -516,6 +530,8 @@ export default function Auth() {
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="forgot-email"
+                      name="email"
+                      autoComplete="email"
                       type="email"
                       placeholder="you@example.com"
                       value={forgotEmail}

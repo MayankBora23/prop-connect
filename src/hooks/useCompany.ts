@@ -28,7 +28,7 @@ function mapInviteErrorMessage(message: string): string {
   if (message.includes('already been registered') || message.includes('already exists')) {
     return 'A user with this email already exists. They may already be on your team or registered with another company.';
   }
-  if (message.includes('Team member limit')) {
+  if (message.includes('Team member limit') || message.includes('User Limit Reached')) {
     return message;
   }
   return message;

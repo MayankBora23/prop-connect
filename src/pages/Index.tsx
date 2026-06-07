@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
@@ -66,6 +66,7 @@ import { InternalLeadsView } from '@/components/internalcrm/leads/InternalLeadsV
 import { InternalDemosView } from '@/components/internalcrm/InternalDemosView';
 import { AddInternalLeadDialog } from '@/components/internalcrm/leads/AddInternalLeadDialog';
 import { CreditsView } from '@/components/credits/CreditsView';
+import { BillingView } from '@/components/billing/BillingView';
 import { LowBalanceAlert } from '@/components/credits/LowBalanceAlert';
 import { SupportView } from '@/components/support/SupportView';
 import { TeamReportView } from '@/components/reports/TeamReportView';
@@ -89,6 +90,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  billing: { title: 'Billing', subtitle: 'Manage your subscription and seats' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -112,6 +114,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  billing: { title: 'Billing', subtitle: 'Manage your subscription and seats' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -137,6 +140,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
+  billing: { title: 'Billing', subtitle: 'Manage your subscription and seats' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
@@ -166,6 +170,12 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setActiveTab('billing')
+    window.addEventListener('navigate-to-billing', handler)
+    return () => window.removeEventListener('navigate-to-billing', handler)
+  }, [])
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
   const [addVisitOpen, setAddVisitOpen] = useState(false);
@@ -355,6 +365,8 @@ const Index = () => {
           return <TelephonyView />;
         case 'credits':
           return <CreditsView />;
+        case 'billing':
+          return <BillingView />;
         case 'support':
           return <SupportView />;
         case 'profile-settings':
@@ -400,6 +412,8 @@ const Index = () => {
           return <TeamReportView />;
         case 'credits':
           return <CreditsView />;
+        case 'billing':
+          return <BillingView />;
         case 'support':
           return <SupportView />;
         case 'profile-settings':
@@ -443,6 +457,8 @@ const Index = () => {
           return <TeamReportView />;
         case 'credits':
           return <CreditsView />;
+        case 'billing':
+          return <BillingView />;
         case 'support':
           return <SupportView />;
         case 'profile-settings':

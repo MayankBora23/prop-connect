@@ -115,7 +115,7 @@ export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisit
               value={form.watch('lead_id')}
               onValueChange={(value) => form.setValue('lead_id', value)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="lead">
                 <SelectValue placeholder="Select lead" />
               </SelectTrigger>
               <SelectContent>
@@ -137,7 +137,7 @@ export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisit
               value={form.watch('property_id')}
               onValueChange={(value) => form.setValue('property_id', value)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="property">
                 <SelectValue placeholder="Select property" />
               </SelectTrigger>
               <SelectContent>
@@ -159,7 +159,7 @@ export function EditSiteVisitDialog({ visit, open, onOpenChange }: EditSiteVisit
               value={form.watch('assigned_to') || 'unassigned'}
               onValueChange={(value) => form.setValue('assigned_to', value)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="assigned_to">
                 <SelectValue placeholder="Choose team member" />
               </SelectTrigger>
               <SelectContent>

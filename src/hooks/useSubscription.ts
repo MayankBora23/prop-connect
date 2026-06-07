@@ -38,8 +38,35 @@ export type CompanySubscriptionRow = {
   razorpay_order_id: string | null;
   razorpay_payment_id: string | null;
   cancelled_at: string | null;
+  purchased_extra_seats?: number;
+  extra_seat_rate?: number;
+  plan_included_seats?: number;
+  next_billing_amount?: number | null;
   created_at: string;
   updated_at: string;
+};
+
+export type SubscriptionBillingData = {
+  planIncludedSeats: number;
+  purchasedExtraSeats: number;
+  extraSeatRate: number;
+  nextBillingAmount: number | null;
+  nextBillingDate: Date | null;
+  daysUntilBilling: number | null;
+  isPaymentOverdue: boolean;
+  totalAllowedSeats: number | null;
+  currentMemberCount: number;
+  availableSeats: number;
+  cycleType: BillingCycle | null;
+  planBasePrice: number | null;
+  planName: string | null;
+  status: string;
+  planSlug: string;
+  isActive: boolean;
+  isTrialActive: boolean;
+  isTrialExpired: boolean;
+  isBlocked: boolean;
+  currentPeriodEnd: Date | null;
 };
 
 export type CompanySubscriptionData = CompanySubscriptionRow & {
@@ -52,6 +79,11 @@ export type CompanySubscriptionData = CompanySubscriptionRow & {
   isBlocked: boolean;
   nextBillingDate: Date | null;
   daysUntilBilling: number | null;
+  nextBillingAmount: number | null;
+  isPaymentOverdue: boolean;
+  billingCycle: string | null;
+  planBasePrice: number | null;
+  purchasedExtraSeats: number;
 };
 
 export type AllCompanySubscriptionRow = CompanySubscriptionRow & {
@@ -73,7 +105,15 @@ async function getCompanyId(): Promise<string | null> {
 }
 
 function computeSubscriptionFields(
-  sub: CompanySubscriptionRow & { subscription_plans?: { name: string; included_users: number } | null }
+  sub: CompanySubscriptionRow & {
+    subscription_plans?: {
+      name: string;
+      monthly_price: number;
+      quarterly_price: number;
+      yearly_price: number;
+      included_users: number;
+    } | null;
+  }
 ): CompanySubscriptionData {
   const now = new Date();
   const trialEndsAt = new Date(sub.trial_ends_at);
@@ -86,13 +126,46 @@ function computeSubscriptionFields(
   const isActive = sub.status === 'active';
   const isBlocked =
     (isTrialExpired || sub.status === 'expired' || sub.status === 'cancelled') && !isActive;
-  const nextBillingDate = sub.next_billing_date ? new Date(sub.next_billing_date) : null;
-  const daysUntilBilling = nextBillingDate
-    ? Math.ceil((nextBillingDate.getTime() - now.getTime()) / 86400000)
-    : null;
+
+  const nextBillingRaw = sub.next_billing_date ?? sub.current_period_end;
+  const nextBillingDate = nextBillingRaw ? new Date(nextBillingRaw) : null;
+
+  let daysUntilBilling: number | null = null;
+  if (nextBillingRaw) {
+    const toISTMidnight = (date: Date) => {
+      const ist = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      ist.setHours(0, 0, 0, 0);
+      return ist;
+    };
+    const todayIST = toISTMidnight(new Date());
+    const billingIST = toISTMidnight(new Date(nextBillingRaw));
+    daysUntilBilling = Math.round(
+      (billingIST.getTime() - todayIST.getTime()) / 86400000
+    );
+  }
+
+  const isPaymentOverdue =
+    sub.status === 'active' &&
+    daysUntilBilling !== null &&
+    daysUntilBilling < 0;
+
+  const cycle = (sub.billing_cycle as BillingCycle | null) ?? (sub.status === 'active' ? 'monthly' : null);
+  const planBasePrice =
+    sub.subscription_plans && cycle
+      ? cycle === 'monthly'
+        ? Number(sub.subscription_plans.monthly_price)
+        : cycle === 'quarterly'
+          ? Number(sub.subscription_plans.quarterly_price)
+          : Number(sub.subscription_plans.yearly_price)
+      : null;
+
+  const nextBillingAmount =
+    sub.next_billing_amount != null ? Number(sub.next_billing_amount) : null;
 
   return {
     ...sub,
+    billing_cycle: sub.billing_cycle ?? (sub.status === 'active' ? 'monthly' : null),
+    billingCycle: sub.billing_cycle ?? (sub.status === 'active' ? 'monthly' : null),
     plan_name: sub.subscription_plans?.name ?? null,
     included_users: sub.subscription_plans?.included_users ?? null,
     daysLeftInTrial,
@@ -102,6 +175,130 @@ function computeSubscriptionFields(
     isBlocked,
     nextBillingDate,
     daysUntilBilling,
+    nextBillingAmount,
+    isPaymentOverdue,
+    planBasePrice,
+    purchasedExtraSeats: Number(sub.purchased_extra_seats ?? 0),
+  };
+}
+
+export function useSubscription() {
+  const query = useQuery({
+    queryKey: ['subscription-billing'],
+    queryFn: async (): Promise<SubscriptionBillingData | null> => {
+      const companyId = await getCompanyId();
+      if (!companyId) return null;
+
+      const [{ data: sub, error: subErr }, { data: companyRow, error: companyErr }] =
+        await Promise.all([
+          (supabase as any)
+            .from('company_subscriptions')
+            .select(
+              `
+              *,
+              subscription_plans (name, monthly_price, quarterly_price, yearly_price, included_users)
+            `
+            )
+            .eq('company_id', companyId)
+            .maybeSingle(),
+          (supabase as any)
+            .from('companies')
+            .select('user_limit')
+            .eq('id', companyId)
+            .maybeSingle(),
+        ]);
+
+      if (subErr) throw subErr;
+      if (companyErr) throw companyErr;
+      if (!sub) return null;
+
+      const { count: memberCount, error: countErr } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', companyId);
+
+      if (countErr) throw countErr;
+
+      const plan = sub.subscription_plans as {
+        name: string;
+        monthly_price: number;
+        quarterly_price: number;
+        yearly_price: number;
+        included_users: number;
+      } | null;
+
+      const cycle = (sub.billing_cycle as BillingCycle | null) ?? (sub.status === 'active' ? 'monthly' : null);
+      const planBasePrice =
+        plan && cycle
+          ? cycle === 'monthly'
+            ? Number(plan.monthly_price)
+            : cycle === 'quarterly'
+              ? Number(plan.quarterly_price)
+              : Number(plan.yearly_price)
+          : null;
+
+      const totalAllowedSeats = (companyRow as { user_limit: number | null } | null)?.user_limit ?? null;
+      const currentMemberCount = memberCount ?? 0;
+      const availableSeats =
+        totalAllowedSeats != null ? Math.max(0, totalAllowedSeats - currentMemberCount) : 0;
+
+      const nextBillingRaw = sub.next_billing_date ?? sub.current_period_end;
+      const nextBillingDate = nextBillingRaw ? new Date(nextBillingRaw) : null;
+
+      let daysUntilBilling: number | null = null;
+      if (nextBillingRaw) {
+        const toISTMidnight = (date: Date) => {
+          const ist = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+          ist.setHours(0, 0, 0, 0);
+          return ist;
+        };
+        const todayIST = toISTMidnight(new Date());
+        const billingIST = toISTMidnight(new Date(nextBillingRaw));
+        daysUntilBilling = Math.round(
+          (billingIST.getTime() - todayIST.getTime()) / 86400000
+        );
+      }
+
+      const isPaymentOverdue =
+        sub.status === 'active' &&
+        daysUntilBilling !== null &&
+        daysUntilBilling < 0;
+
+      const now = new Date();
+      const trialEndsAt = new Date(sub.trial_ends_at);
+
+      return {
+        planIncludedSeats: Number(sub.plan_included_seats ?? plan?.included_users ?? 0),
+        purchasedExtraSeats: Number(sub.purchased_extra_seats ?? 0),
+        extraSeatRate: Number(sub.extra_seat_rate ?? 499),
+        nextBillingAmount:
+          sub.next_billing_amount != null ? Number(sub.next_billing_amount) : null,
+        nextBillingDate: nextBillingDate,
+        daysUntilBilling: daysUntilBilling,
+        isPaymentOverdue: isPaymentOverdue,
+        totalAllowedSeats,
+        currentMemberCount,
+        availableSeats,
+        cycleType: cycle,
+        planBasePrice,
+        planName: plan?.name ?? null,
+        status: sub.status,
+        planSlug: sub.plan_slug,
+        isActive: sub.status === 'active',
+        isTrialActive: sub.status === 'trial' && trialEndsAt > now,
+        isTrialExpired: sub.status === 'trial' && trialEndsAt <= now,
+        isBlocked:
+          (sub.status === 'trial' && trialEndsAt <= now) ||
+          sub.status === 'expired' ||
+          sub.status === 'cancelled',
+        currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end) : null,
+      };
+    },
+  });
+
+  return {
+    ...query,
+    refetch: query.refetch,
   };
 }
 
@@ -117,7 +314,7 @@ export function useCompanySubscription() {
         .select(
           `
           *,
-          subscription_plans (name, included_users)
+          subscription_plans (name, monthly_price, quarterly_price, yearly_price, included_users)
         `
         )
         .eq('company_id', companyId)
@@ -127,7 +324,13 @@ export function useCompanySubscription() {
       if (!data) return null;
 
       return computeSubscriptionFields(data as CompanySubscriptionRow & {
-        subscription_plans?: { name: string; included_users: number } | null;
+        subscription_plans?: {
+          name: string;
+          monthly_price: number;
+          quarterly_price: number;
+          yearly_price: number;
+          included_users: number;
+        } | null;
       });
     },
   });
@@ -223,6 +426,7 @@ export function useConfirmSubscriptionPayment() {
     mutationFn: async () => {
       await new Promise((r) => setTimeout(r, 2500));
       await queryClient.invalidateQueries({ queryKey: ['company-subscription'] });
+      await queryClient.invalidateQueries({ queryKey: ['subscription-billing'] });
       await queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
       await queryClient.invalidateQueries({ queryKey: ['subscription-payment-history'] });
     },
@@ -377,6 +581,7 @@ export function useExtendTrial() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-company-subscriptions'] });
       queryClient.invalidateQueries({ queryKey: ['company-subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['subscription-billing'] });
       queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
     },
   });

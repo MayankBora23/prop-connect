@@ -266,6 +266,8 @@ export function ProfileSettingsView() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="new-password"
+                name="new-password"
+                autoComplete="new-password"
                 type="password"
                 placeholder="••••••••"
                 value={newPassword}
@@ -280,6 +282,8 @@ export function ProfileSettingsView() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="confirm-new-password"
+                name="confirm-new-password"
+                autoComplete="new-password"
                 type="password"
                 placeholder="••••••••"
                 value={confirmNewPassword}

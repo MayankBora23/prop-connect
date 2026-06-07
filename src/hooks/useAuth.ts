@@ -76,7 +76,23 @@ export function useAuth() {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Session retrieval/token refresh failed:', error);
+        // Clear invalid session from local storage to prevent endless redirect or bad state
+        if (
+          error.message?.includes('Refresh Token Not Found') ||
+          error.message?.includes('Invalid Refresh Token') ||
+          error.status === 400
+        ) {
+          supabase.auth.signOut().then(() => {
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+          });
+          return;
+        }
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

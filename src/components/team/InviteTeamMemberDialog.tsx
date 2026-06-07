@@ -14,9 +14,9 @@ interface InviteTeamMemberDialogProps {
   onOpenChange: (open: boolean) => void;
   companyId: string;
   currentUserRole: AppRole | null;
-  // ADDED: current team size and optional member limit
   currentMemberCount: number;
   memberLimit?: number | null;
+  onInviteError?: (message: string) => void;
 }
 
 export function InviteTeamMemberDialog({
@@ -26,6 +26,7 @@ export function InviteTeamMemberDialog({
   currentUserRole,
   currentMemberCount,
   memberLimit,
+  onInviteError,
 }: InviteTeamMemberDialogProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -185,6 +186,7 @@ export function InviteTeamMemberDialog({
     } catch (error: unknown) {
       console.error('Invitation failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to invite team member';
+      onInviteError?.(errorMessage);
       toast({
         title: 'Invitation Failed',
         description: errorMessage,
@@ -227,6 +229,8 @@ export function InviteTeamMemberDialog({
             <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
+              name="name"
+              autoComplete="name"
               placeholder="John Doe"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -237,6 +241,8 @@ export function InviteTeamMemberDialog({
             <Label htmlFor="email">Email Address</Label>
             <Input
               id="email"
+              name="email"
+              autoComplete="email"
               type="email"
               placeholder="john@company.com"
               value={email}
@@ -247,7 +253,7 @@ export function InviteTeamMemberDialog({
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
             <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
-              <SelectTrigger>
+              <SelectTrigger id="role">
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
@@ -261,7 +267,7 @@ export function InviteTeamMemberDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Password</Label>
+            <Label htmlFor={passwordMode === 'auto' ? 'generated-password' : 'custom-password'}>Password</Label>
             <Tabs value={passwordMode} onValueChange={(value) => setPasswordMode(value as 'auto' | 'manual')} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="auto" className="flex items-center gap-2">
@@ -278,6 +284,9 @@ export function InviteTeamMemberDialog({
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
+                      id="generated-password"
+                      name="password"
+                      autoComplete="new-password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Click 'Generate Password' to create a secure password"
                       value={generatedPassword}
@@ -327,6 +336,9 @@ export function InviteTeamMemberDialog({
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
+                      id="custom-password"
+                      name="password"
+                      autoComplete="new-password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter a secure password"
                       value={customPassword}

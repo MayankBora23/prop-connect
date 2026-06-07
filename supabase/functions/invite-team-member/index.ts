@@ -229,6 +229,47 @@ serve(async (req) => {
       })
     }
 
+    const { data: company, error: companyFetchErr } = await supabaseAdmin
+      .from('companies')
+      .select('user_limit, industry')
+      .eq('id', companyId)
+      .single()
+
+    if (companyFetchErr || !company) {
+      return new Response(JSON.stringify({ error: 'Company not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { count: memberCount, error: countErr } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+
+    if (countErr) {
+      console.error('Failed to count team members:', countErr)
+      return new Response(JSON.stringify({ error: 'Failed to verify seat availability' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (company.industry !== 'internal_crm' && company.user_limit) {
+      if ((memberCount ?? 0) >= company.user_limit) {
+        return new Response(
+          JSON.stringify({
+            error:
+              'User Limit Reached. You have used all purchased seats. Please purchase additional user seats to continue.',
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    }
+
     const normalizedEmail = email.trim().toLowerCase()
     const displayName = name?.trim() || normalizedEmail.split('@')[0] || 'Team Member'
 

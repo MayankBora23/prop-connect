@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 
 export function TeamView() {
   const { data: profiles, isLoading: profilesLoading } = useProfiles();
@@ -41,6 +42,7 @@ export function TeamView() {
   const { toast } = useToast();
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<ProfileWithRole | null>(null);
   const [editingRole, setEditingRole] = useState<string | null>(null);
@@ -145,8 +147,17 @@ export function TeamView() {
     <div className="space-y-6 animate-fade-in">
       {/* Header with Invite Button */}
       {canInvite && company && (
-        <div className="flex justify-end">
-          <Button onClick={() => setInviteOpen(true)} className="gap-2">
+        <div className="flex flex-col items-end gap-2">
+          {inviteError && (
+            <p className="text-sm text-destructive max-w-md text-right">{inviteError}</p>
+          )}
+          <Button
+            onClick={() => {
+              setInviteError(null);
+              setInviteOpen(true);
+            }}
+            className="gap-2"
+          >
             <UserPlus className="w-4 h-4" />
             Invite Team Member
           </Button>
@@ -307,12 +318,18 @@ export function TeamView() {
       {company && (
         <InviteTeamMemberDialog
           open={inviteOpen}
-          onOpenChange={setInviteOpen}
+          onOpenChange={(open) => {
+            setInviteOpen(open);
+            if (!open) setInviteError(null);
+          }}
           companyId={company.id}
           currentUserRole={currentProfile?.role || null}
-          // ADDED: pass current team size and limit for UI-side enforcement
           currentMemberCount={users.length}
           memberLimit={company.user_limit}
+          onInviteError={(message) => {
+            setInviteError(message);
+            sonnerToast.error(message);
+          }}
         />
       )}
 

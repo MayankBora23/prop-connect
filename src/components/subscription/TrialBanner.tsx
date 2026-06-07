@@ -24,7 +24,7 @@ export function TrialBanner() {
   const showBilling =
     subscription.isActive &&
     subscription.daysUntilBilling !== null &&
-    subscription.daysUntilBilling <= 5;
+    subscription.daysUntilBilling <= 3;
 
   if (!showTrial && !showBilling) {
     return null;
@@ -54,20 +54,41 @@ export function TrialBanner() {
         </div>
       )}
       {showBilling && subscription.next_billing_date && (
-        <div className="bg-blue-50 border-b border-blue-200 text-blue-800 text-sm py-2 px-4 flex items-center justify-between flex-wrap gap-2">
+        <div
+          className={
+            subscription.daysUntilBilling === 0
+              ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm py-2 px-4 flex items-center justify-between flex-wrap gap-2"
+              : "bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm py-2 px-4 flex items-center justify-between flex-wrap gap-2"
+          }
+        >
           <span className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4" />
-            Your <strong>{subscription.plan_name}</strong> plan renews in{' '}
-            <strong>{subscription.daysUntilBilling} days</strong> on{' '}
-            {format(new Date(subscription.next_billing_date), 'dd MMM yyyy')}.
+            <span>
+              {subscription.daysUntilBilling > 0 ? (
+                <>
+                  💳 Your <strong>{subscription.plan_name}</strong> plan renews in{' '}
+                  <strong>{subscription.daysUntilBilling} day{subscription.daysUntilBilling !== 1 ? 's' : ''}</strong> on{' '}
+                  <strong>{format(new Date(subscription.next_billing_date), 'dd MMM yyyy')}</strong>. Amount due: <strong>₹{subscription.nextBillingAmount}</strong>
+                  {subscription.purchasedExtraSeats > 0 && (
+                    <span className="block text-xs opacity-90 mt-0.5 ml-6">
+                      (Base ₹{subscription.planBasePrice} + {subscription.purchasedExtraSeats} extra seats)
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  💳 Your <strong>{subscription.plan_name}</strong> plan renews today. <strong>₹{subscription.nextBillingAmount}</strong> is due now.
+                </>
+              )}
+            </span>
           </span>
-          <button
-            type="button"
-            className="text-xs text-blue-600 hover:underline"
-            onClick={() => setUpgradeOpen(true)}
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-7 text-xs font-semibold"
+            onClick={() => window.dispatchEvent(new CustomEvent('navigate-to-billing'))}
           >
-            Manage Plan
-          </button>
+            Pay Now
+          </Button>
         </div>
       )}
       <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
