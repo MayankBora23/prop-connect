@@ -1113,6 +1113,84 @@ export interface Database {
           }
         ]
       }
+      whatsapp_templates: {
+        Row: {
+          id: string
+          company_id: string
+          template_name: string
+          meta_template_id: string | null
+          category: string
+          language: string
+          status: string
+          content: string
+          variables: Json | null
+          header_type: string | null
+          header_text: string | null
+          header_media_url: string | null
+          footer_text: string | null
+          buttons: Json | null
+          rejection_reason: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          template_name: string
+          meta_template_id?: string | null
+          category: string
+          language?: string
+          status?: string
+          content: string
+          variables?: Json | null
+          header_type?: string | null
+          header_text?: string | null
+          header_media_url?: string | null
+          footer_text?: string | null
+          buttons?: Json | null
+          rejection_reason?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          template_name?: string
+          meta_template_id?: string | null
+          category?: string
+          language?: string
+          status?: string
+          content?: string
+          variables?: Json | null
+          header_type?: string | null
+          header_text?: string | null
+          header_media_url?: string | null
+          footer_text?: string | null
+          buttons?: Json | null
+          rejection_reason?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       whatsapp_settings: {
         Row: {
           id: string

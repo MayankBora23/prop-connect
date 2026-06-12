@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useEffect } from "react";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +85,7 @@ const AppContent = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

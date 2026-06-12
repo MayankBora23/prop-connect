@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Building2, Mail, Lock, User, Briefcase, GraduationCap, Home, Car } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -27,6 +28,7 @@ type FormErrors = {
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -52,36 +54,38 @@ export default function Auth() {
       }
     }
 
-    try {
-      passwordSchema.parse(password);
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.password = e.errors[0].message;
-      }
-    }
-
-    if (!isLogin) {
+    if (!isForgotPassword) {
       try {
-        nameSchema.parse(name);
+        passwordSchema.parse(password);
       } catch (e) {
         if (e instanceof z.ZodError) {
-          newErrors.name = e.errors[0].message;
+          newErrors.password = e.errors[0].message;
         }
       }
 
-      try {
-        companySchema.parse(companyName);
-      } catch (e) {
-        if (e instanceof z.ZodError) {
-          newErrors.companyName = e.errors[0].message;
+      if (!isLogin) {
+        try {
+          nameSchema.parse(name);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            newErrors.name = e.errors[0].message;
+          }
         }
-      }
 
-      try {
-        emailSchema.parse(companyEmail || email);
-      } catch (e) {
-        if (e instanceof z.ZodError) {
-          newErrors.companyEmail = e.errors[0].message;
+        try {
+          companySchema.parse(companyName);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            newErrors.companyName = e.errors[0].message;
+          }
+        }
+
+        try {
+          emailSchema.parse(companyEmail || email);
+        } catch (e) {
+          if (e instanceof z.ZodError) {
+            newErrors.companyEmail = e.errors[0].message;
+          }
         }
       }
     }
@@ -98,7 +102,24 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Success',
+            description: 'Password reset link sent to your email!',
+          });
+          setIsForgotPassword(false);
+        }
+      } else if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
           let message = 'Failed to sign in';
@@ -168,10 +189,16 @@ export default function Auth() {
         <Card className="card-elevated border-0">
           <CardHeader className="text-center">
             <CardTitle className="text-xl">
-              {isLogin ? 'Welcome back' : 'Register your company'}
+              {isForgotPassword
+                ? 'Reset password'
+                : isLogin
+                ? 'Welcome back'
+                : 'Register your company'}
             </CardTitle>
             <CardDescription>
-              {isLogin
+              {isForgotPassword
+                ? "Enter your email address and we'll send you a link to reset your password"
+                : isLogin
                 ? 'Sign in to access your CRM dashboard'
                 : 'Create your company account and become the Super Admin'}
             </CardDescription>
@@ -179,141 +206,176 @@ export default function Auth() {
 
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
-              {!isLogin && (
-                <>
-                  {/* Company Details */}
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name</Label>
-                    <div className="relative">
-                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="companyName"
-                        type="text"
-                        placeholder="Acme Real Estate"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
-                    {errors.companyName && (
-                      <p className="text-xs text-destructive">{errors.companyName}</p>
-                    )}
+              {isForgotPassword ? (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-9"
+                    />
                   </div>
+                  {errors.email && (
+                    <p className="text-xs text-destructive">{errors.email}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {!isLogin && (
+                    <>
+                      {/* Company Details */}
+                      <div className="space-y-2">
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <div className="relative">
+                          <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="companyName"
+                            type="text"
+                            placeholder="Acme Real Estate"
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        {errors.companyName && (
+                          <p className="text-xs text-destructive">{errors.companyName}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="companyEmail">Company Email</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="companyEmail"
+                            type="email"
+                            placeholder="contact@company.com"
+                            value={companyEmail}
+                            onChange={(e) => setCompanyEmail(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        {errors.companyEmail && (
+                          <p className="text-xs text-destructive">{errors.companyEmail}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">Leave empty to use your personal email</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="industry">Industry Type *</Label>
+                        <Select value={industry} onValueChange={(value: 'real_estate' | 'education' | 'automobile_dealers') => setIndustry(value)}>
+                          <SelectTrigger id="industry">
+                            <SelectValue placeholder="Select industry" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="real_estate">
+                              <div className="flex items-center gap-2">
+                                <Home className="w-4 h-4" />
+                                <span>Real Estate</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="education">
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="w-4 h-4" />
+                                <span>Coaching / Education</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="automobile_dealers">
+                              <div className="flex items-center gap-2">
+                                <Car className="w-4 h-4" />
+                                <span>Automobile Dealers</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="internal_crm">
+                              <div className="flex items-center gap-2">
+                                <Briefcase className="w-4 h-4" />
+                                <span>Internal CRM (Admin Only)</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="border-t border-border my-4 pt-4">
+                        <p className="text-sm font-medium text-muted-foreground mb-3">Your Account (Super Admin)</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Your Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="name"
+                            type="text"
+                            placeholder="John Doe"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        {errors.name && (
+                          <p className="text-xs text-destructive">{errors.name}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="companyEmail">Company Email</Label>
+                    <Label htmlFor="email">{isLogin ? 'Email' : 'Your Email'}</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        id="companyEmail"
+                        id="email"
                         type="email"
-                        placeholder="contact@company.com"
-                        value={companyEmail}
-                        onChange={(e) => setCompanyEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="pl-9"
                       />
                     </div>
-                    {errors.companyEmail && (
-                      <p className="text-xs text-destructive">{errors.companyEmail}</p>
+                    {errors.email && (
+                      <p className="text-xs text-destructive">{errors.email}</p>
                     )}
-                    <p className="text-xs text-muted-foreground">Leave empty to use your personal email</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="industry">Industry Type *</Label>
-                    <Select value={industry} onValueChange={(value: 'real_estate' | 'education' | 'automobile_dealers') => setIndustry(value)}>
-                      <SelectTrigger id="industry">
-                        <SelectValue placeholder="Select industry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="real_estate">
-                          <div className="flex items-center gap-2">
-                            <Home className="w-4 h-4" />
-                            <span>Real Estate</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="education">
-                          <div className="flex items-center gap-2">
-                            <GraduationCap className="w-4 h-4" />
-                            <span>Coaching / Education</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="automobile_dealers">
-                          <div className="flex items-center gap-2">
-                            <Car className="w-4 h-4" />
-                            <span>Automobile Dealers</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="internal_crm">
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="w-4 h-4" />
-                            <span>Internal CRM (Admin Only)</span>
-                          </div>
-                        </SelectItem>
-                        {/* non-target industries removed */}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="border-t border-border my-4 pt-4">
-                    <p className="text-sm font-medium text-muted-foreground mb-3">Your Account (Super Admin)</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Your Full Name</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      {isLogin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsForgotPassword(true);
+                            setErrors({});
+                          }}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        id="name"
-                        type="text"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         className="pl-9"
                       />
                     </div>
-                    {errors.name && (
-                      <p className="text-xs text-destructive">{errors.name}</p>
+                    {errors.password && (
+                      <p className="text-xs text-destructive">{errors.password}</p>
                     )}
                   </div>
                 </>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email">{isLogin ? 'Email' : 'Your Email'}</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password}</p>
-                )}
-              </div>
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
@@ -322,21 +384,36 @@ export default function Auth() {
                 className="w-full gradient-primary border-0"
                 disabled={loading}
               >
-                {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Register Company')}
+                {loading ? 'Please wait...' : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Register Company'))}
               </Button>
 
               <p className="text-sm text-center text-muted-foreground">
-                {isLogin ? "Don't have a company account? " : "Already have an account? "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setErrors({});
-                  }}
-                  className="text-primary hover:underline font-medium"
-                >
-                  {isLogin ? 'Register company' : 'Sign in'}
-                </button>
+                {isForgotPassword ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(false);
+                      setErrors({});
+                    }}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Back to Sign In
+                  </button>
+                ) : (
+                  <>
+                    {isLogin ? "Don't have a company account? " : "Already have an account? "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLogin(!isLogin);
+                        setErrors({});
+                      }}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {isLogin ? 'Register company' : 'Sign in'}
+                    </button>
+                  </>
+                )}
               </p>
             </CardFooter>
           </form>

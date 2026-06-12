@@ -45,6 +45,21 @@ export interface UsageLog {
   created_at: string | null;
 }
 
+export interface PaymentOrder {
+  id: string;
+  company_id: string;
+  user_id: string;
+  amount_inr: number;
+  amount_paise: number;
+  currency: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string | null;
+  status: 'created' | 'paid' | 'failed';
+  receipt: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export interface ServicePricing {
   id: string;
   provider: string;

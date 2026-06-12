@@ -1,0 +1,90 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Company {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String
+  email                  String             @unique
+  phone                  String?
+  address                String?
+  logoUrl                String?            @map("logo_url")
+  industry               String             @default("real_estate")
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  whatsappProvider       String?            @default("twilio") @map("whatsapp_provider")
+  metaPhoneNumberId      String?            @map("meta_phone_number_id")
+  metaWhatsappNumber     String?            @map("meta_whatsapp_number")
+  metaWabaId             String?            @map("meta_waba_id")
+  metaAccessToken        String?            @map("meta_access_token")
+  metaWebhookVerifyToken String?            @map("meta_webhook_verify_token")
+  
+  profiles               Profile[]
+  whatsappSettings       WhatsAppSettings?
+  whatsappTemplates      WhatsAppTemplate[]
+
+  @@map("companies")
+}
+
+model Profile {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  name      String
+  email     String
+  avatarUrl String?  @map("avatar_url")
+  phone     String?
+  companyId String?  @map("company_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  whatsappTemplates WhatsAppTemplate[]
+
+  @@map("profiles")
+}
+
+model WhatsAppSettings {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String   @unique @map("company_id") @db.Uuid
+  twilioSid       String   @map("twilio_sid")
+  twilioAuthToken String   @map("twilio_auth_token")
+  whatsappNumber  String   @map("whatsapp_number")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_settings")
+}
+
+model WhatsAppTemplate {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  templateName    String   @map("template_name")
+  metaTemplateId  String?  @map("meta_template_id")
+  category        String   // MARKETING, UTILITY, AUTHENTICATION
+  language        String   @default("en_US")
+  status          String   @default("draft") // draft, pending, approved, rejected, paused
+  content         String   // body content
+  variables       Json?    @default("[]")    // Array of variable names
+  headerType      String?  @default("NONE") @map("header_type") // TEXT, IMAGE, DOCUMENT, VIDEO, NONE
+  headerText      String?  @map("header_text")
+  headerMediaUrl  String?  @map("header_media_url")
+  footerText      String?  @map("footer_text")
+  buttons         Json?    @default("[]")    // Array of button objects
+  rejectionReason String?  @map("rejection_reason")
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator         Profile? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, templateName])
+  @@map("whatsapp_templates")
+}

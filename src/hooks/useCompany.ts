@@ -27,6 +27,8 @@ export type Company = {
   meta_waba_id?: string | null;
   meta_access_token?: string | null;
   meta_webhook_verify_token?: string | null;
+  plan_type?: 'trial' | 'premium' | 'bypass' | null;
+  trial_ends_at?: string | null;
 };
 
 export type AppRole = 'super_admin' | 'admin' | 'manager' | 'sales';
@@ -156,28 +158,81 @@ export function useUpdateCompanySettings() {
       allow_login,
       account_status,
       user_limit,
-      status_notes
+      status_notes,
+      plan_type
     }: {
       id: string;
       allow_login: boolean;
       account_status: 'active' | 'suspended';
       user_limit: number;
       status_notes?: string | null;
+      plan_type?: 'trial' | 'premium' | 'bypass' | null;
     }) => {
-      const { data, error } = await supabase
-        .from('companies')
-        .update({
-          allow_login,
-          account_status,
-          user_limit,
-          status_notes
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      const updates: any = {
+        allow_login,
+        account_status,
+        user_limit,
+        status_notes
+      };
 
-      if (error) throw error;
-      return data;
+      if (plan_type !== undefined) {
+        updates.plan_type = plan_type;
+        if (plan_type === 'premium') {
+          updates.status_notes = status_notes || 'premium';
+        } else if (plan_type === 'bypass') {
+          updates.status_notes = status_notes || 'bypass';
+        } else if (plan_type === 'trial' && (status_notes === 'premium' || status_notes === 'bypass')) {
+          updates.status_notes = null;
+        }
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('companies')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) {
+          // Fallback if plan_type doesn't exist
+          delete updates.plan_type;
+          if (plan_type === 'premium') {
+            updates.status_notes = status_notes || 'premium';
+          } else if (plan_type === 'bypass') {
+            updates.status_notes = status_notes || 'bypass';
+          } else if (plan_type === 'trial' && (status_notes === 'premium' || status_notes === 'bypass')) {
+            updates.status_notes = null;
+          }
+          const { data: fbData, error: fbError } = await supabase
+            .from('companies')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+          if (fbError) throw fbError;
+          return fbData;
+        }
+        return data;
+      } catch (err) {
+        // Fallback
+        delete updates.plan_type;
+        if (plan_type === 'premium') {
+          updates.status_notes = status_notes || 'premium';
+        } else if (plan_type === 'bypass') {
+          updates.status_notes = status_notes || 'bypass';
+        } else if (plan_type === 'trial' && (status_notes === 'premium' || status_notes === 'bypass')) {
+          updates.status_notes = null;
+        }
+        const { data: fbData, error: fbError } = await supabase
+          .from('companies')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+        if (fbError) throw fbError;
+        return fbData;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allCompanies'] });

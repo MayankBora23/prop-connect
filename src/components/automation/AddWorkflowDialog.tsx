@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateWorkflow } from '@/hooks/useWorkflows';
+import { useTemplates } from '@/hooks/useWhatsAppTemplates';
 import { useToast } from '@/hooks/use-toast';
 import { Zap, Loader2 } from 'lucide-react';
 
@@ -48,17 +50,37 @@ const actionOptions = [
 export function AddWorkflowDialog({ open, onOpenChange }: AddWorkflowDialogProps) {
   const { toast } = useToast();
   const createWorkflow = useCreateWorkflow();
+  const { data: templates } = useTemplates();
+  
+  const [selectedAction, setSelectedAction] = useState<string>('');
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string>('');
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<WorkflowFormData>({
     resolver: zodResolver(workflowSchema),
   });
 
+  const approvedTemplates = (templates || []).filter(t => t.status === 'approved');
+
   const onSubmit = async (data: WorkflowFormData) => {
+    if (data.action.toLowerCase().includes('whatsapp') && !selectedTemplateName) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select an approved WhatsApp template for this workflow action.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    let finalAction = data.action;
+    if (data.action.toLowerCase().includes('whatsapp') && selectedTemplateName) {
+      finalAction = `${data.action} (Template: ${selectedTemplateName})`;
+    }
+
     try {
       await createWorkflow.mutateAsync({
         name: data.name,
         trigger_event: data.trigger_event,
-        action: data.action,
+        action: finalAction,
         status: 'active',
         runs_count: 0,
       });
@@ -67,6 +89,8 @@ export function AddWorkflowDialog({ open, onOpenChange }: AddWorkflowDialogProps
         description: 'Workflow has been created and activated.',
       });
       reset();
+      setSelectedAction('');
+      setSelectedTemplateName('');
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -78,7 +102,14 @@ export function AddWorkflowDialog({ open, onOpenChange }: AddWorkflowDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => {
+      if (!val) {
+        reset();
+        setSelectedAction('');
+        setSelectedTemplateName('');
+      }
+      onOpenChange(val);
+    }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -112,7 +143,10 @@ export function AddWorkflowDialog({ open, onOpenChange }: AddWorkflowDialogProps
 
           <div className="space-y-2">
             <Label>Action *</Label>
-            <Select onValueChange={(value) => setValue('action', value)}>
+            <Select onValueChange={(value) => {
+              setValue('action', value);
+              setSelectedAction(value);
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="What should happen?" />
               </SelectTrigger>
@@ -126,6 +160,29 @@ export function AddWorkflowDialog({ open, onOpenChange }: AddWorkflowDialogProps
             </Select>
             {errors.action && <p className="text-xs text-destructive">{errors.action.message}</p>}
           </div>
+
+          {selectedAction.toLowerCase().includes('whatsapp') && (
+            <div className="space-y-2 pt-1 animate-scale-in">
+              <Label>WhatsApp Template (Approved Only) *</Label>
+              <Select onValueChange={(value) => setSelectedTemplateName(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose approved template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {approvedTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.template_name}>
+                      {t.template_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {approvedTemplates.length === 0 && (
+                <p className="text-[10px] text-destructive">
+                  No approved templates found. Please approve templates in WhatsApp Templates first.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>

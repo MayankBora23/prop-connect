@@ -78,8 +78,9 @@ export function useWallet() {
 }
 
 export interface WalletTransactionFilters {
-  provider?: 'twilio' | 'meta';
-  service_type?: 'whatsapp' | 'call';
+  type?: 'debit' | 'credit' | 'all';
+  provider?: 'twilio' | 'meta' | 'razorpay';
+  service_type?: 'whatsapp' | 'call' | 'recharge';
   date_from?: string;
   date_to?: string;
   limit?: number;
@@ -96,8 +97,12 @@ export function useWalletTransactions(filters?: WalletTransactionFilters) {
         .from('wallet_transactions')
         .select('*')
         .eq('company_id', companyId)
-        .eq('type', 'debit')
         .order('created_at', { ascending: false });
+
+      const typeFilter = filters?.type ?? 'all';
+      if (typeFilter !== 'all') {
+        q = q.eq('type', typeFilter);
+      }
 
       if (filters?.provider) {
         q = q.eq('provider', filters.provider);

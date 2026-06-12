@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
+import { useCurrentCompany } from '@/hooks/useCompany';
+import { useAuth } from '@/hooks/useAuth';
+import { UpgradePlanDialog } from '@/components/settings/UpgradePlanDialog';
+import { Lock, Clock, Check, Sparkles, ShieldAlert, LogOut, Building2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { LeadsView } from '@/components/leads/LeadsView';
 import { PropertiesView } from '@/components/properties/PropertiesView';
@@ -68,6 +74,7 @@ import { CreditsView } from '@/components/credits/CreditsView';
 import { LowBalanceAlert } from '@/components/credits/LowBalanceAlert';
 import { SupportView } from '@/components/support/SupportView';
 import { TeamReportView } from '@/components/reports/TeamReportView';
+import { TemplatesDashboard } from '@/components/whatsapp-templates/TemplatesDashboard';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -89,6 +96,7 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+  'whatsapp-templates': { title: 'WhatsApp Template Management', subtitle: 'Create, sync, and send WhatsApp templates' },
 };
 
 const educationTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
@@ -112,6 +120,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+  'whatsapp-templates': { title: 'WhatsApp Template Management', subtitle: 'Create, sync, and send WhatsApp templates' },
 };
 
 /* healthcare removed */
@@ -137,6 +146,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
+  'whatsapp-templates': { title: 'WhatsApp Template Management', subtitle: 'Create, sync, and send WhatsApp templates' },
 };
 
 const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
@@ -156,6 +166,7 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
   support: { title: 'Client Support', subtitle: 'Tickets from all client companies' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage platform settings' },
+  'whatsapp-templates': { title: 'WhatsApp Template Management', subtitle: 'Create, sync, and send WhatsApp templates' },
 };
 
 /* online business removed */
@@ -182,11 +193,123 @@ const Index = () => {
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [addInternalLeadOpen, setAddInternalLeadOpen] = useState(false);
 
+  const { data: company, isLoading: companyLoading } = useCurrentCompany();
+  const { signOut } = useAuth();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
   const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
-  if (industryLoading || !isLoaded) {
+
+  if (industryLoading || !isLoaded || companyLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full border-4 border-muted w-16 h-16 border-t-primary" />
+      </div>
+    );
+  }
+
+  // Trial Period Calculations
+  const createdAt = company?.created_at ? new Date(company.created_at) : new Date();
+  const trialDurationDays = 14;
+  const trialEndsAt = company?.trial_ends_at 
+    ? new Date(company.trial_ends_at) 
+    : new Date(createdAt.getTime() + trialDurationDays * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const isPremium = company?.plan_type === 'premium' || company?.status_notes === 'premium' || company?.plan_type === 'bypass' || company?.status_notes === 'bypass';
+  
+  const timeDiff = trialEndsAt.getTime() - now.getTime();
+  const daysRemaining = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+  const isTrialExpired = daysRemaining <= 0;
+
+  // Block dashboard access if trial has ended and they haven't upgraded
+  const shouldBlockForTrial = industry !== 'internal_crm' && !isPremium && isTrialExpired;
+
+  if (shouldBlockForTrial) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+        {/* Abstract Background Accents */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-orange-500/5 blur-3xl" />
+
+        <div className="w-full max-w-lg z-10">
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
+              <Building2 className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">RealCRM</h1>
+              <p className="text-xs text-muted-foreground">Multi-Industry CRM</p>
+            </div>
+          </div>
+
+          <Card className="card-elevated border-0 relative overflow-hidden">
+            {/* Top decorative stripe */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-pink-500 to-primary absolute top-0 left-0" />
+            
+            <CardHeader className="text-center pt-8 pb-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mb-4 relative">
+                <Lock className="w-7 h-7 text-orange-500" />
+                <div className="absolute inset-0 rounded-full border-2 border-orange-500/20 animate-ping" style={{ animationDuration: '3s' }} />
+              </div>
+              <CardTitle className="text-2xl font-bold text-foreground">
+                Your Free Trial Has Expired
+              </CardTitle>
+              <CardDescription className="text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+                Your 14-day free trial of RealCRM has ended. Upgrade to Premium to securely unlock your database, leads, and continue team collaborations.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4 px-6 md:px-8 py-4">
+              <div className="rounded-lg bg-secondary/50 p-4 border border-border space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  What is waiting for you in Premium:
+                </p>
+                <ul className="space-y-2 text-xs text-foreground font-medium">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>Unlimited Leads, Courses, Properties, and Batches</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>Full Outbound Telephony Dialer & Call Analytics</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>Shared WhatsApp Inbox & Automated Lead Qualification</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>Multi-Industry Custom Dashboards</span>
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex flex-col gap-3 px-6 md:px-8 pb-8 pt-2">
+              <Button 
+                onClick={() => setUpgradeOpen(true)}
+                className="w-full gradient-primary border-0 py-2.5 h-auto text-sm font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all"
+              >
+                <Sparkles className="w-4 h-4 fill-current animate-pulse text-white" />
+                Upgrade to Premium Plan
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                onClick={async () => {
+                  await signOut();
+                  window.location.href = '/auth';
+                }}
+                className="w-full text-xs text-muted-foreground hover:text-foreground h-auto py-2"
+              >
+                <LogOut className="w-3.5 h-3.5 mr-2" />
+                Sign Out / Log in to another account
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+
+        <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} />
       </div>
     );
   }
@@ -295,6 +418,8 @@ const Index = () => {
           return <EmployeeAttendanceView />;
         case 'whatsapp-inbox':
           return <InternalCRMWhatsAppInbox />;
+        case 'whatsapp-templates':
+          return <TemplatesDashboard />;
         case 'telephony':
           return <TelephonyView />;
         case 'workspace':
@@ -340,6 +465,8 @@ const Index = () => {
           return <div className="card-elevated p-6"><p className="text-muted-foreground">Fees view coming soon</p></div>;
         case 'whatsapp-inbox':
           return <EducationWhatsAppInbox />;
+        case 'whatsapp-templates':
+          return <TemplatesDashboard />;
         case 'workspace':
           return <PersonalWorkspace />;
         case 'team':
@@ -387,6 +514,8 @@ const Index = () => {
           return <TelephonyView />;
         case 'whatsapp-inbox':
           return <AutomobileWhatsAppInbox />;
+        case 'whatsapp-templates':
+          return <TemplatesDashboard />;
         case 'workspace':
           return <PersonalWorkspace />;
         case 'team':
@@ -422,6 +551,8 @@ const Index = () => {
           return <PurchasedView />;
         case 'inbox':
           return <WhatsAppInbox />;
+        case 'whatsapp-templates':
+          return <TemplatesDashboard />;
         case 'telephony':
           return <TelephonyView />;
         case 'visits':

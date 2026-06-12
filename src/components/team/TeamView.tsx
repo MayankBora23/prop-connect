@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useProfiles, ProfileWithRole, useCurrentProfile } from '@/hooks/useProfiles';
 import { useCurrentCompany, useUpdateTeamMemberRole, useRemoveTeamMember, AppRole } from '@/hooks/useCompany';
 import { InviteTeamMemberDialog } from './InviteTeamMemberDialog';
-import { Mail, Phone, Shield, Users, TrendingUp, UserPlus, MoreVertical, Trash2, UserCog } from 'lucide-react';
+import { Mail, Phone, Shield, Users, TrendingUp, UserPlus, MoreVertical, Trash2, UserCog, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -42,8 +43,10 @@ export function TeamView() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<ProfileWithRole | null>(null);
   const [editingRole, setEditingRole] = useState<string | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
 
   const isLoading = profilesLoading || currentProfileLoading || companyLoading;
 
@@ -85,6 +88,39 @@ export function TeamView() {
         description: error.message || 'Failed to update role',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!selectedMember) return;
+    setSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(selectedMember.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to send password reset email',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: `Password reset link sent to ${selectedMember.email}`,
+        });
+        setResetPasswordDialogOpen(false);
+        setSelectedMember(null);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingReset(false);
     }
   };
 
@@ -260,6 +296,16 @@ export function TeamView() {
                           <UserCog className="w-4 h-4 mr-2" />
                           Change Role
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedMember(user);
+                            setResetPasswordDialogOpen(true);
+                          }}
+                          disabled={removeMember.isPending}
+                        >
+                          <Lock className="w-4 h-4 mr-2" />
+                          Reset Password
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
@@ -339,6 +385,33 @@ export function TeamView() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {removeMember.isPending ? 'Removing...' : 'Remove Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Password Confirmation Dialog */}
+      <AlertDialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-primary" />
+              Reset Password
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to trigger a password reset for <strong>{selectedMember?.name}</strong>?
+              <br /><br />
+              This will send a secure recovery email to <strong>{selectedMember?.email}</strong>. They will be prompted to set a new password upon clicking the link.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedMember(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendResetEmail}
+              disabled={sendingReset}
+              className="gradient-primary border-0 text-white"
+            >
+              {sendingReset ? 'Sending...' : 'Send Reset Email'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

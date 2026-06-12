@@ -5,22 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/useWallet';
 import { useCurrentCompany } from '@/hooks/useCompany';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RechargeDialog } from './RechargeDialog';
 
 export function WalletCard() {
   const { data: wallet, isLoading } = useWallet();
   const { data: company } = useCurrentCompany();
   const [rechargeOpen, setRechargeOpen] = useState(false);
-  const [amount, setAmount] = useState('');
 
   const balance = wallet ? Number(wallet.balance) : 0;
   const minThreshold = wallet ? Number(wallet.min_balance_threshold) : 50;
@@ -53,39 +43,14 @@ export function WalletCard() {
               </div>
               <p className="text-sm text-muted-foreground">Min required: ₹{minThreshold.toFixed(2)}</p>
               <Button type="button" onClick={() => setRechargeOpen(true)}>
-                Recharge
+                Recharge with Razorpay
               </Button>
             </>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={rechargeOpen} onOpenChange={setRechargeOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add credits</DialogTitle>
-            <DialogDescription>
-              Payment integration coming soon. Enter an amount to save for when billing goes live.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2 py-2">
-            <Label htmlFor="amount">Amount (INR)</Label>
-            <Input
-              id="amount"
-              type="number"
-              min={0}
-              placeholder="500"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setRechargeOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RechargeDialog open={rechargeOpen} onOpenChange={setRechargeOpen} title="Add credits" />
     </>
   );
 }

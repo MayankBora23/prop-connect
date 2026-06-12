@@ -23,49 +23,51 @@ import { format, parseISO } from 'date-fns';
 export function TransactionHistory() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [providerFilter, setProviderFilter] = useState<'all' | 'twilio' | 'meta'>('all');
-  const [serviceFilter, setServiceFilter] = useState<'all' | 'whatsapp' | 'call'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'debit' | 'credit'>('all');
+  const [providerFilter, setProviderFilter] = useState<'all' | 'twilio' | 'meta' | 'razorpay'>('all');
+  const [serviceFilter, setServiceFilter] = useState<'all' | 'whatsapp' | 'call' | 'recharge'>('all');
 
   const filters = useMemo(() => {
     const f: {
-      provider?: 'twilio' | 'meta';
-      service_type?: 'whatsapp' | 'call';
+      type?: 'debit' | 'credit' | 'all';
+      provider?: 'twilio' | 'meta' | 'razorpay';
+      service_type?: 'whatsapp' | 'call' | 'recharge';
       date_from?: string;
       date_to?: string;
       limit?: number;
-    } = { limit: 1000 };
+    } = { limit: 1000, type: typeFilter };
     if (providerFilter !== 'all') f.provider = providerFilter;
     if (serviceFilter !== 'all') f.service_type = serviceFilter;
     if (dateFrom) f.date_from = new Date(`${dateFrom}T00:00:00`).toISOString();
     if (dateTo) f.date_to = new Date(`${dateTo}T23:59:59.999`).toISOString();
     return f;
-  }, [dateFrom, dateTo, providerFilter, serviceFilter]);
+  }, [dateFrom, dateTo, typeFilter, providerFilter, serviceFilter]);
 
   const { data: rows = [], isLoading } = useWalletTransactions(filters);
 
   const exportCsv = () => {
     const header = [
       'Date',
+      'Type',
       'Provider',
+      'Service',
       'Destination',
       'Category',
-      'Messages',
+      'Quantity',
       'Amount INR',
-      'Twilio Price',
-      'Twilio Currency',
       'Reference',
       'Status',
     ];
     const lines = rows.map((r) =>
       [
         r.created_at ? format(parseISO(r.created_at), 'yyyy-MM-dd HH:mm') : '',
+        r.type ?? '',
         r.provider ?? '',
+        r.service_type ?? '',
         r.destination_country ?? '',
         r.message_category ?? '',
         r.usage_quantity ?? '',
         r.amount_inr ?? '',
-        r.twilio_actual_price ?? '',
-        r.twilio_price_currency ?? '',
         r.reference_id ?? '',
         r.status ?? '',
       ].join(',')
@@ -92,8 +94,24 @@ export function TransactionHistory() {
           <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
         </div>
         <div className="grid gap-1">
+          <span className="text-xs text-muted-foreground">Type</span>
+          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as 'all' | 'debit' | 'credit')}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="debit">Usage</SelectItem>
+              <SelectItem value="credit">Recharge</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">Provider</span>
-          <Select value={providerFilter} onValueChange={(v) => setProviderFilter(v as 'all' | 'twilio' | 'meta')}>
+          <Select
+            value={providerFilter}
+            onValueChange={(v) => setProviderFilter(v as 'all' | 'twilio' | 'meta' | 'razorpay')}
+          >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Provider" />
             </SelectTrigger>
@@ -101,12 +119,16 @@ export function TransactionHistory() {
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="twilio">Twilio</SelectItem>
               <SelectItem value="meta">Meta</SelectItem>
+              <SelectItem value="razorpay">Razorpay</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">Service</span>
-          <Select value={serviceFilter} onValueChange={(v) => setServiceFilter(v as 'all' | 'whatsapp' | 'call')}>
+          <Select
+            value={serviceFilter}
+            onValueChange={(v) => setServiceFilter(v as 'all' | 'whatsapp' | 'call' | 'recharge')}
+          >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Service" />
             </SelectTrigger>
@@ -114,6 +136,7 @@ export function TransactionHistory() {
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="whatsapp">WhatsApp</SelectItem>
               <SelectItem value="call">Call</SelectItem>
+              <SelectItem value="recharge">Recharge</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -127,12 +150,12 @@ export function TransactionHistory() {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Provider</TableHead>
+              <TableHead>Service</TableHead>
               <TableHead>Destination</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Messages</TableHead>
-              <TableHead className="text-right">₹ Deducted</TableHead>
-              <TableHead className="text-muted-foreground">Twilio Price</TableHead>
+              <TableHead className="text-right">Qty</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
               <TableHead>Reference</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -151,33 +174,40 @@ export function TransactionHistory() {
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((r) => (
+              rows.map((r) => {
+                const isCredit = r.type === 'credit';
+                return (
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap text-sm">
                     {r.created_at ? format(parseISO(r.created_at), 'MMM d, yyyy HH:mm') : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={isCredit ? 'default' : 'secondary'} className="capitalize">
+                      {isCredit ? 'Recharge' : 'Usage'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
                       {r.provider ?? '—'}
                     </Badge>
                   </TableCell>
+                  <TableCell className="capitalize">{r.service_type ?? '—'}</TableCell>
                   <TableCell>{r.destination_country ?? '—'}</TableCell>
-                  <TableCell className="capitalize">{r.message_category ?? '—'}</TableCell>
                   <TableCell className="text-right">{r.usage_quantity ?? '—'}</TableCell>
-                  <TableCell className="text-right font-medium">₹{Number(r.amount_inr).toFixed(2)}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {r.twilio_actual_price != null
-                      ? `${r.twilio_actual_price} ${r.twilio_price_currency ?? ''}`.trim()
-                      : '—'}
+                  <TableCell
+                    className={`text-right font-medium ${isCredit ? 'text-emerald-600' : ''}`}
+                  >
+                    {isCredit ? '+' : '−'}₹{Number(r.amount_inr).toFixed(2)}
                   </TableCell>
                   <TableCell className="font-mono text-xs">
-                    {r.reference_id ? r.reference_id.slice(0, 12) : '—'}
+                    {r.reference_id ? r.reference_id.slice(0, 14) : '—'}
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{r.status ?? 'completed'}</Badge>
                   </TableCell>
                 </TableRow>
-              ))
+              );
+              })
             )}
           </TableBody>
         </Table>

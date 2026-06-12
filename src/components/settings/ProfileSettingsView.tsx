@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +11,9 @@ import { useUpdateProfile } from '@/hooks/useProfiles';
 import { useTelephonySettings } from '@/hooks/useTelephonySettings';
 import { normalizeCallerDeskBridgeNumber } from '@/lib/callerdeskPhone';
 import { toast } from 'sonner';
-import { User, Loader2, Phone } from 'lucide-react';
+import { User, Loader2, Phone, Lock, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Label } from '@/components/ui/label';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -222,3 +224,5 @@ export function ProfileSettingsView() {
     </div>
   );
 }
+
+
