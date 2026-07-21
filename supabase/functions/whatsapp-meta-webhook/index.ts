@@ -38,6 +38,11 @@ interface MetaMessage {
   text?: { body?: string }
   image?: MetaMedia
   document?: MetaMedia
+  button?: { text?: string; payload?: string }
+  interactive?: {
+    type?: string
+    button_reply?: { id?: string; title?: string }
+  }
 }
 
 interface MetaMetadata {
@@ -114,7 +119,11 @@ function normalizeInboundPhone(rawPhone: string | undefined): string | null {
 
 /** Pulls text body for all common inbound Meta message types. */
 function extractMessageBody(message: MetaMessage): string {
-  return (message.text?.body ?? message.image?.caption ?? message.document?.caption ?? '').trim()
+  const textBody = message.text?.body || '';
+  const buttonText = message.button?.text || '';
+  const interactiveText = message.interactive?.button_reply?.title || '';
+  const captionText = message.image?.caption || message.document?.caption || '';
+  return (textBody || buttonText || interactiveText || captionText || '').trim();
 }
 
 function safeJsonParse(raw: string): MetaWebhookBody | null {
@@ -416,6 +425,10 @@ async function handleIncoming(req: Request, url: URL): Promise<Response> {
         console.error('❌ Conversation id missing after lookup/create')
         continue
       }
+
+      await supabase.from('whatsapp_conversations')
+        .update({ last_customer_message_at: new Date().toISOString() })
+        .eq('id', conversationId)
 
       // Idempotent message insert using Meta message id.
       let shouldInsertMessage = true

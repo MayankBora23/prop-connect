@@ -11,12 +11,15 @@ import {
   useConversationRealtime,
 } from '@/hooks/useWhatsApp';
 import { useCurrentProfile } from '@/hooks/useProfiles';
+import { useCurrentCompany } from '@/hooks/useCompany';
 import { useLeads } from '@/hooks/useLeads';
 import { ChatHeaderControls } from './ChatHeaderControls';
 import { HumanTakeoverBanner } from './HumanTakeoverBanner';
 import { AgentAvailabilitySelector } from './AgentAvailabilitySelector';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, User, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Home, SendHorizontal, RefreshCw } from 'lucide-react';
+import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, User, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Home, SendHorizontal, RefreshCw, LayoutTemplate, Bell } from 'lucide-react';
+import { TemplateSelectorDialog } from '../whatsapp-templates/TemplateSelectorDialog';
+import { useApprovedTemplates, useSendTemplate } from '@/hooks/useWhatsAppTemplates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,7 +34,9 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { SaveLeadDialog } from './SaveLeadDialog';
 import { DeleteContactDialog } from './DeleteContactDialog';
+import { SetReminderDialog } from './SetReminderDialog';
 import { PropertySuggestions } from './PropertySuggestions';
+import { buildPropertyWhatsAppMessage } from '@/lib/formatPropertyArea';
 import { WhatsAppMessage } from '@/hooks/useWhatsApp';
 import type { Property } from '@/hooks/useProperties';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -45,6 +50,7 @@ export function WhatsAppInbox() {
   const [searchTerm, setSearchTerm] = useState('');
   const [saveLeadDialogOpen, setSaveLeadDialogOpen] = useState(false);
   const [deleteContactDialogOpen, setDeleteContactDialogOpen] = useState(false);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
   const [propertySuggestionsOpen, setPropertySuggestionsOpen] = useState(false);
   const [bulkSendDialogOpen, setBulkSendDialogOpen] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
@@ -55,8 +61,19 @@ export function WhatsAppInbox() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const { data: currentProfile } = useCurrentProfile();
+  const { data: company } = useCurrentCompany();
+  const { data: approvedTemplates = [] } = useApprovedTemplates();
+  const bulkSendTemplate = useSendTemplate();
+
+  const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+  const [bulkMessageType, setBulkMessageType] = useState<'free_form' | 'template'>('free_form');
+  const [bulkSelectedTemplateId, setBulkSelectedTemplateId] = useState<string>('');
+  const [bulkTemplateVariableValues, setBulkTemplateVariableValues] = useState<Record<string, string>>({});
+
   const currentUserRole = currentProfile?.role || 'sales';
   const currentProfileId = currentProfile?.id || '';
+
+  const isMetaProvider = company?.whatsapp_provider === 'meta';
 
   // Filter states for bulk send
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>('all');
@@ -137,6 +154,13 @@ export function WhatsAppInbox() {
   );
 
   const activeConversation = selectedConversationId ? conversations?.find(c => c.id === selectedConversationId) : null;
+
+  const isWithin24HourWindow = useMemo(() => {
+    if (!activeConversation?.last_customer_message_at) return false;
+    const hoursElapsed = (Date.now() - new Date(activeConversation.last_customer_message_at).getTime()) / 3600000;
+    return hoursElapsed < 24;
+  }, [activeConversation]);
+
   const activeMessages = messagesData?.data || [];
   const [missingOriginals, setMissingOriginals] = useState<Record<string, boolean>>({});
 
@@ -146,6 +170,26 @@ export function WhatsAppInbox() {
     setBannerDismissed(false);
   }, [selectedConversationId]);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { conversationId } = (e as CustomEvent<{ conversationId: string }>).detail;
+      const conv = conversations?.find((c) => c.id === conversationId);
+      if (conv) setSelectedConversationId(conv.id);
+    };
+    window.addEventListener('navigate-to-whatsapp-conversation', handler);
+    return () => window.removeEventListener('navigate-to-whatsapp-conversation', handler);
+  }, [conversations]);
+
+  useEffect(() => {
+    const pending = sessionStorage.getItem('pendingWhatsAppConversationId');
+    if (!pending || !conversations?.length) return;
+    const conv = conversations.find((c) => c.id === pending);
+    if (conv) {
+      setSelectedConversationId(conv.id);
+      sessionStorage.removeItem('pendingWhatsAppConversationId');
+    }
+  }, [conversations]);
+
   const canSendMessage = useMemo(() => {
     if (!activeConversation) return false;
     if (['super_admin', 'admin', 'manager'].includes(currentUserRole)) return true;
@@ -154,6 +198,12 @@ export function WhatsAppInbox() {
     if (!activeConversation.assigned_to) return true;
     return false;
   }, [activeConversation, currentUserRole, currentProfileId]);
+
+  const canSendFreeForm = useMemo(() => {
+    if (!canSendMessage) return false;
+    if (isMetaProvider && !isWithin24HourWindow) return false;
+    return true;
+  }, [canSendMessage, isMetaProvider, isWithin24HourWindow]);
 
   const handleFileSelect = (files: FileList | null) => {
     if (files) {
@@ -224,7 +274,11 @@ export function WhatsAppInbox() {
   };
 
   const handleBulkSend = async () => {
-    if (!bulkMessage.trim() && selectedFiles.length === 0) return;
+    if (isMetaProvider && bulkMessageType === 'template') {
+      if (!bulkSelectedTemplateId) return;
+    } else {
+      if (!bulkMessage.trim() && selectedFiles.length === 0) return;
+    }
     if (selectedContacts.length === 0) return;
 
     try {
@@ -236,6 +290,31 @@ export function WhatsAppInbox() {
           // Find the conversation for this contact
           const conversation = conversations?.find(conv => conv.id === contactId);
           if (!conversation) continue;
+
+          if (isMetaProvider && bulkMessageType === 'template') {
+            const contactName = conversation ? getLeadNameForPhone(conversation.contact_phone, conversation.contact_name) : '';
+            const resolvedValues = { ...bulkTemplateVariableValues };
+
+            const selectedTpl = approvedTemplates.find(t => t.id === bulkSelectedTemplateId);
+            selectedTpl?.variables.forEach((v) => {
+              if (['customer_name', 'student_name', 'name'].includes(v.toLowerCase()) && !resolvedValues[v]) {
+                resolvedValues[v] = contactName || '';
+              }
+            });
+
+            await bulkSendTemplate.mutateAsync({
+              conversationId: contactId,
+              templateId: bulkSelectedTemplateId,
+              variableValues: resolvedValues
+            });
+
+            totalSent++;
+
+            if (selectedContacts.length > 1) {
+              await new Promise(resolve => setTimeout(resolve, 3500));
+            }
+            continue;
+          }
 
           let fileUrls: string[] = [];
           let fileNames: string[] = [];
@@ -439,17 +518,7 @@ export function WhatsAppInbox() {
       setPropertySuggestionsOpen(false);
 
       // Format property details for bulk message
-      const propertyMessage = `*${property.title}*\n\n` +
-        `${property.description ? `${property.description}\n\n` : ''}` +
-        `${property.bhk ? `${typeof property.bhk === 'string' ? property.bhk : `${property.bhk} BHK`}\n` : ''}` +
-        `${(property as any).area ? `${(property as any).area} sq.ft\n` : ''}` +
-        `${property.price ? `${formatPrice(property.price)}\n\n` : ''}` +
-        `📍 *Location:*\n` +
-        `${property.location || property.city || property.address || 'Location not specified'}\n` +
-        `${property.amenities && property.amenities.length > 0 ? `\n✨ *Amenities:*\n${property.amenities.join(', ')}\n` : ''}` +
-        `${property.property_type ? `\n🏢 *Type:* ${property.property_type}\n` : ''}` +
-        `${property.status ? `\n📊 *Status:* ${property.status.charAt(0).toUpperCase() + property.status.slice(1)}\n` : ''}` +
-        `\n📞 *Contact us for more details!*`;
+      const propertyMessage = buildPropertyWhatsAppMessage(property);
 
       setBulkMessage(prev => prev ? `${prev}\n\n${propertyMessage}` : propertyMessage);
 
@@ -468,17 +537,7 @@ export function WhatsAppInbox() {
 
     try {
       // Format property details to match PropertyCard display
-      const propertyMessage = `*${property.title}*\n\n` +
-        `${property.description ? `${property.description}\n\n` : ''}` +
-        `${property.bhk ? `${typeof property.bhk === 'string' ? property.bhk : `${property.bhk} BHK`}\n` : ''}` +
-        `${(property as any).area ? `${(property as any).area} sq.ft\n` : ''}` +
-        `${property.price ? `${formatPrice(property.price)}\n\n` : ''}` +
-        `📍 *Location:*\n` +
-        `${property.location || property.city || property.address || 'Location not specified'}\n` +
-        `${property.amenities && property.amenities.length > 0 ? `\n✨ *Amenities:*\n${property.amenities.join(', ')}\n` : ''}` +
-        `${property.property_type ? `\n🏢 *Type:* ${property.property_type}\n` : ''}` +
-        `${property.status ? `\n📊 *Status:* ${property.status.charAt(0).toUpperCase() + property.status.slice(1)}\n` : ''}` +
-        `\n📞 *Contact us for more details!*`;
+      const propertyMessage = buildPropertyWhatsAppMessage(property);
 
       let fileUrls: string[] = [];
       let fileNames: string[] = [];
@@ -768,6 +827,13 @@ export function WhatsAppInbox() {
                     <MessageSquareOff className="mr-2 h-4 w-4" />
                     Clear Chat
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setReminderDialogOpen(true)}
+                    disabled={!activeConversation}
+                  >
+                    <Bell className="mr-2 h-4 w-4" />
+                    Set Reminder
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setDeleteContactDialogOpen(true)}
@@ -954,12 +1020,29 @@ export function WhatsAppInbox() {
                 This chat is assigned to {activeConversation.assigned_profile?.name || 'another agent'}. Only they can reply.
               </div>
             )}
+
+            {isMetaProvider && !isWithin24HourWindow && (
+              <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm flex items-center justify-between text-orange-800">
+                <span className="font-medium">24-hour window closed. Send a pre-approved template to continue.</span>
+                <Button size="sm" onClick={() => setTemplateSelectorOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white border-0 text-xs">
+                  Send Template
+                </Button>
+              </div>
+            )}
+
+            {isMetaProvider && isWithin24HourWindow && (
+              <div className="mb-2 text-[10px] text-green-600 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                Service window open
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPropertySuggestionsOpen(true)}
                 className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
                 title="Send property suggestion"
-                disabled={!selectedConversationId || !canSendMessage}
+                disabled={!selectedConversationId || !canSendFreeForm}
               >
                 <Home className="w-5 h-5" />
               </button>
@@ -967,6 +1050,7 @@ export function WhatsAppInbox() {
                 onClick={() => handleAttachmentClick('file')}
                 className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
                 title="Attach file"
+                disabled={!canSendFreeForm}
               >
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -974,6 +1058,7 @@ export function WhatsAppInbox() {
                 onClick={() => handleAttachmentClick('image')}
                 className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
                 title="Attach image"
+                disabled={!canSendFreeForm}
               >
                 <Image className="w-5 h-5" />
               </button>
@@ -981,6 +1066,7 @@ export function WhatsAppInbox() {
                 onClick={() => handleAttachmentClick('document')}
                 className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
                 title="Attach document"
+                disabled={!canSendFreeForm}
               >
                 <FileText className="w-5 h-5" />
               </button>
@@ -989,14 +1075,26 @@ export function WhatsAppInbox() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder={selectedFiles.length > 0 ? `Sending ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}...` : "Type a message..."}
                 className="flex-1"
-                disabled={!canSendMessage}
-                onKeyDown={(e) => e.key === 'Enter' && canSendMessage && handleSendMessage()}
+                disabled={!canSendFreeForm}
+                onKeyDown={(e) => e.key === 'Enter' && canSendFreeForm && handleSendMessage()}
               />
+              {isMetaProvider && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="rounded-full hover:bg-secondary text-muted-foreground shrink-0"
+                  onClick={() => setTemplateSelectorOpen(true)}
+                  title="Send Template"
+                  type="button"
+                >
+                  <LayoutTemplate className="w-5 h-5" />
+                </Button>
+              )}
               <Button
                 size="icon"
                 className="gradient-primary border-0 rounded-full"
                 onClick={handleSendMessage}
-                disabled={createMessage.isPending || (!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendMessage}
+                disabled={createMessage.isPending || (!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendFreeForm}
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -1140,6 +1238,13 @@ export function WhatsAppInbox() {
         />
       )}
 
+      <SetReminderDialog
+        open={reminderDialogOpen}
+        onOpenChange={setReminderDialogOpen}
+        conversationId={activeConversation?.id ?? ''}
+        contactName={activeConversation?.contact_name ?? 'Contact'}
+      />
+
       {/* Property Suggestions Dialog */}
       <PropertySuggestions
         isOpen={propertySuggestionsOpen}
@@ -1164,108 +1269,178 @@ export function WhatsAppInbox() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Selected Property Display */}
-            {selectedProperty && (
-              <div className="p-3 bg-secondary/50 rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Selected Property:</label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedProperty(null);
-                      // Remove property images from the message
-                      setBulkMessage(prev => prev.replace(/\*[^*]+\*\n\n[\s\S]*?\n📞 \*Contact us for more details!\*\n\n?/, ''));
-                    }}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Home className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">{selectedProperty.title}</span>
-                  {selectedProperty.images && selectedProperty.images.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      ({selectedProperty.images.length} image{selectedProperty.images.length > 1 ? 's' : ''})
-                    </span>
-                  )}
-                </div>
+            {isMetaProvider && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message Type</label>
+                <Select
+                  value={bulkMessageType}
+                  onValueChange={(val: 'free_form' | 'template') => setBulkMessageType(val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free_form">Free-form Message</SelectItem>
+                    <SelectItem value="template">Template Message</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
-            {/* Message Input */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Message</label>
-              <textarea
-                value={bulkMessage}
-                onChange={(e) => setBulkMessage(e.target.value)}
-                placeholder={selectedProperty ? "Add additional message (optional)..." : "Type your message here..."}
-                className="w-full min-h-[100px] p-3 border border-border rounded-md resize-none"
-              />
-            </div>
+            {isMetaProvider && bulkMessageType === 'template' ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Approved Template</label>
+                  <Select
+                    value={bulkSelectedTemplateId}
+                    onValueChange={(val) => {
+                      setBulkSelectedTemplateId(val);
+                      const t = approvedTemplates.find(x => x.id === val);
+                      const initialVals: Record<string, string> = {};
+                      t?.variables.forEach(v => {
+                        initialVals[v] = '';
+                      });
+                      setBulkTemplateVariableValues(initialVals);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {approvedTemplates.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.template_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* File Attachments */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Attachments (Optional)</label>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setPropertySuggestionsOpen(true)}
-                  className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                  title="Send property details"
-                >
-                  <Home className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => document.getElementById('bulk-file-input')?.click()}
-                  className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                  title="Attach file"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => document.getElementById('bulk-image-input')?.click()}
-                  className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                  title="Attach image"
-                >
-                  <Image className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => document.getElementById('bulk-document-input')?.click()}
-                  className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                  title="Attach document"
-                >
-                  <FileText className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* File Previews */}
-            {selectedFiles.length > 0 && (
-              <div className="space-y-2">
-                {selectedFiles.map((file, index) => (
-                  <div key={index} className="p-2 bg-secondary rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {file.type.startsWith('image/') ? (
-                        <Image className="w-4 h-4" />
-                      ) : (
-                        <FileText className="w-4 h-4" />
-                      )}
-                      <span className="text-sm truncate">{file.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
+                {(() => {
+                  const t = approvedTemplates.find(x => x.id === bulkSelectedTemplateId);
+                  if (!t || t.variables.length === 0) return null;
+                  return (
+                    <div className="space-y-3 bg-secondary/30 p-4 border rounded-lg">
+                      <span className="text-xs font-semibold text-muted-foreground block mb-2">Template Variables</span>
+                      {t.variables.map(v => (
+                        <div key={v} className="grid grid-cols-3 items-center gap-3">
+                          <label className="text-xs font-medium truncate col-span-1">{v}</label>
+                          <Input
+                            placeholder={`Value for ${v}...`}
+                            className="h-8 text-xs col-span-2"
+                            value={bulkTemplateVariableValues[v] || ''}
+                            onChange={(e) => setBulkTemplateVariableValues(prev => ({ ...prev, [v]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
                     </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              <>
+                {/* Selected Property Display */}
+                {selectedProperty && (
+                  <div className="p-3 bg-secondary/50 rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium">Selected Property:</label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedProperty(null);
+                          // Remove property images from the message
+                          setBulkMessage(prev => prev.replace(/\*[^*]+\*\n\n[\s\S]*?\n📞 \*Contact us for more details!\*\n\n?/, ''));
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Home className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">{selectedProperty.title}</span>
+                      {selectedProperty.images && selectedProperty.images.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          ({selectedProperty.images.length} image{selectedProperty.images.length > 1 ? 's' : ''})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message Input */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Message</label>
+                  <textarea
+                    value={bulkMessage}
+                    onChange={(e) => setBulkMessage(e.target.value)}
+                    placeholder={selectedProperty ? "Add additional message (optional)..." : "Type your message here..."}
+                    className="w-full min-h-[100px] p-3 border border-border rounded-md resize-none"
+                  />
+                </div>
+
+                {/* File Attachments */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Attachments (Optional)</label>
+                  <div className="flex gap-2 flex-wrap">
                     <button
-                      onClick={() => removeFile(index)}
-                      className="text-muted-foreground hover:text-foreground"
-                      title="Remove file"
+                      onClick={() => setPropertySuggestionsOpen(true)}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Send property details"
                     >
-                      <X className="w-4 h-4" />
+                      <Home className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => document.getElementById('bulk-file-input')?.click()}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Attach file"
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => document.getElementById('bulk-image-input')?.click()}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Attach image"
+                    >
+                      <Image className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => document.getElementById('bulk-document-input')?.click()}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Attach document"
+                    >
+                      <FileText className="w-5 h-5" />
                     </button>
                   </div>
-                ))}
-              </div>
+                </div>
+
+                {/* File Previews */}
+                {selectedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="p-2 bg-secondary rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {file.type.startsWith('image/') ? (
+                            <Image className="w-4 h-4" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Remove file"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Filters Section */}
@@ -1453,13 +1628,21 @@ export function WhatsAppInbox() {
                 setSelectedProperty(null);
                 clearAllFiles();
                 clearAllFilters();
+                setBulkMessageType('free_form');
+                setBulkSelectedTemplateId('');
+                setBulkTemplateVariableValues({});
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleBulkSend}
-              disabled={(!bulkMessage.trim() && selectedFiles.length === 0) || selectedContacts.length === 0}
+              disabled={
+                selectedContacts.length === 0 ||
+                ((isMetaProvider && bulkMessageType === 'template')
+                  ? !bulkSelectedTemplateId || (approvedTemplates.find(x => x.id === bulkSelectedTemplateId)?.variables.some(v => !bulkTemplateVariableValues[v]?.trim()) ?? false)
+                  : (!bulkMessage.trim() && selectedFiles.length === 0))
+              }
               className="gradient-primary border-0"
             >
               <SendHorizontal className="w-4 h-4 mr-2" />
@@ -1468,6 +1651,16 @@ export function WhatsAppInbox() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {activeConversation && (
+        <TemplateSelectorDialog
+          open={templateSelectorOpen}
+          onOpenChange={setTemplateSelectorOpen}
+          conversationId={activeConversation.id}
+          contactName={getLeadNameForPhone(activeConversation.contact_phone, activeConversation.contact_name) || undefined}
+          onSent={() => refetchMessages()}
+        />
+      )}
     </div>
   );
 }

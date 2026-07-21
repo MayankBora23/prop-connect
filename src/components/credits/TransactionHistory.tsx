@@ -21,8 +21,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { formatMessageCategory } from './WhatsAppUsageStats';
 
 function transactionTypeLabel(row: WalletTransaction): string {
+  if (row.provider === 'callerdesk') return 'Telephony';
   if (row.type === 'credit') return 'Top-up';
   if (row.service_type === 'call') return 'Call';
   if (row.service_type === 'whatsapp') return 'WhatsApp';
@@ -35,7 +37,9 @@ function transactionDescription(row: WalletTransaction): string {
   }
   const parts: string[] = [];
   if (row.destination_country) parts.push(row.destination_country);
-  if (row.message_category) parts.push(row.message_category);
+  if (row.message_category) {
+    parts.push(formatMessageCategory(row.message_category, row.provider));
+  }
   if (row.service_type === 'call' && row.call_duration_minutes != null) {
     parts.push(`${row.call_duration_minutes} min`);
   }
@@ -43,6 +47,7 @@ function transactionDescription(row: WalletTransaction): string {
 }
 
 function transactionProviderLabel(row: WalletTransaction): string {
+  if (row.provider === 'callerdesk') return 'CallerDesk';
   if (row.type === 'credit') return 'Razorpay';
   return row.provider ?? '—';
 }
@@ -50,21 +55,30 @@ function transactionProviderLabel(row: WalletTransaction): string {
 export function TransactionHistory() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
-  const [providerFilter, setProviderFilter] = useState<'all' | 'twilio' | 'meta'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit' | 'telephony'>('all');
+  const [providerFilter, setProviderFilter] = useState<'all' | 'twilio' | 'meta' | 'callerdesk'>('all');
   const [serviceFilter, setServiceFilter] = useState<'all' | 'whatsapp' | 'call'>('all');
 
   const filters = useMemo(() => {
     const f: {
       type?: 'credit' | 'debit';
-      provider?: 'twilio' | 'meta';
+      provider?: 'twilio' | 'meta' | 'callerdesk';
+      exclude_provider?: string;
       service_type?: 'whatsapp' | 'call';
       date_from?: string;
       date_to?: string;
       limit?: number;
     } = { limit: 1000 };
-    if (typeFilter !== 'all') f.type = typeFilter;
-    if (providerFilter !== 'all') f.provider = providerFilter;
+    if (typeFilter === 'telephony') {
+      f.type = 'credit';
+      f.provider = 'callerdesk';
+    } else if (typeFilter === 'credit') {
+      f.type = 'credit';
+      f.exclude_provider = 'callerdesk';
+    } else if (typeFilter !== 'all') {
+      f.type = typeFilter;
+    }
+    if (providerFilter !== 'all' && typeFilter !== 'telephony') f.provider = providerFilter;
     if (serviceFilter !== 'all') f.service_type = serviceFilter;
     if (dateFrom) f.date_from = new Date(`${dateFrom}T00:00:00`).toISOString();
     if (dateTo) f.date_to = new Date(`${dateTo}T23:59:59.999`).toISOString();
@@ -123,7 +137,7 @@ export function TransactionHistory() {
         </div>
         <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">Type</span>
-          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as 'all' | 'credit' | 'debit')}>
+          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as 'all' | 'credit' | 'debit' | 'telephony')}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
@@ -131,15 +145,15 @@ export function TransactionHistory() {
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="credit">Top-ups</SelectItem>
               <SelectItem value="debit">Usage</SelectItem>
+              <SelectItem value="telephony">Telephony</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-1">
+         <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">Provider</span>
           <Select
             value={providerFilter}
-            onValueChange={(v) => setProviderFilter(v as 'all' | 'twilio' | 'meta')}
-            disabled={typeFilter === 'credit'}
+            onValueChange={(v) => setProviderFilter(v as 'all' | 'twilio' | 'meta' | 'callerdesk')}
           >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Provider" />
@@ -148,6 +162,7 @@ export function TransactionHistory() {
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="twilio">Twilio</SelectItem>
               <SelectItem value="meta">Meta</SelectItem>
+              <SelectItem value="callerdesk">CallerDesk</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -156,7 +171,6 @@ export function TransactionHistory() {
           <Select
             value={serviceFilter}
             onValueChange={(v) => setServiceFilter(v as 'all' | 'whatsapp' | 'call')}
-            disabled={typeFilter === 'credit'}
           >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Service" />
@@ -223,7 +237,7 @@ export function TransactionHistory() {
                       </Badge>
                     </TableCell>
                     <TableCell className="capitalize">{transactionProviderLabel(r)}</TableCell>
-                    <TableCell className="max-w-[220px] truncate" title={transactionDescription(r)}>
+                    <TableCell className="max-w-[280px] break-words" title={transactionDescription(r)}>
                       {transactionDescription(r)}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">

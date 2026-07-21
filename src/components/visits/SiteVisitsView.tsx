@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSiteVisits, SiteVisitWithDetails, useUpdateSiteVisit } from '@/hooks/useSiteVisits';
 import { useLeads } from '@/hooks/useLeads';
 import { useUpdateLead } from '@/hooks/useLeads';
@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function SiteVisitsView() {
   const { data: visits, isLoading: visitsLoading } = useSiteVisits();
@@ -24,15 +26,47 @@ export function SiteVisitsView() {
   const [selectedLeadForVisit, setSelectedLeadForVisit] = useState<{ id: string; name: string } | null>(null);
   const [editVisitDialogOpen, setEditVisitDialogOpen] = useState(false);
   const [selectedVisitForEdit, setSelectedVisitForEdit] = useState<SiteVisitWithDetails | null>(null);
+  const { search } = useSectionSearch();
 
   const isLoading = visitsLoading || leadsLoading;
 
-  const scheduledVisits = (visits || []).filter(v => v.status === 'scheduled');
-  const completedVisits = (visits || []).filter(v => v.status === 'completed');
-  const cancelledVisits = (visits || []).filter(v => v.status === 'cancelled');
+  const filterVisit = (visit: SiteVisitWithDetails) =>
+    filterBySearch([visit], search, (item) => [
+      item.leads?.name,
+      item.leads?.phone,
+      item.leads?.email,
+      item.properties?.title,
+      item.properties?.location,
+      item.feedback,
+      item.status,
+    ]).length > 0;
 
-  // Filter leads that are in site-visit stage
-  const siteVisitLeads = (leads || []).filter(lead => lead.stage === 'site-visit');
+  const filterLead = (lead: { name?: string; phone?: string; email?: string; property_type?: string; location?: string }) =>
+    filterBySearch([lead], search, (item) => [
+      item.name,
+      item.phone,
+      item.email,
+      item.property_type,
+      item.location,
+    ]).length > 0;
+
+  const scheduledVisits = useMemo(
+    () => (visits || []).filter((v) => v.status === 'scheduled').filter(filterVisit),
+    [visits, search]
+  );
+  const completedVisits = useMemo(
+    () => (visits || []).filter((v) => v.status === 'completed').filter(filterVisit),
+    [visits, search]
+  );
+  const cancelledVisits = useMemo(
+    () => (visits || []).filter((v) => v.status === 'cancelled').filter(filterVisit),
+    [visits, search]
+  );
+
+  const siteVisitLeads = useMemo(
+    () => (leads || []).filter((lead) => lead.stage === 'site-visit').filter(filterLead),
+    [leads, search]
+  );
 
   const handleScheduleVisit = (lead: any) => {
     setSelectedLeadForVisit({ id: lead.id, name: lead.name });
@@ -195,20 +229,11 @@ export function SiteVisitsView() {
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm text-foreground">{lead.property_type || '-'}</p>
-                      <p className="text-xs text-muted-foreground">{(lead as any).location || (lead.city ? `${lead.city}${lead.state ? ', ' + lead.state : ''}` : '-') || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{lead.location || '-'}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-primary">
-                        {(lead as any).budget ||
-                          (lead.budget_min && lead.budget_max
-                            ? `$${lead.budget_min.toLocaleString()} - $${lead.budget_max.toLocaleString()}`
-                            : lead.budget_min
-                              ? `$${lead.budget_min.toLocaleString()}+`
-                              : lead.budget_max
-                                ? `Up to $${lead.budget_max.toLocaleString()}`
-                                : '-'
-                          )
-                        }
+                        {lead.budget || '-'}
                       </p>
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAutoLeads, AutoLead, useUpdateAutoLead } from '@/hooks/useAutoLeads';
 import { AutoLeadCard } from './AutoLeadCard';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 interface AutoLeadPipelineProps {
   onOpenHistory?: (lead: AutoLead) => void;
@@ -23,9 +25,26 @@ export function AutoLeadPipeline({ onOpenHistory }: AutoLeadPipelineProps) {
   const { data: leads, isLoading } = useAutoLeads();
   const updateLead = useUpdateAutoLead();
   const [draggedLead, setDraggedLead] = useState<AutoLead | null>(null);
+  const { search } = useSectionSearch();
+
+  const filteredLeads = useMemo(
+    () =>
+      filterBySearch(leads, search, (lead) => [
+        lead.name,
+        lead.phone,
+        lead.email,
+        lead.preferred_brand,
+        lead.preferred_model,
+        lead.budget_min != null ? String(lead.budget_min) : undefined,
+        lead.budget_max != null ? String(lead.budget_max) : undefined,
+        lead.status,
+        lead.source,
+      ]),
+    [leads, search]
+  );
 
   const getLeadsByStage = (stage: string) => {
-    return (leads || []).filter((lead) => lead.status === stage);
+    return filteredLeads.filter((lead) => lead.status === stage);
   };
 
   const handleDragStart = (lead: AutoLead) => {

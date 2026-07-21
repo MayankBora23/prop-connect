@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
 import { useAutoLeads, useUpdateAutoLead, useDeleteAutoLead, type AutoLead } from '@/hooks/useAutoLeads';
 import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone, History, Edit, Trash2 } from 'lucide-react';
@@ -24,6 +24,8 @@ import { useProfiles } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { EditAutoLeadDialog } from './EditAutoLeadDialog';
 import { format } from 'date-fns';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 // Cast supabase to any to bypass type checking for automobile tables
 const supabaseAny = supabase as any;
@@ -95,6 +97,23 @@ export function AutoLeadsView() {
   const [historySheetOpen, setHistorySheetOpen] = useState(false);
   const [selectedHistoryLeadId, setSelectedHistoryLeadId] = useState<string | null>(null);
   const [selectedHistoryLeadName, setSelectedHistoryLeadName] = useState('');
+  const { search } = useSectionSearch();
+
+  const filteredLeads = useMemo(
+    () =>
+      filterBySearch(leads, search, (lead) => [
+        lead.name,
+        lead.phone,
+        lead.email,
+        lead.preferred_brand,
+        lead.preferred_model,
+        lead.budget_min != null ? String(lead.budget_min) : undefined,
+        lead.budget_max != null ? String(lead.budget_max) : undefined,
+        lead.status,
+        lead.source,
+      ]),
+    [leads, search]
+  );
 
   const handleDelete = async (leadId: string, leadName: string) => {
     try {
@@ -270,14 +289,14 @@ export function AutoLeadsView() {
                     <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                   </tr>
                 ))
-              ) : (leads || []).length === 0 ? (
+              ) : filteredLeads.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                    No leads found. Add your first lead to get started.
+                    {search.trim() ? 'No leads match your search.' : 'No leads found. Add your first lead to get started.'}
                   </td>
                 </tr>
               ) : (
-                (leads || []).map((lead) => (
+                filteredLeads.map((lead) => (
                   <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">

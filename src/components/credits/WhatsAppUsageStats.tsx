@@ -104,3 +104,17 @@ export function WhatsAppUsageStats() {
     </div>
   );
 }
+
+export function formatMessageCategory(
+  category: string | null,
+  provider: string | null
+): string {
+  if (provider === 'meta') return 'WhatsApp Message (Meta)';
+  if (category === 'marketing') return 'Marketing';
+  if (category === 'utility') return 'Utility';
+  if (category === 'service') return 'Service';
+  if (category === 'authentication') return 'Authentication';
+  if (category === 'platform_fee') return 'Platform Fee';
+  return category ?? 'Message';
+}
+

@@ -40,6 +40,7 @@ export function useSourceConfigs(companyId: string | undefined) {
   return useQuery({
     queryKey: ['sourceConfigs', companyId],
     enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('source_configs')

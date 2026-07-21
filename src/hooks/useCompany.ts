@@ -34,6 +34,14 @@ function mapInviteErrorMessage(message: string): string {
   return message;
 }
 
+const SAFE_COMPANY_COLUMNS = `
+  id, name, email, address, phone, logo_url, industry,
+  created_at, updated_at, user_limit, pan_number, gst_number,
+  allow_login, account_status, status_notes,
+  webhook_token, meta_verify_token, enable_meta_leads,
+  whatsapp_provider, meta_phone_number_id, meta_whatsapp_number, meta_waba_id
+`;
+
 export type Company = {
   id: string;
   name: string;
@@ -66,6 +74,7 @@ export type AppRole = 'super_admin' | 'admin' | 'manager' | 'sales';
 export function useCurrentCompany() {
   return useQuery({
     queryKey: ['currentCompany'],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
@@ -81,7 +90,7 @@ export function useCurrentCompany() {
 
       const { data: company, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(SAFE_COMPANY_COLUMNS)
         .eq('id', profile.company_id)
         .maybeSingle();
 
@@ -150,7 +159,7 @@ export function useUpdateCompany() {
         .from('companies')
         .update(updates)
         .eq('id', id)
-        .select()
+        .select(SAFE_COMPANY_COLUMNS)
         .single();
 
       if (error) throw error;
@@ -205,7 +214,7 @@ export function useUpdateCompanySettings() {
           status_notes
         })
         .eq('id', id)
-        .select()
+        .select(SAFE_COMPANY_COLUMNS)
         .single();
 
       if (error) throw error;
@@ -275,10 +284,11 @@ export function useInviteTeamMember() {
 export function useAllCompanies() {
   return useQuery({
     queryKey: ['allCompanies'],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(SAFE_COMPANY_COLUMNS)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

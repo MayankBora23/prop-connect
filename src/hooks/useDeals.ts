@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentCompany } from './useCompany';
+import type { DealWithRelations } from './useAutoTypes';
 
 // Cast supabase to any to bypass type checking for automobile tables
 const supabaseAny = supabase as any;
@@ -127,7 +128,7 @@ export function useDeals() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as DealWithRelations[];
     },
     enabled: !!company?.id,
   });

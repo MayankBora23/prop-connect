@@ -65,7 +65,7 @@ export function useRenewalPayment() {
   const { refetch } = useSubscription();
   const [isLoading, setIsLoading] = useState(false);
 
-  const payRenewal = async (): Promise<boolean> => {
+  const payRenewal = async (adjustedExtraSeats?: number): Promise<boolean> => {
     if (!company?.id) {
       toast.error('Company not found.');
       return false;
@@ -74,7 +74,12 @@ export function useRenewalPayment() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-renewal-order', {
-        body: { company_id: company.id },
+        body: {
+          company_id: company.id,
+          ...(adjustedExtraSeats !== undefined
+            ? { adjusted_extra_seats: adjustedExtraSeats }
+            : {}),
+        },
       });
 
       if (error) {

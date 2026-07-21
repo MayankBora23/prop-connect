@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { LeadPipeline } from './LeadPipeline';
 import { useLeads } from '@/hooks/useLeads';
 import { LayoutGrid, List, Filter, Download, Upload, History } from 'lucide-react';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 import { useProfiles } from '@/hooks/useProfiles';
 import { useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
@@ -19,6 +20,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { LeadHistorySheet } from '@/components/history/LeadHistorySheet';
 import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 function LeadStatusSelect({ leadId, leadStatus }: { leadId: string, leadStatus?: Enums<'lead_status'> }) {
   const updateLead = useUpdateLead();
@@ -117,6 +120,23 @@ export function LeadsView() {
   const { data: leads, isLoading } = useLeads();
   const deleteLead = useDeleteLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
+  const { search } = useSectionSearch();
+
+  const filteredLeads = useMemo(
+    () =>
+      filterBySearch(leads, search, (lead) => [
+        lead.name,
+        lead.phone,
+        lead.email,
+        lead.source,
+        lead.property_type,
+        lead.location,
+        lead.budget,
+        lead.stage,
+        lead.lead_status,
+      ]),
+    [leads, search]
+  );
 
   const handleEdit = (lead: Lead) => {
     setSelectedLead(lead);
@@ -308,14 +328,14 @@ export function LeadsView() {
                     <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                   </tr>
                 ))
-              ) : (leads || []).length === 0 ? (
+              ) : filteredLeads.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                    No leads found. Add your first lead to get started.
+                    {search.trim() ? 'No leads match your search.' : 'No leads found. Add your first lead to get started.'}
                   </td>
                 </tr>
               ) : (
-                (leads || []).map((lead) => (
+                filteredLeads.map((lead) => (
                   <tr key={lead.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">

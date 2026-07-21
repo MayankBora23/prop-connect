@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
@@ -12,7 +12,6 @@ import { AutomobileWhatsAppInbox } from '@/components/automobile/WhatsAppInbox';
 import { SiteVisitsView } from '@/components/visits/SiteVisitsView';
 import { FollowUpsView } from '@/components/followups/FollowUpsView';
 import { TeamView } from '@/components/team/TeamView';
-import { AutomationView } from '@/components/automation/AutomationView';
 import { AnalyticsView } from '@/components/analytics/AnalyticsView';
 import { CompanySettingsView } from '@/components/settings/CompanySettingsView';
 import { ProfileSettingsView } from '@/components/settings/ProfileSettingsView';
@@ -20,7 +19,6 @@ import { AddLeadDialog } from '@/components/leads/AddLeadDialog';
 import { AddPropertyDialog } from '@/components/properties/AddPropertyDialog';
 import { AddSiteVisitDialog } from '@/components/visits/AddSiteVisitDialog';
 import { AddFollowUpDialog } from '@/components/followups/AddFollowUpDialog';
-import { AddWorkflowDialog } from '@/components/automation/AddWorkflowDialog';
 import { AIChatAssistant } from '@/components/chat/AIChatAssistant';
 import { PersonalWorkspace } from '@/components/workspace/PersonalWorkspace';
 import { useIndustry } from '@/hooks/useIndustry';
@@ -43,15 +41,11 @@ import { AutoLeadsView } from '@/components/automobile/AutoLeadsView';
 import { TestDrivesView } from '@/components/automobile/TestDrivesView';
 import { BookingsView } from '@/components/automobile/BookingsView';
 import { DealsView } from '@/components/automobile/DealsView';
-import { FinanceView } from '@/components/automobile/FinanceView';
-import { InsuranceView } from '@/components/automobile/InsuranceView';
 import { AddAutoLeadDialog } from '@/components/automobile/AddAutoLeadDialog';
 import { AddVehicleDialog } from '@/components/automobile/AddVehicleDialog';
 import { AddTestDriveDialog } from '@/components/automobile/AddTestDriveDialog';
 import { AddBookingDialog } from '@/components/automobile/AddBookingDialog';
 import { AddDealDialog } from '@/components/automobile/AddDealDialog';
-import { AddFinanceDialog } from '@/components/automobile/AddFinanceDialog';
-import { AddInsuranceDialog } from '@/components/automobile/AddInsuranceDialog';
 import { EmployeesView } from '@/components/employees/EmployeesView';
 import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
 import { AttendanceView as EmployeeAttendanceView } from '@/components/employee-attendance/AttendanceView';
@@ -72,6 +66,10 @@ import { SupportView } from '@/components/support/SupportView';
 import { TeamReportView } from '@/components/reports/TeamReportView';
 import { SubscriptionGate } from '@/components/subscription/SubscriptionGate';
 import { TrialBanner } from '@/components/subscription/TrialBanner';
+import { TelephonyBanner } from '@/components/subscription/TelephonyBanner';
+import { TemplatesView } from '@/components/whatsapp-templates/TemplatesView';
+import { SectionSearchProvider, useSectionSearch } from '@/hooks/useSectionSearch';
+import { getSearchPlaceholder, shouldShowHeaderSearch } from '@/lib/sectionSearch';
 
 const realEstateTabConfig: Record<string, { title: string; subtitle?: string; addLabel?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Welcome back!' },
@@ -86,12 +84,12 @@ const realEstateTabConfig: Record<string, { title: string; subtitle?: string; ad
   followups: { title: 'Follow-ups', subtitle: 'Track your tasks', addLabel: 'Add Follow-up' },
   workspace: { title: 'Personal Workspace', subtitle: 'Chat with your team and manage tasks' },
   team: { title: 'Team Management', subtitle: 'Your team members' },
-  automation: { title: 'Automation', subtitle: 'Workflow automations', addLabel: 'Create Workflow' },
   analytics: { title: 'Analytics', subtitle: 'Performance reports' },
   reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   billing: { title: 'Billing', subtitle: 'Manage your subscription and seats' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
+  templates: { title: 'WhatsApp Templates', subtitle: 'Manage Meta-approved message templates' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -116,6 +114,7 @@ const educationTabConfig: Record<string, { title: string; subtitle?: string; add
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   billing: { title: 'Billing', subtitle: 'Manage your subscription and seats' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
+  templates: { title: 'WhatsApp Templates', subtitle: 'Manage Meta-approved message templates' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -129,8 +128,6 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   'test-drives': { title: 'Test Drives', subtitle: 'Scheduled test drives', addLabel: 'Schedule Test Drive' },
   bookings: { title: 'Bookings', subtitle: 'Vehicle bookings and reservations', addLabel: 'Create Booking' },
   deals: { title: 'Deals', subtitle: 'Closed deals and sales', addLabel: 'Add Deal' },
-  finance: { title: 'Finance', subtitle: 'Finance applications', addLabel: 'Add Finance Application' },
-  insurance: { title: 'Insurance', subtitle: 'Insurance sales and policies', addLabel: 'Add Insurance Sale' },
   employees: { title: 'Employees', subtitle: 'Manage your automobile dealership staff', addLabel: 'Add Employee' },
   'employee-attendance': { title: 'Employee Attendance', subtitle: 'Track staff attendance and working hours' },
   telephony: { title: 'Telephony', subtitle: 'Call management and dialer' },
@@ -142,6 +139,7 @@ const automobileTabConfig: Record<string, { title: string; subtitle?: string; ad
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   billing: { title: 'Billing', subtitle: 'Manage your subscription and seats' },
   support: { title: 'Support', subtitle: 'Help desk and tickets' },
+  templates: { title: 'WhatsApp Templates', subtitle: 'Manage Meta-approved message templates' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage your company details' },
 };
@@ -161,6 +159,7 @@ const internalCRMTabConfig: Record<string, { title: string; subtitle?: string; a
   reports: { title: 'Team Performance Report', subtitle: 'Productivity and task metrics for your CRM team' },
   credits: { title: 'Credits', subtitle: 'WhatsApp usage and wallet balance' },
   support: { title: 'Client Support', subtitle: 'Tickets from all client companies' },
+  templates: { title: 'WhatsApp Templates', subtitle: 'Manage Meta-approved message templates' },
   'profile-settings': { title: 'Profile Settings', subtitle: 'Manage your personal information' },
   'company-settings': { title: 'Company Settings', subtitle: 'Manage platform settings' },
 };
@@ -172,15 +171,19 @@ const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    const handler = () => setActiveTab('billing')
-    window.addEventListener('navigate-to-billing', handler)
-    return () => window.removeEventListener('navigate-to-billing', handler)
+    const handleBilling = () => setActiveTab('billing')
+    const handleCredits = () => setActiveTab('credits')
+    window.addEventListener('navigate-to-billing', handleBilling)
+    window.addEventListener('navigate-to-credits', handleCredits)
+    return () => {
+      window.removeEventListener('navigate-to-billing', handleBilling)
+      window.removeEventListener('navigate-to-credits', handleCredits)
+    }
   }, [])
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
   const [addVisitOpen, setAddVisitOpen] = useState(false);
   const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
-  const [addWorkflowOpen, setAddWorkflowOpen] = useState(false);
   const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [addCourseOpen, setAddCourseOpen] = useState(false);
   const [addBatchOpen, setAddBatchOpen] = useState(false);
@@ -190,12 +193,31 @@ const Index = () => {
   const [addTestDriveOpen, setAddTestDriveOpen] = useState(false);
   const [addBookingOpen, setAddBookingOpen] = useState(false);
   const [addDealOpen, setAddDealOpen] = useState(false);
-  const [addFinanceOpen, setAddFinanceOpen] = useState(false);
-  const [addInsuranceOpen, setAddInsuranceOpen] = useState(false);
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [addInternalLeadOpen, setAddInternalLeadOpen] = useState(false);
 
   const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
+
+  useEffect(() => {
+    if (!isLoaded || !industry) return;
+
+    const inboxTab =
+      industry === 'internal_crm' ||
+        industry === 'education' ||
+        industry === 'automobile_dealers'
+        ? 'whatsapp-inbox'
+        : 'inbox';
+
+    const handleWhatsAppConversation = (e: Event) => {
+      const { conversationId } = (e as CustomEvent<{ conversationId: string }>).detail;
+      sessionStorage.setItem('pendingWhatsAppConversationId', conversationId);
+      setActiveTab(inboxTab);
+    };
+
+    window.addEventListener('navigate-to-whatsapp-conversation', handleWhatsAppConversation);
+    return () => window.removeEventListener('navigate-to-whatsapp-conversation', handleWhatsAppConversation);
+  }, [industry, isLoaded]);
+
   if (industryLoading || !isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -234,9 +256,6 @@ const Index = () => {
       case 'followups':
         setAddFollowUpOpen(true);
         break;
-      case 'automation':
-        setAddWorkflowOpen(true);
-        break;
       case 'students':
         setAddStudentOpen(true);
         break;
@@ -272,16 +291,6 @@ const Index = () => {
       case 'deals':
         if (isAutomobileDealers) {
           setAddDealOpen(true);
-        }
-        break;
-      case 'finance':
-        if (isAutomobileDealers) {
-          setAddFinanceOpen(true);
-        }
-        break;
-      case 'insurance':
-        if (isAutomobileDealers) {
-          setAddInsuranceOpen(true);
         }
         break;
       /* online business actions removed */
@@ -322,6 +331,8 @@ const Index = () => {
           return <CreditsView />;
         case 'support':
           return <SupportView />;
+        case 'templates':
+          return <TemplatesView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -369,6 +380,8 @@ const Index = () => {
           return <BillingView />;
         case 'support':
           return <SupportView />;
+        case 'templates':
+          return <TemplatesView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -390,10 +403,6 @@ const Index = () => {
           return <BookingsView />;
         case 'deals':
           return <DealsView />;
-        case 'finance':
-          return <FinanceView />;
-        case 'insurance':
-          return <InsuranceView />;
         case 'employees':
           return <AutomobileEmployeesView />;
         case 'employee-attendance':
@@ -416,6 +425,8 @@ const Index = () => {
           return <BillingView />;
         case 'support':
           return <SupportView />;
+        case 'templates':
+          return <TemplatesView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -449,8 +460,6 @@ const Index = () => {
           return <PersonalWorkspace />;
         case 'team':
           return <TeamView />;
-        case 'automation':
-          return <AutomationView />;
         case 'analytics':
           return <AnalyticsView />;
         case 'reports':
@@ -461,6 +470,8 @@ const Index = () => {
           return <BillingView />;
         case 'support':
           return <SupportView />;
+        case 'templates':
+          return <TemplatesView />;
         case 'profile-settings':
           return <ProfileSettingsView />;
         case 'company-settings':
@@ -470,6 +481,145 @@ const Index = () => {
       }
     }
   };
+
+  return (
+    <SectionSearchProvider activeTab={activeTab}>
+      <IndexLayout
+        activeTab={activeTab}
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+        setActiveTab={setActiveTab}
+        config={config}
+        handleAddNew={handleAddNew}
+        industry={industry}
+        isInternalCRM={isInternalCRM}
+        isEducation={isEducation}
+        isAutomobileDealers={isAutomobileDealers}
+        renderContent={renderContent}
+        addLeadOpen={addLeadOpen}
+        setAddLeadOpen={setAddLeadOpen}
+        addPropertyOpen={addPropertyOpen}
+        setAddPropertyOpen={setAddPropertyOpen}
+        addVisitOpen={addVisitOpen}
+        setAddVisitOpen={setAddVisitOpen}
+        addFollowUpOpen={addFollowUpOpen}
+        setAddFollowUpOpen={setAddFollowUpOpen}
+        addStudentOpen={addStudentOpen}
+        setAddStudentOpen={setAddStudentOpen}
+        addCourseOpen={addCourseOpen}
+        setAddCourseOpen={setAddCourseOpen}
+        addBatchOpen={addBatchOpen}
+        setAddBatchOpen={setAddBatchOpen}
+        addTeacherOpen={addTeacherOpen}
+        setAddTeacherOpen={setAddTeacherOpen}
+        addAutoLeadOpen={addAutoLeadOpen}
+        setAddAutoLeadOpen={setAddAutoLeadOpen}
+        addVehicleOpen={addVehicleOpen}
+        setAddVehicleOpen={setAddVehicleOpen}
+        addTestDriveOpen={addTestDriveOpen}
+        setAddTestDriveOpen={setAddTestDriveOpen}
+        addBookingOpen={addBookingOpen}
+        setAddBookingOpen={setAddBookingOpen}
+        addDealOpen={addDealOpen}
+        setAddDealOpen={setAddDealOpen}
+        addEmployeeOpen={addEmployeeOpen}
+        setAddEmployeeOpen={setAddEmployeeOpen}
+        addInternalLeadOpen={addInternalLeadOpen}
+        setAddInternalLeadOpen={setAddInternalLeadOpen}
+      />
+    </SectionSearchProvider>
+  );
+};
+
+type IndexLayoutProps = {
+  activeTab: string;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (v: boolean) => void;
+  setActiveTab: (tab: string) => void;
+  config: { title: string; subtitle?: string; addLabel?: string };
+  handleAddNew: () => void;
+  industry: string | undefined;
+  isInternalCRM: boolean;
+  isEducation: boolean;
+  isAutomobileDealers: boolean;
+  renderContent: () => ReactNode;
+  addLeadOpen: boolean;
+  setAddLeadOpen: (v: boolean) => void;
+  addPropertyOpen: boolean;
+  setAddPropertyOpen: (v: boolean) => void;
+  addVisitOpen: boolean;
+  setAddVisitOpen: (v: boolean) => void;
+  addFollowUpOpen: boolean;
+  setAddFollowUpOpen: (v: boolean) => void;
+  addStudentOpen: boolean;
+  setAddStudentOpen: (v: boolean) => void;
+  addCourseOpen: boolean;
+  setAddCourseOpen: (v: boolean) => void;
+  addBatchOpen: boolean;
+  setAddBatchOpen: (v: boolean) => void;
+  addTeacherOpen: boolean;
+  setAddTeacherOpen: (v: boolean) => void;
+  addAutoLeadOpen: boolean;
+  setAddAutoLeadOpen: (v: boolean) => void;
+  addVehicleOpen: boolean;
+  setAddVehicleOpen: (v: boolean) => void;
+  addTestDriveOpen: boolean;
+  setAddTestDriveOpen: (v: boolean) => void;
+  addBookingOpen: boolean;
+  setAddBookingOpen: (v: boolean) => void;
+  addDealOpen: boolean;
+  setAddDealOpen: (v: boolean) => void;
+  addEmployeeOpen: boolean;
+  setAddEmployeeOpen: (v: boolean) => void;
+  addInternalLeadOpen: boolean;
+  setAddInternalLeadOpen: (v: boolean) => void;
+};
+
+function IndexLayout({
+  activeTab,
+  sidebarCollapsed,
+  setSidebarCollapsed,
+  setActiveTab,
+  config,
+  handleAddNew,
+  industry,
+  isInternalCRM,
+  isEducation,
+  isAutomobileDealers,
+  renderContent,
+  addLeadOpen,
+  setAddLeadOpen,
+  addPropertyOpen,
+  setAddPropertyOpen,
+  addVisitOpen,
+  setAddVisitOpen,
+  addFollowUpOpen,
+  setAddFollowUpOpen,
+  addStudentOpen,
+  setAddStudentOpen,
+  addCourseOpen,
+  setAddCourseOpen,
+  addBatchOpen,
+  setAddBatchOpen,
+  addTeacherOpen,
+  setAddTeacherOpen,
+  addAutoLeadOpen,
+  setAddAutoLeadOpen,
+  addVehicleOpen,
+  setAddVehicleOpen,
+  addTestDriveOpen,
+  setAddTestDriveOpen,
+  addBookingOpen,
+  setAddBookingOpen,
+  addDealOpen,
+  setAddDealOpen,
+  addEmployeeOpen,
+  setAddEmployeeOpen,
+  addInternalLeadOpen,
+  setAddInternalLeadOpen,
+}: IndexLayoutProps) {
+  const { search, setSearch } = useSectionSearch();
+  const showSearch = shouldShowHeaderSearch(activeTab, industry);
 
   return (
     <div className="min-h-screen bg-background">
@@ -492,6 +642,10 @@ const Index = () => {
             subtitle={config.subtitle}
             onAddNew={config.addLabel ? handleAddNew : undefined}
             addNewLabel={config.addLabel}
+            showSearch={showSearch}
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder={getSearchPlaceholder(activeTab)}
           />
         </div>
 
@@ -504,6 +658,7 @@ const Index = () => {
             )}
             <div className={cn(activeTab === 'reports' && 'print:hidden')}>
               <TrialBanner />
+              <TelephonyBanner />
             </div>
             <SubscriptionGate>
               <div className="flex-1 overflow-auto">{renderContent()}</div>
@@ -516,7 +671,6 @@ const Index = () => {
       <AddPropertyDialog open={addPropertyOpen} onOpenChange={setAddPropertyOpen} />
       <AddSiteVisitDialog open={addVisitOpen} onOpenChange={setAddVisitOpen} />
       <AddFollowUpDialog open={addFollowUpOpen} onOpenChange={setAddFollowUpOpen} />
-      <AddWorkflowDialog open={addWorkflowOpen} onOpenChange={setAddWorkflowOpen} />
       <AddStudentDialog open={addStudentOpen} onOpenChange={setAddStudentOpen} />
       <AddCourseDialog open={addCourseOpen} onOpenChange={setAddCourseOpen} />
       <AddBatchDialog open={addBatchOpen} onOpenChange={setAddBatchOpen} />
@@ -526,8 +680,6 @@ const Index = () => {
       <AddTestDriveDialog open={addTestDriveOpen} onOpenChange={setAddTestDriveOpen} />
       <AddBookingDialog open={addBookingOpen} onOpenChange={setAddBookingOpen} />
       <AddDealDialog open={addDealOpen} onOpenChange={setAddDealOpen} />
-      <AddFinanceDialog open={addFinanceOpen} onOpenChange={setAddFinanceOpen} />
-      <AddInsuranceDialog open={addInsuranceOpen} onOpenChange={setAddInsuranceOpen} />
 
       <AddInternalLeadDialog open={addInternalLeadOpen} onOpenChange={setAddInternalLeadOpen} />
 

@@ -11,17 +11,19 @@ import { useCurrentCompany } from '@/hooks/useCompany';
 import { useUpdateCompany } from '@/hooks/useCompany';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useWhatsAppSettings, useCreateWhatsAppSettings, useUpdateWhatsAppSettings } from '@/hooks/useWhatsApp';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import {
   applyOptimisticTelephonyProvider,
   telephonySettingsQueryKey,
 } from '@/hooks/useTelephonySettings';
 import { toast } from 'sonner';
-import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings, Facebook, Plug } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Image, Loader2, ShieldAlert, MessageSquare, Settings, Facebook, Plug, Bot } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { AiBotSettings } from './AiBotSettings';
 import {
   THIRD_PARTY_PORTALS,
   useSourceConfigs,
@@ -56,10 +58,30 @@ const whatsappSchema = z.object({
 type CompanyFormData = z.infer<typeof companySchema>;
 type WhatsAppFormData = z.infer<typeof whatsappSchema>;
 
+type MaskedMetaTokenInfo = {
+  masked_access_token: string;
+  has_access_token: boolean;
+  meta_phone_number_id: string;
+  meta_waba_id: string;
+  meta_webhook_verify_token: string;
+};
+
 export function CompanySettingsView() {
   const queryClient = useQueryClient();
   const { data: company, isLoading: companyLoading } = useCurrentCompany();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
+
+  const { data: metaTokenInfo, isLoading: metaTokenLoading } = useQuery({
+    queryKey: ['masked-meta-token', company?.id],
+    enabled: !!company?.id,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<MaskedMetaTokenInfo> => {
+      const { data, error } = await supabase.functions.invoke('get-masked-meta-token');
+      if (error) throw error;
+      return data as MaskedMetaTokenInfo;
+    },
+  });
+
   const updateCompany = useUpdateCompany();
   const { data: sourceConfigs = [] } = useSourceConfigs(company?.id);
   const upsertSourceConfig = useUpsertSourceConfigActive();
@@ -122,9 +144,14 @@ export function CompanySettingsView() {
       setMetaPhoneNumberId(company.meta_phone_number_id || '');
       setMetaWhatsAppNumber(company.meta_whatsapp_number || '');
       setMetaWabaId(company.meta_waba_id || '');
-      setMetaWebhookVerifyToken(company.meta_webhook_verify_token || '');
     }
   }, [company, form]);
+
+  useEffect(() => {
+    if (metaTokenInfo) {
+      setMetaWebhookVerifyToken(metaTokenInfo.meta_webhook_verify_token || '');
+    }
+  }, [metaTokenInfo]);
 
   useEffect(() => {
     if (whatsappSettings) {
@@ -145,7 +172,7 @@ export function CompanySettingsView() {
   }, [whatsappSettings, whatsappForm]);
 
   const isSuperAdmin = profile?.role === 'super_admin';
-  const isLoading = companyLoading || profileLoading || whatsappLoading;
+  const isLoading = companyLoading || profileLoading || whatsappLoading || metaTokenLoading;
 
   const onSubmit = async (data: CompanyFormData) => {
     if (!company?.id) return;
@@ -292,7 +319,7 @@ export function CompanySettingsView() {
       return;
     }
 
-    const hasExistingAccessToken = !!(company.meta_access_token && company.meta_access_token.trim().length > 0);
+    const hasExistingAccessToken = !!metaTokenInfo?.has_access_token;
     if (!hasExistingAccessToken && !accessTokenDraft) {
       toast.error('Please paste your Meta Access Token');
       return;
@@ -309,6 +336,7 @@ export function CompanySettingsView() {
       });
 
       setMetaAccessToken('');
+      await queryClient.invalidateQueries({ queryKey: ['masked-meta-token', company.id] });
       toast.success('Meta WhatsApp settings saved successfully');
     } catch (error: any) {
       toast.error(error.message || 'Failed to save Meta WhatsApp settings');
@@ -351,6 +379,7 @@ export function CompanySettingsView() {
         meta_access_token: trimmed,
       });
       setMetaAccessToken('');
+      await queryClient.invalidateQueries({ queryKey: ['masked-meta-token', company.id] });
       toast.success('Meta Page Access Token saved');
     } catch (error: any) {
       toast.error(error.message || 'Failed to save Meta Page Access Token');
@@ -418,10 +447,7 @@ export function CompanySettingsView() {
     }
   }
 
-  const maskedStoredMetaToken =
-    company?.meta_access_token && company.meta_access_token.trim().length > 0
-      ? `••••••••••••${company.meta_access_token.slice(-4)}`
-      : '';
+  const maskedStoredMetaToken = metaTokenInfo?.masked_access_token ?? '';
 
   if (isLoading) {
     return (
@@ -460,16 +486,22 @@ export function CompanySettingsView() {
   }
 
   const showThirdPartyTab = company.industry === 'real_estate';
+  const showAiBotTab = !!company.whatsapp_provider;
+
+  let colsCount = 2;
+  if (showThirdPartyTab) colsCount++;
+  if (showAiBotTab) colsCount++;
+
+  const gridColsClass = colsCount === 4
+    ? 'grid-cols-4 max-w-4xl'
+    : colsCount === 3
+      ? 'grid-cols-3 max-w-3xl'
+      : 'grid-cols-2 max-w-xl';
 
   return (
     <div className="max-w-3xl mx-auto">
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList
-          className={cn(
-            'grid w-full',
-            showThirdPartyTab ? 'grid-cols-3 max-w-4xl' : 'grid-cols-2 max-w-xl',
-          )}
-        >
+        <TabsList className={cn('grid w-full', gridColsClass)}>
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             <span>Company & WhatsApp</span>
@@ -482,6 +514,12 @@ export function CompanySettingsView() {
             <TabsTrigger value="integrations" className="flex items-center gap-2">
               <Plug className="w-4 h-4" />
               <span>3rd Party Integration</span>
+            </TabsTrigger>
+          )}
+          {showAiBotTab && (
+            <TabsTrigger value="ai-bot" className="flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              <span>AI Bot</span>
             </TabsTrigger>
           )}
         </TabsList>
@@ -1255,6 +1293,12 @@ export function CompanySettingsView() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {showAiBotTab && (
+          <TabsContent value="ai-bot" className="space-y-6">
+            <AiBotSettings />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

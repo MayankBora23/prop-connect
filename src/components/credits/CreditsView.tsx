@@ -2,11 +2,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WalletCard } from './WalletCard';
 import { WhatsAppUsageStats } from './WhatsAppUsageStats';
 import { TransactionHistory } from './TransactionHistory';
+import { TelephonyBillingCard } from './TelephonyBillingCard';
 
 export function CreditsView() {
   return (
     <div className="space-y-8 animate-fade-in">
       <WalletCard />
+      <TelephonyBillingCard />
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>

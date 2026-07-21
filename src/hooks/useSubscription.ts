@@ -2,6 +2,8 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { addDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type BillingCycle = 'monthly' | 'quarterly' | 'yearly';
 
@@ -88,23 +90,33 @@ export type CompanySubscriptionData = CompanySubscriptionRow & {
 
 export type AllCompanySubscriptionRow = CompanySubscriptionRow & {
   companies: { name: string; email: string; industry: string } | null;
-  subscription_plans: { name: string } | null;
+  subscription_plans: {
+    name: string;
+    monthly_price: number;
+    quarterly_price: number;
+    yearly_price: number;
+    included_users: number;
+  } | null;
 };
 
-async function getCompanyId(): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('company_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  return profile?.company_id ?? null;
+export type SubscriptionPaymentHistoryRow = {
+  id: string
+  company_id: string
+  plan_slug: string
+  billing_cycle: string
+  amount_inr: number
+  razorpay_order_id: string | null
+  razorpay_payment_id: string | null
+  status: string
+  paid_at: string | null
+  period_start: string | null
+  period_end: string | null
+  created_at: string
+  payment_type: string | null
+  seat_quantity: number | null
 }
 
-function computeSubscriptionFields(
+export function computeSubscriptionFields(
   sub: CompanySubscriptionRow & {
     subscription_plans?: {
       name: string;
@@ -183,8 +195,13 @@ function computeSubscriptionFields(
 }
 
 export function useSubscription() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   const query = useQuery({
-    queryKey: ['subscription-billing'],
+    queryKey: ['subscription-billing', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<SubscriptionBillingData | null> => {
       const companyId = await getCompanyId();
       if (!companyId) return null;
@@ -303,8 +320,13 @@ export function useSubscription() {
 }
 
 export function useCompanySubscription() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['company-subscription'],
+    queryKey: ['company-subscription', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<CompanySubscriptionData | null> => {
       const companyId = await getCompanyId();
       if (!companyId) return null;
@@ -339,6 +361,7 @@ export function useCompanySubscription() {
 export function useSubscriptionPlans() {
   return useQuery({
     queryKey: ['subscription-plans'],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<SubscriptionPlan[]> => {
       const { data, error } = await (supabase as any)
         .from('subscription_plans')
@@ -434,8 +457,13 @@ export function useConfirmSubscriptionPayment() {
 }
 
 export function useSubscriptionPaymentHistory(limit = 5) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['subscription-payment-history', limit],
+    queryKey: ['subscription-payment-history', companyId, limit],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const companyId = await getCompanyId();
       if (!companyId) return [];
@@ -456,6 +484,7 @@ export function useSubscriptionPaymentHistory(limit = 5) {
 export function useAllCompanySubscriptions() {
   return useQuery({
     queryKey: ['all-company-subscriptions'],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<AllCompanySubscriptionRow[]> => {
       const { data, error } = await (supabase as any)
         .from('company_subscriptions')
@@ -463,7 +492,7 @@ export function useAllCompanySubscriptions() {
           `
           *,
           companies (name, email, industry),
-          subscription_plans (name)
+          subscription_plans (name, monthly_price, quarterly_price, yearly_price, included_users)
         `
         )
         .order('trial_ends_at', { ascending: true });
@@ -585,4 +614,23 @@ export function useExtendTrial() {
       queryClient.invalidateQueries({ queryKey: ['currentCompany'] });
     },
   });
+}
+
+export function useCompanyPaymentHistory(companyId: string | null) {
+  return useQuery({
+    queryKey: ['company-payment-history', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      if (!companyId) return []
+      const { data, error } = await (supabase as any)
+        .from('subscription_payment_history')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      return (data ?? []) as SubscriptionPaymentHistoryRow[]
+    },
+  })
 }

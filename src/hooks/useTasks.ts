@@ -5,6 +5,7 @@ import { useSiteVisits } from './useSiteVisits';
 import { useAutoLeads } from './useAutoLeads';
 import { useCreateNotification } from './useNotifications';
 import { supabase } from '@/integrations/supabase/client';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 // Define comprehensive task types
 export interface TaskItem {
@@ -32,6 +33,8 @@ export interface TaskCategory {
 }
 
 export function useTasks() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
   const { data: followUps, isLoading: followUpsLoading } = useFollowUps();
   const { data: leads, isLoading: leadsLoading } = useLeads();
   const { data: siteVisits, isLoading: siteVisitsLoading } = useSiteVisits();
@@ -40,7 +43,8 @@ export function useTasks() {
   const isLoading = followUpsLoading || leadsLoading || siteVisitsLoading || autoLeadsLoading;
 
   return useQuery({
-    queryKey: ['tasks'],
+    queryKey: ['tasks', companyId],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { assigned: [], pending: [], completed: [] };
@@ -102,8 +106,8 @@ export function useTasks() {
             metadata: {
               phone: lead.phone,
               email: lead.email,
-              location: leadWithAssignment.address || lead.city, // Use available location data
-              budget: `${lead.budget_min || 0} - ${lead.budget_max || 0}`, // Combine budget range
+              location: leadWithAssignment.address || leadWithAssignment.city || lead.location,
+              budget: lead.budget || `${leadWithAssignment.budget_min || 0} - ${leadWithAssignment.budget_max || 0}`,
               stage: lead.stage,
               leadStatus: lead.lead_status
             }
@@ -195,7 +199,7 @@ export function useTasks() {
 
       return tasks;
     },
-    enabled: !isLoading,
+    enabled: !!companyId && !isLoading,
   });
 }
 
@@ -203,18 +207,14 @@ export function useTasks() {
 export function useCreateTaskAssignmentNotification() {
   const createNotification = useCreateNotification();
 
-  return async (task: Task, assignedUserId: string, assignedByUserId: string) => {
+  return async (task: Task, assignedUserId: string, _assignedByUserId: string) => {
     try {
-      const company_id = await getUserCompanyId();
-      if (!company_id) return;
-
       await createNotification.mutateAsync({
         user_id: assignedUserId,
         type: 'task_assigned',
         title: 'New Task Assigned',
         message: `You have been assigned a new follow-up task for ${task.leads?.name || 'Unknown Lead'}`,
         related_id: task.id,
-        company_id,
       });
     } catch (error) {
       console.error('Failed to create task assignment notification:', error);
@@ -230,27 +230,16 @@ export function useCreateTaskCompletionNotification() {
     try {
       // Notify task creator if different from completer
       if (task.created_by && task.created_by !== completedByUserId) {
-        const company_id = await getUserCompanyId();
-        if (!company_id) return;
-
         await createNotification.mutateAsync({
           user_id: task.created_by,
           type: 'task_completed',
           title: 'Task Completed',
           message: `Follow-up task for ${task.leads?.name || 'Unknown Lead'} has been completed`,
           related_id: task.id,
-          company_id,
         });
       }
     } catch (error) {
       console.error('Failed to create task completion notification:', error);
     }
   };
-}
-
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
 }

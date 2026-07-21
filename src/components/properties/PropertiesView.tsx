@@ -1,20 +1,35 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useProperties } from '@/hooks/useProperties';
 import { PropertyCard } from './PropertyCard';
 import { Button } from '@/components/ui/button';
 import { Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Enums } from '@/integrations/supabase/types';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 type PropertyStatus = Enums<'property_status'>;
 
 export function PropertiesView() {
   const [filter, setFilter] = useState<'all' | PropertyStatus>('all');
   const { data: properties, isLoading } = useProperties();
+  const { search } = useSectionSearch();
 
-  const filteredProperties = (properties || []).filter(
-    (p) => filter === 'all' || p.status === filter
-  );
+  const filteredProperties = useMemo(() => {
+    const statusFiltered = (properties || []).filter(
+      (p) => filter === 'all' || p.status === filter
+    );
+    return filterBySearch(statusFiltered, search, (property) => [
+      property.title,
+      property.description,
+      property.location,
+      property.city,
+      property.address,
+      property.property_type,
+      property.status,
+      property.price,
+    ]);
+  }, [properties, filter, search]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -62,7 +77,7 @@ export function PropertiesView() {
 
       {!isLoading && filteredProperties.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          No properties found with the selected filter.
+          {search.trim() ? 'No properties match your search.' : 'No properties found with the selected filter.'}
         </div>
       )}
     </div>

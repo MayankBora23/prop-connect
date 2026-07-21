@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLeads, useUpdateLead } from '@/hooks/useLeads';
 import { useProperties, useUpdateProperty } from '@/hooks/useProperties';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { PropertySuggestions } from '@/components/inbox/PropertySuggestions';
 import { toast } from 'sonner';
 import type { Lead } from '@/hooks/useLeads';
 import type { Property } from '@/hooks/useProperties';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 import {
   parsePriceToNumber,
   formatPriceToShorthand,
@@ -532,9 +534,20 @@ function RowActions({ lead }: { lead: Lead }) {
 
 export function PurchasedView() {
   const { data: leads, isLoading } = useLeads();
+  const { search } = useSectionSearch();
 
-  // Filter leads to show only those with stage 'closed-won'
-  const purchasedLeads = leads?.filter(lead => lead.stage === 'closed-won') || [];
+  const purchasedLeads = useMemo(() => {
+    const closedWon = leads?.filter((lead) => lead.stage === 'closed-won') || [];
+    return filterBySearch(closedWon, search, (lead) => [
+      lead.name,
+      lead.phone,
+      lead.email,
+      lead.property_type,
+      lead.location,
+      lead.budget,
+      lead.deal_price,
+    ]);
+  }, [leads, search]);
 
   return (
     <div className="space-y-4 animate-fade-in">

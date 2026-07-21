@@ -6,10 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Filter, Download, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { EditBatchDialog } from './EditBatchDialog';
 import type { Batch } from '@/hooks/useBatches';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 function AssignInstructorSelect({ batchId, instructorId }: { batchId: string, instructorId?: string }) {
   const { data: teachers, isLoading } = useTeachers();
@@ -117,6 +119,18 @@ export function BatchesView() {
   const { data: batches, isLoading } = useBatches();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
+  const { search } = useSectionSearch();
+
+  const filteredBatches = useMemo(
+    () =>
+      filterBySearch(batches, search, (batch) => [
+        batch.name,
+        batch.schedule,
+        batch.courses?.name,
+        batch.teachers?.name,
+      ]),
+    [batches, search]
+  );
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -167,14 +181,14 @@ export function BatchesView() {
                   <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                 </tr>
               ))
-            ) : (batches || []).length === 0 ? (
+            ) : filteredBatches.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  No batches found. Add your first batch to get started.
+                  {search.trim() ? 'No batches match your search.' : 'No batches found. Add your first batch to get started.'}
                 </td>
               </tr>
             ) : (
-              (batches || []).map((batch) => (
+              filteredBatches.map((batch) => (
                 <BatchRow
                   key={batch.id}
                   batch={batch}

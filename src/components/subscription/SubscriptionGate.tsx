@@ -78,7 +78,7 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
 
       {subscription.isPaymentOverdue && (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
-          <div className="max-w-lg w-full text-center space-y-6">
+          <div className="max-w-xl w-full text-center space-y-6">
 
             {/* Same icon style as trial expired */}
             <CreditCard className="w-12 h-12 text-orange-500 mx-auto mb-4" />

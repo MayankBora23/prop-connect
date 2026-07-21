@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import type { Database } from '@/integrations/supabase/types'
 import { toast } from 'sonner'
+import { useCurrentCompany } from '@/hooks/useCompany'
 
 type WhatsAppConversationRow = Database['public']['Tables']['whatsapp_conversations']['Row']
 type WhatsAppConversationUpdate = Database['public']['Tables']['whatsapp_conversations']['Update']
@@ -58,6 +59,8 @@ export interface WhatsAppConversation {
   interest?: string
   course?: string
   study_mode?: string
+  subjects_interest?: string
+  last_customer_message_at?: string | null
 }
 
 export interface WhatsAppMessage {
@@ -129,6 +132,7 @@ export function useWhatsAppSettings(companyId?: string | null) {
   return useQuery({
     queryKey: ['whatsapp-settings', companyId],
     enabled: !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('whatsapp_settings')
@@ -209,8 +213,13 @@ export function useUpdateWhatsAppSettings() {
 
 // WhatsApp Conversations Hooks
 export function useWhatsAppConversations() {
+  const { data: company } = useCurrentCompany()
+  const companyId = company?.id
+
   return useQuery({
-    queryKey: ['whatsapp-conversations'],
+    queryKey: ['whatsapp-conversations', companyId],
+    enabled: !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('whatsapp_conversations')
@@ -249,8 +258,13 @@ export function useWhatsAppConversations() {
 }
 
 export function useWhatsAppConversation(id: string) {
+  const { data: company } = useCurrentCompany()
+  const companyId = company?.id
+
   return useQuery({
-    queryKey: ['whatsapp-conversation', id],
+    queryKey: ['whatsapp-conversation', id, companyId],
+    enabled: !!id && !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('whatsapp_conversations')
@@ -261,7 +275,6 @@ export function useWhatsAppConversation(id: string) {
       if (error) throw error
       return data as WhatsAppConversation
     },
-    enabled: !!id,
   })
 }
 
@@ -410,8 +423,13 @@ export function useDeleteWhatsAppConversation() {
 
 // WhatsApp Messages Hooks
 export function useWhatsAppMessages(conversationId: string) {
+  const { data: company } = useCurrentCompany()
+  const companyId = company?.id
+
   return useQuery({
-    queryKey: ['whatsapp-messages', conversationId],
+    queryKey: ['whatsapp-messages', conversationId, companyId],
+    enabled: !!conversationId && !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       // Fetch messages for the conversation
       const { data: messages, error } = await supabase
@@ -483,7 +501,6 @@ export function useWhatsAppMessages(conversationId: string) {
 
       return dedupeWhatsAppMessages(augmented)
     },
-    enabled: !!conversationId,
   })
 }
 
@@ -834,8 +851,13 @@ export function useUpdateAgentAvailability() {
 }
 
 export function useChatAssignmentHistory(conversationId: string) {
+  const { data: company } = useCurrentCompany()
+  const companyId = company?.id
+
   return useQuery({
-    queryKey: ['chat-assignment-history', conversationId],
+    queryKey: ['chat-assignment-history', conversationId, companyId],
+    enabled: !!conversationId && !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_assignment_history')
@@ -881,7 +903,6 @@ export function useChatAssignmentHistory(conversationId: string) {
           : null,
       })) as ChatAssignmentHistoryEntry[]
     },
-    enabled: !!conversationId,
   })
 }
 

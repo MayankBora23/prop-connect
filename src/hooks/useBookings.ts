@@ -7,7 +7,34 @@ import { BookingWithRelations } from './useAutoTypes';
 const supabaseAny = supabase as any;
 
 export type Booking = BookingWithRelations;
-export type BookingInsert = Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'company_id'>;
+
+type BookingRow = Omit<BookingWithRelations, 'auto_leads' | 'vehicles'>;
+
+type BookingOptionalInsertFields =
+  | 'booking_number'
+  | 'delivery_date'
+  | 'delivery_location'
+  | 'special_requests'
+  | 'discount_amount'
+  | 'accessories_cost'
+  | 'registration_cost'
+  | 'insurance_cost'
+  | 'finance_cost'
+  | 'down_payment'
+  | 'token_amount'
+  | 'remaining_balance'
+  | 'payment_status'
+  | 'status'
+  | 'notes'
+  | 'terms_conditions'
+  | 'created_by';
+
+export type BookingInsert = Omit<
+  BookingRow,
+  'id' | 'created_at' | 'updated_at' | 'company_id' | BookingOptionalInsertFields
+> &
+  Partial<Pick<BookingRow, BookingOptionalInsertFields>>;
+
 export type BookingUpdate = Partial<BookingInsert>;
 
 export function useBookings() {

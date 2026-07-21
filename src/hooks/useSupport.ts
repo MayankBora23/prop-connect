@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 import type { AppRole } from './useCompany';
+import { useCurrentCompany } from '@/hooks/useCompany';
 import type {
   NewTicketInput,
   SupportMessage,
@@ -103,8 +104,13 @@ function mapTicketRow(row: Record<string, unknown>): SupportTicket {
 
 /** List query: avoid nested profile embeds (can return zero rows with RLS). Resolve names in a second query. */
 export function useTickets(filters?: SupportTicketFilters) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['support-tickets', filters ?? {}],
+    queryKey: ['support-tickets', companyId, filters ?? {}],
+    enabled: !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const ctx = await getAuthContext();
       if (!ctx) return [];
@@ -212,8 +218,13 @@ export function useTickets(filters?: SupportTicketFilters) {
 }
 
 export function useTicket(ticketId: string) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['support-ticket', ticketId],
+    queryKey: ['support-ticket', ticketId, companyId],
+    enabled: !!ticketId && !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data: row, error } = await supabase
         .from('support_tickets')
@@ -270,13 +281,17 @@ export function useTicket(ticketId: string) {
         assignee: r.assigned_to ? { name: asg?.name ?? null } : null,
       });
     },
-    enabled: !!ticketId,
   });
 }
 
 export function useTicketMessages(ticketId: string, isAdmin: boolean) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['support-messages', ticketId, isAdmin],
+    queryKey: ['support-messages', ticketId, isAdmin, companyId],
+    enabled: !!ticketId && !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       let q = supabase
         .from('support_messages')
@@ -314,7 +329,6 @@ export function useTicketMessages(ticketId: string, isAdmin: boolean) {
         };
       });
     },
-    enabled: !!ticketId,
   });
 }
 
@@ -626,8 +640,13 @@ export function useMarkTicketRead() {
 }
 
 export function useTicketStats() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['support-stats'],
+    queryKey: ['support-stats', companyId],
+    enabled: !!companyId,
+    staleTime: 30_000,
     queryFn: async () => {
       const ctx = await getAuthContext();
       if (!ctx) {
@@ -678,9 +697,13 @@ export function useTeamMembers(
   companyIdOverride?: string | null,
   queryOptions?: { enabled?: boolean }
 ) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
     queryKey: ['support-team-members', companyIdOverride ?? 'current'],
-    enabled: queryOptions?.enabled !== false,
+    enabled: queryOptions?.enabled !== false && !!(companyIdOverride ?? companyId),
+    staleTime: 30_000,
     queryFn: async () => {
       const ctx = await getAuthContext();
       if (!ctx) return [];

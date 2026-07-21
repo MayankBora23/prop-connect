@@ -4,19 +4,26 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase
 import { useCreateNotification } from './useNotifications';
 import { useProfiles } from './useProfiles';
 import { logTeamActivity } from '@/lib/logTeamActivity';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type SiteVisit = Tables<'site_visits'>;
 export type SiteVisitInsert = TablesInsert<'site_visits'>;
 export type SiteVisitUpdate = TablesUpdate<'site_visits'>;
 
 export type SiteVisitWithDetails = SiteVisit & {
-  leads: { name: string } | null;
-  properties: { title: string } | null;
+  leads: { name: string; phone?: string | null; email?: string | null } | null;
+  properties: { title: string; location?: string | null } | null;
 };
 
 export function useSiteVisits() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['site_visits'],
+    queryKey: ['site_visits', companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('site_visits')
@@ -33,13 +40,6 @@ export function useSiteVisits() {
   });
 }
 
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
-}
-
 export function useCreateSiteVisit() {
   const queryClient = useQueryClient();
   const createNotification = useCreateNotification();
@@ -47,7 +47,7 @@ export function useCreateSiteVisit() {
 
   return useMutation({
     mutationFn: async (visit: SiteVisitInsert) => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -135,7 +135,7 @@ export function useUpdateSiteVisit() {
 
       if (fetchError) throw fetchError;
 
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase

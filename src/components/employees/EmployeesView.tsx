@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useEmployees, useDeleteEmployee } from '@/hooks/useEmployees';
 import { LayoutGrid, List, Filter, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EditEmployeeDialog } from './EditEmployeeDialog';
 import type { Employee } from '@/hooks/useEmployees';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 // Helper function to format salary for display
 function formatSalary(salary: number | null): string {
@@ -35,6 +37,22 @@ export function EmployeesView() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const { data: employees, isLoading } = useEmployees();
   const deleteEmployee = useDeleteEmployee();
+  const { search } = useSectionSearch();
+
+  const filteredEmployees = useMemo(
+    () =>
+      filterBySearch(employees, search, (employee) => [
+        employee.full_name,
+        employee.employee_id,
+        employee.phone,
+        employee.email,
+        employee.role,
+        employee.department,
+        employee.reporting_manager,
+        employee.employment_type,
+      ]),
+    [employees, search]
+  );
 
   const handleEdit = (employee: Employee) => {
     setSelectedEmployee(employee);
@@ -112,14 +130,14 @@ export function EmployeesView() {
                   <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                 </tr>
               ))
-              ) : (employees || []).length === 0 ? (
+              ) : filteredEmployees.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
-                    No employees found. Add your first employee to get started.
+                    {search.trim() ? 'No employees match your search.' : 'No employees found. Add your first employee to get started.'}
                   </td>
                 </tr>
             ) : (
-              (employees || []).map((employee) => (
+              filteredEmployees.map((employee) => (
                 <tr key={employee.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
                   <td className="px-4 py-3">
                     <p className="text-sm font-medium text-primary">{employee.employee_id}</p>

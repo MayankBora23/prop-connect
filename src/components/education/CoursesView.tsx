@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCourses } from '@/hooks/useCourses';
 import { CourseCard } from './CourseCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/hooks/useCourses';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function CoursesView() {
   const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
   const { data: courses, isLoading } = useCourses();
+  const { search } = useSectionSearch();
 
-  const filteredCourses = (courses || []).filter(
-    (course) => filter === 'all' || course.status === filter
-  );
+  const filteredCourses = useMemo(() => {
+    const statusFiltered = (courses || []).filter(
+      (course) => filter === 'all' || course.status === filter
+    );
+    return filterBySearch(statusFiltered, search, (course) => [
+      course.name,
+      course.description,
+      course.duration_months != null ? String(course.duration_months) : undefined,
+      course.price,
+      course.status,
+      ...(course.subjects_covered || []),
+      course.teachers?.name,
+    ]);
+  }, [courses, filter, search]);
 
   return (
     <div className="space-y-6 animate-fade-in">

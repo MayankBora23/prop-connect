@@ -6,6 +6,7 @@ import type { Property } from '@/hooks/useProperties';
 import { useDeleteProperty } from '@/hooks/useProperties';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { formatPropertyArea, getPropertyArea } from '@/lib/formatPropertyArea';
 import { EditPropertyDialog } from './EditPropertyDialog';
 
 interface PropertyCardProps {
@@ -109,7 +110,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
           </div>
           <div className="flex items-center gap-1">
             <Maximize className="w-4 h-4 text-muted-foreground" />
-            <span>{typeof (property as any).area === 'string' && ((property as any).area.toLowerCase().includes('sq') || (property as any).area.toLowerCase().includes('ft')) ? (property as any).area : `${(property as any).area} sq.ft`}</span>
+            <span>{formatPropertyArea(getPropertyArea(property))}</span>
           </div>
         </div>
         

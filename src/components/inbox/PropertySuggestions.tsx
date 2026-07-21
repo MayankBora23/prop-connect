@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Home, IndianRupee, Maximize, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatPropertyArea, getPropertyArea, formatPropertyPrice, parsePropertyPrice } from '@/lib/formatPropertyArea';
 import type { Property } from '@/hooks/useProperties';
 
 interface PropertySuggestionsProps {
@@ -45,7 +46,9 @@ export function PropertySuggestions({ onSelectProperty, isOpen, onOpenChange }: 
 
       const matchesLocation = selectedLocation === '' || property.city === selectedLocation;
       const matchesType = selectedPropertyType === '' || property.property_type === selectedPropertyType;
-      const matchesBudget = maxBudget === '' || (property.price && property.price <= parseInt(maxBudget));
+      const maxBudgetValue = maxBudget ? parsePropertyPrice(maxBudget) : 0;
+      const propertyPrice = parsePropertyPrice(property.price);
+      const matchesBudget = maxBudget === '' || (propertyPrice > 0 && propertyPrice <= maxBudgetValue);
 
       return matchesSearch && matchesLocation && matchesType && matchesBudget && property.status === 'available';
     });
@@ -53,22 +56,9 @@ export function PropertySuggestions({ onSelectProperty, isOpen, onOpenChange }: 
     setFilteredProperties(filtered);
   }, [properties, searchTerm, selectedLocation, selectedPropertyType, maxBudget]);
 
-  const formatPrice = (price: number | null) => {
-    if (!price) return 'Price on request';
-    if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
-    if (price >= 100000) return `₹${(price / 100000).toFixed(1)}L`;
-    return `₹${price.toLocaleString('en-IN')}`;
-  };
+  const formatPrice = (price: string | number | null | undefined) => formatPropertyPrice(price);
 
-  const formatArea = (area: number | null) => {
-    if (!area) return '';
-    const areaStr = area.toString();
-    // If area already contains sq.ft or similar, don't add it again
-    if (areaStr.toLowerCase().includes('sq') || areaStr.toLowerCase().includes('ft')) {
-      return areaStr;
-    }
-    return `${area} sq.ft`;
-  };
+  const formatArea = (property: Property) => formatPropertyArea(getPropertyArea(property));
 
   const handleSendProperty = (property: Property) => {
     onSelectProperty?.(property);
@@ -210,10 +200,10 @@ export function PropertySuggestions({ onSelectProperty, isOpen, onOpenChange }: 
                       <span>{formatPrice(property.price)}</span>
                     </div>
 
-                    {(property as any).area && (
+                    {getPropertyArea(property) && (
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Maximize className="w-4 h-4" />
-                        <span>{formatArea((property as any).area)}</span>
+                        <span>{formatArea(property)}</span>
                       </div>
                     )}
                   </div>

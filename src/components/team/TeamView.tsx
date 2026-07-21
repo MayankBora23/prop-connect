@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useProfiles, ProfileWithRole, useCurrentProfile } from '@/hooks/useProfiles';
 import { useCurrentCompany, useUpdateTeamMemberRole, useRemoveTeamMember, AppRole } from '@/hooks/useCompany';
 import { InviteTeamMemberDialog } from './InviteTeamMemberDialog';
@@ -32,6 +32,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function TeamView() {
   const { data: profiles, isLoading: profilesLoading } = useProfiles();
@@ -46,6 +48,7 @@ export function TeamView() {
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<ProfileWithRole | null>(null);
   const [editingRole, setEditingRole] = useState<string | null>(null);
+  const { search } = useSectionSearch();
 
   const isLoading = profilesLoading || currentProfileLoading || companyLoading;
 
@@ -138,7 +141,16 @@ export function TeamView() {
     );
   }
 
-  const users = profiles || [];
+  const users = useMemo(
+    () =>
+      filterBySearch(profiles, search, (profile) => [
+        profile.name,
+        profile.email,
+        profile.phone,
+        profile.role,
+      ]),
+    [profiles, search]
+  );
   const adminsManagers = users.filter(u => 
     u.role === 'super_admin' || u.role === 'admin' || u.role === 'manager'
   );

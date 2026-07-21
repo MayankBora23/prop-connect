@@ -64,3 +64,28 @@ export const validateImageFile = (file: File): string | null => {
 
   return null;
 };
+
+export const uploadTemplateMedia = async (
+  file: File,
+  type: 'image' | 'video' | 'document'
+): Promise<UploadResult> => {
+  const maxSize = type === 'video' ? 16 * 1024 * 1024 : 5 * 1024 * 1024
+  if (file.size > maxSize) {
+    throw new Error(`File too large. Max size: ${type === 'video' ? '16MB' : '5MB'}`)
+  }
+
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${type}s/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+
+  const { error } = await supabase.storage
+    .from('whatsapp-templates')
+    .upload(fileName, file, { cacheControl: '3600', upsert: false })
+
+  if (error) throw error
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('whatsapp-templates')
+    .getPublicUrl(fileName)
+
+  return { url: publicUrl, fileName }
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTeachers, useDeleteTeacher, type Teacher } from '@/hooks/useTeachers';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,6 +8,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { EditTeacherDialog } from './EditTeacherDialog';
 import type { TeacherStatus } from '@/hooks/useTeachers';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 function TeacherRow({ teacher }: { teacher: Teacher }) {
   const deleteTeacherMutation = useDeleteTeacher();
@@ -149,10 +151,21 @@ function TeacherRow({ teacher }: { teacher: Teacher }) {
 export function TeachersView() {
   const [filter, setFilter] = useState<'all' | TeacherStatus>('all');
   const { data: teachers, isLoading } = useTeachers();
+  const { search } = useSectionSearch();
 
-  const filteredTeachers = (teachers || []).filter(
-    (teacher) => filter === 'all' || teacher.status === filter
-  );
+  const filteredTeachers = useMemo(() => {
+    const statusFiltered = (teachers || []).filter(
+      (teacher) => filter === 'all' || teacher.status === filter
+    );
+    return filterBySearch(statusFiltered, search, (teacher) => [
+      teacher.name,
+      teacher.email,
+      teacher.phone,
+      teacher.status,
+      ...(teacher.subjects || []),
+      ...(teacher.qualifications || []),
+    ]);
+  }, [teachers, filter, search]);
 
   return (
     <div className="space-y-6 animate-fade-in">

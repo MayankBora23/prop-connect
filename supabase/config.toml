@@ -30,7 +30,13 @@ verify_jwt = false
 [functions.deduct-credits]
 verify_jwt = false
 
+[functions.fire-due-reminders]
+verify_jwt = false
+
 [functions.create-razorpay-order]
+verify_jwt = true
+
+[functions.create-telephony-order]
 verify_jwt = true
 
 [functions.razorpay-webhook]
@@ -50,4 +56,11 @@ verify_jwt = true
 
 [functions.invite-team-member]
 verify_jwt = true
+
+[functions.whatsapp-template-manager]
+verify_jwt = true
+
+[functions.get-masked-meta-token]
+verify_jwt = true
+
 

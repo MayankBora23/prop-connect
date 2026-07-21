@@ -28,7 +28,11 @@ export type Student = {
   };
 };
 
-export type StudentInsert = Omit<Student, 'id' | 'created_at' | 'updated_at' | 'company_id'>;
+export type StudentInsert = Omit<
+  Student,
+  'id' | 'created_at' | 'updated_at' | 'company_id' | 'assigned_to' | 'stage' | 'is_telephony_enabled' | 'last_called_at'
+> &
+  Partial<Pick<Student, 'assigned_to' | 'stage' | 'is_telephony_enabled' | 'last_called_at'>>;
 export type StudentUpdate = Partial<StudentInsert>;
 
 export function useStudents() {

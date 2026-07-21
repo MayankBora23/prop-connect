@@ -44,15 +44,21 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { format, addDays } from 'date-fns';
-import { Building2, Mail, Phone, MapPin, Edit, Trash2, Loader2, Settings as SettingsIcon, ShieldCheck, ShieldAlert, ShieldX, Clock, Timer } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Edit, Trash2, Loader2, Settings as SettingsIcon, ShieldCheck, ShieldAlert, Clock, Timer, History, CreditCard, AlertTriangle } from 'lucide-react';
 import { useAllCompanies, useUpdateCompany, useDeleteCompany, useUpdateCompanySettings, useCompanyTeamCount, type Company } from '@/hooks/useCompany';
+import { CompanyBillingHistoryDialog } from './CompanyBillingHistoryDialog';
+import { Wallet } from 'lucide-react';
+import { CompanyWalletHistoryDialog } from './CompanyWalletHistoryDialog';
 import {
   useExtendTrial,
   useAllCompanySubscriptions,
   computeExtendedTrialEnd,
+  computeSubscriptionFields,
   type AllCompanySubscriptionRow,
 } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 const editCompanySchema = z.object({
     name: z.string().min(1, 'Company name is required'),
@@ -74,31 +80,124 @@ const settingsSchema = z.object({
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
-function getSubscriptionStatusBadge(sub: AllCompanySubscriptionRow | undefined) {
-    if (!sub) return null;
-    const now = new Date();
-    const trialEnd = new Date(sub.trial_ends_at);
-    const daysLeft = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000));
+function formatInr(amount: number): string {
+    return `₹${amount.toLocaleString('en-IN')}`;
+}
 
-    if (sub.status === 'active') {
-        const planName = sub.subscription_plans?.name ?? sub.plan_slug;
+function titleCase(value: string): string {
+    return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function CompanyPlanBillingCell({ sub }: { sub: AllCompanySubscriptionRow | undefined }) {
+    if (!sub) {
         return (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                Active — {planName}
-            </Badge>
+            <div className="flex flex-col gap-1">
+                <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 w-fit">
+                    No subscription
+                </Badge>
+            </div>
         );
     }
-    if (sub.status === 'trial' && trialEnd > now) {
+
+    const computed = computeSubscriptionFields(sub);
+    const planName = computed.plan_name ?? titleCase(computed.plan_slug);
+    const cycleLabel = computed.billingCycle ? titleCase(computed.billingCycle) : null;
+
+    if (computed.isPaymentOverdue) {
+        const daysOverdue = Math.abs(computed.daysUntilBilling ?? 0);
         return (
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                Trial {daysLeft}d
-            </Badge>
+            <div className="flex flex-col gap-1.5">
+                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 w-fit">
+                    <AlertTriangle className="w-3 h-3 mr-1" />
+                    Payment Overdue
+                </Badge>
+                <span className="text-xs font-medium text-foreground">
+                    {planName}
+                    {cycleLabel && <span className="text-muted-foreground"> · {cycleLabel}</span>}
+                </span>
+                {computed.nextBillingDate && (
+                    <span className="text-xs text-orange-700">
+                        Due {format(computed.nextBillingDate, 'dd MMM yyyy')}
+                        {daysOverdue > 0 && ` (${daysOverdue}d overdue)`}
+                    </span>
+                )}
+                {computed.nextBillingAmount != null && computed.nextBillingAmount > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                        Amount due: {formatInr(computed.nextBillingAmount)}
+                    </span>
+                )}
+            </div>
         );
     }
+
+    if (computed.isActive) {
+        return (
+            <div className="flex flex-col gap-1.5">
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 w-fit">
+                    <CreditCard className="w-3 h-3 mr-1" />
+                    Paid — {planName}
+                </Badge>
+                {cycleLabel && (
+                    <span className="text-xs text-muted-foreground">{cycleLabel} billing</span>
+                )}
+                {computed.nextBillingDate && (
+                    <span className="text-xs text-muted-foreground">
+                        Next: {format(computed.nextBillingDate, 'dd MMM yyyy')}
+                        {computed.nextBillingAmount != null && computed.nextBillingAmount > 0 && (
+                            <> · {formatInr(computed.nextBillingAmount)}</>
+                        )}
+                    </span>
+                )}
+                {computed.purchasedExtraSeats > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                        +{computed.purchasedExtraSeats} extra seat(s)
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    if (computed.isTrialActive) {
+        return (
+            <div className="flex flex-col gap-1.5">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 w-fit">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Trial — {computed.daysLeftInTrial}d left
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                    Ends {format(new Date(computed.trial_ends_at), 'dd MMM yyyy')}
+                </span>
+                <span className="text-xs text-muted-foreground">No plan purchased yet</span>
+            </div>
+        );
+    }
+
+    if (computed.status === 'cancelled') {
+        return (
+            <div className="flex flex-col gap-1.5">
+                <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 w-fit">
+                    Cancelled
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                    Was on {planName}
+                    {cycleLabel && <> ({cycleLabel})</>}
+                </span>
+            </div>
+        );
+    }
+
     return (
-        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            Trial Expired
-        </Badge>
+        <div className="flex flex-col gap-1.5">
+            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 w-fit">
+                {computed.isTrialExpired ? 'Trial Expired' : 'Expired'}
+            </Badge>
+            <span className="text-xs text-muted-foreground">No active plan</span>
+            {computed.isTrialExpired && (
+                <span className="text-xs text-muted-foreground">
+                    Ended {format(new Date(computed.trial_ends_at), 'dd MMM yyyy')}
+                </span>
+            )}
+        </div>
     );
 }
 
@@ -118,6 +217,19 @@ export const CompaniesView = () => {
         return map;
     }, [allSubscriptions]);
 
+    const { search } = useSectionSearch();
+    const filteredCompanies = useMemo(
+        () =>
+            filterBySearch(companies, search, (company) => [
+                company.name,
+                company.email,
+                company.phone,
+                company.industry,
+                company.address,
+            ]),
+        [companies, search]
+    );
+
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -126,6 +238,10 @@ export const CompaniesView = () => {
     const [extendDays, setExtendDays] = useState(7);
     const [extendNotes, setExtendNotes] = useState('');
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+    const [billingHistoryOpen, setBillingHistoryOpen] = useState(false);
+    const [billingHistoryCompany, setBillingHistoryCompany] = useState<Company | null>(null);
+    const [walletHistoryOpen, setWalletHistoryOpen] = useState(false);
+    const [walletHistoryCompany, setWalletHistoryCompany] = useState<Company | null>(null);
 
     const form = useForm<EditCompanyFormData>({
         resolver: zodResolver(editCompanySchema),
@@ -184,6 +300,16 @@ export const CompaniesView = () => {
         setExtendTrialOpen(true);
     };
 
+    const handleBillingHistoryClick = (company: Company) => {
+        setBillingHistoryCompany(company);
+        setBillingHistoryOpen(true);
+    };
+
+    const handleWalletHistoryClick = (company: Company) => {
+        setWalletHistoryCompany(company);
+        setWalletHistoryOpen(true);
+    };
+
     const onSubmitEdit = async (data: EditCompanyFormData) => {
         if (!selectedCompany) return;
 
@@ -227,6 +353,7 @@ export const CompaniesView = () => {
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan & Billing</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registered On</th>
                             {isInternalCRM && <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>}
@@ -238,6 +365,7 @@ export const CompaniesView = () => {
                                 <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
                                 <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
                                 <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                                <td className="px-4 py-3"><Skeleton className="h-12 w-36" /></td>
                                 <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
                                 <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
                                 {isInternalCRM && <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>}
@@ -258,20 +386,21 @@ export const CompaniesView = () => {
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan & Billing</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registered On</th>
                             {isInternalCRM && <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                        {companies && companies.length === 0 ? (
+                        {filteredCompanies && filteredCompanies.length === 0 ? (
                             <tr>
-                                <td colSpan={isInternalCRM ? 6 : 5} className="px-4 py-8 text-center text-muted-foreground">
+                                <td colSpan={isInternalCRM ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
                                     No companies found.
                                 </td>
                             </tr>
                         ) : (
-                            companies?.map((company) => (
+                            filteredCompanies?.map((company) => (
                                 <tr key={company.id} className="hover:bg-secondary/50 transition-colors">
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
@@ -301,11 +430,14 @@ export const CompaniesView = () => {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="flex flex-col gap-1.5">
-                                            {getIndustryBadge(company.industry)}
-                                            {company.industry !== 'internal_crm' &&
-                                                getSubscriptionStatusBadge(subscriptionByCompany.get(company.id))}
-                                        </div>
+                                        {getIndustryBadge(company.industry)}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {company.industry !== 'internal_crm' ? (
+                                            <CompanyPlanBillingCell sub={subscriptionByCompany.get(company.id)} />
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">—</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -345,6 +477,28 @@ export const CompaniesView = () => {
                                                         title="Extend trial period"
                                                     >
                                                         <Timer className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                {company.industry !== 'internal_crm' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                                        onClick={() => handleBillingHistoryClick(company)}
+                                                        title="Billing History"
+                                                    >
+                                                        <History className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {company.industry !== 'internal_crm' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                                        onClick={() => handleWalletHistoryClick(company)}
+                                                        title="Wallet Top-up History"
+                                                    >
+                                                        <Wallet className="h-4 w-4" />
                                                     </Button>
                                                 )}
                                                 <Button
@@ -624,6 +778,16 @@ export const CompaniesView = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <CompanyBillingHistoryDialog
+                company={billingHistoryCompany}
+                open={billingHistoryOpen}
+                onOpenChange={setBillingHistoryOpen}
+            />
+            <CompanyWalletHistoryDialog
+                company={walletHistoryCompany}
+                open={walletHistoryOpen}
+                onOpenChange={setWalletHistoryOpen}
+            />
         </>
     );
 };

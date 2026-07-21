@@ -3,23 +3,23 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { insertLeadReassignmentAuditEntry } from '@/hooks/useLeadHistory';
 import { logTeamActivity } from '@/lib/logTeamActivity';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type Lead = Tables<'leads'>;
 export type LeadInsert = Omit<TablesInsert<'leads'>, 'company_id'>;
 export type LeadUpdate = TablesUpdate<'leads'>;
 
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
-}
-
 export function useLeads() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['leads'],
+    queryKey: ['leads', companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -35,10 +35,15 @@ export function useLeads() {
 }
 
 export function useLead(id: string) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['leads', id],
+    queryKey: ['leads', id, companyId],
+    enabled: !!id && !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -51,7 +56,6 @@ export function useLead(id: string) {
       if (error) throw error;
       return data as Lead | null;
     },
-    enabled: !!id,
   });
 }
 
@@ -60,7 +64,7 @@ export function useCreateLead() {
 
   return useMutation({
     mutationFn: async (lead: LeadInsert) => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
       
       const { data, error } = await supabase

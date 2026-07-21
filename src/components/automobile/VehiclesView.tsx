@@ -7,14 +7,34 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useDeleteVehicle } from '@/hooks/useVehicles';
 import { EditVehicleDialog } from './EditVehicleDialog';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { VehicleWithRelations } from '@/hooks/useAutoTypes';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function VehiclesView() {
   const { data: vehicles, isLoading } = useVehicles();
   const deleteVehicle = useDeleteVehicle();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleWithRelations | null>(null);
+  const { search } = useSectionSearch();
+
+  const filteredVehicles = useMemo(
+    () =>
+      filterBySearch(vehicles, search, (vehicle) => [
+        vehicle.brand,
+        vehicle.model,
+        vehicle.variant,
+        vehicle.vehicle_type,
+        vehicle.fuel_type,
+        vehicle.transmission,
+        vehicle.color,
+        vehicle.status,
+        vehicle.description,
+        vehicle.price,
+      ]),
+    [vehicles, search]
+  );
 
   const handleDelete = async (vehicleId: string, vehicleName: string) => {
     try {
@@ -96,14 +116,14 @@ export function VehiclesView() {
                   <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                 </tr>
               ))
-            ) : (vehicles || []).length === 0 ? (
+            ) : filteredVehicles.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  No vehicles found. Add your first vehicle to get started.
+                  {search.trim() ? 'No vehicles match your search.' : 'No vehicles found. Add your first vehicle to get started.'}
                 </td>
               </tr>
             ) : (
-              (vehicles || []).map((vehicle) => (
+              filteredVehicles.map((vehicle) => (
                 <tr key={vehicle.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

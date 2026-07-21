@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { GoogleGenerativeAI } from 'https://esm.sh/@google/generative-ai@0.21.0'
 import { sendWhatsAppMessage, type WhatsappProvider } from './sendWhatsAppMessage.ts'
 import { processHumanTakeover } from './humanTakeover.ts'
+import { sendMatchedCatalogSuggestions } from './catalogSuggestions.ts'
 
 export type { WhatsappProvider } from './sendWhatsAppMessage.ts'
 
@@ -119,21 +120,21 @@ function getStepConfigs(industry: string): StepConfig[] {
         },
         {
           step: 2,
-          message: "Which course are you interested in?",
-          buttons: ["Engineering", "Medical", "Commerce", "Arts"],
-          buttonPayloads: ["engineering", "medical", "commerce", "arts"],
+          message: "Which field are you interested in?",
+          buttons: ["Coding", "Web Development", "AI & ML", "Data Science"],
+          buttonPayloads: ["coding", "web_development", "ai_ml", "data_science"],
           nextStep: 3
         },
         {
           step: 3,
-          message: "What's your preferred study mode?",
-          buttons: ["Full-time", "Part-time", "Online"],
-          buttonPayloads: ["full_time", "part_time", "online"],
+          message: "What Course Type do you prefer?",
+          buttons: ["Online", "Offline", "Hybrid"],
+          buttonPayloads: ["online", "offline", "hybrid"],
           nextStep: 4
         },
         {
           step: 4,
-          message: "What's your budget for education?",
+          message: "Which subjects are you interested in? (e.g. Python, React, Machine Learning, UI/UX)",
           buttons: [],
           buttonPayloads: [],
           nextStep: 5
@@ -141,6 +142,45 @@ function getStepConfigs(industry: string): StepConfig[] {
         {
           step: 5,
           message: "Thank you for your interest! Our counselors will contact you shortly with detailed course information.",
+          buttons: [],
+          buttonPayloads: [],
+          nextStep: 0
+        }
+      ]
+
+    case 'internal_crm':
+      return [
+        {
+          step: 1,
+          message: "Welcome to AiLeadX! Are you looking to manage Real Estate, Education, or Automobile leads?",
+          buttons: ["Real Estate", "Education", "Automobile"],
+          buttonPayloads: ["real_estate", "education", "automobile"],
+          nextStep: 2
+        },
+        {
+          step: 2,
+          message: "Great! How many leads does your team manage per month?",
+          buttons: ["< 100", "100-500", "500+"],
+          buttonPayloads: ["small", "medium", "large"],
+          nextStep: 3
+        },
+        {
+          step: 3,
+          message: "Would you like to schedule a demo of AiLeadX CRM?",
+          buttons: ["Yes, Schedule Demo", "Send More Info", "Not Now"],
+          buttonPayloads: ["schedule_demo", "send_info", "not_now"],
+          nextStep: 4
+        },
+        {
+          step: 4,
+          message: "Thank you! Our AiLeadX team will reach out to you soon. We look forward to helping you streamline your lead management! 🚀",
+          buttons: [],
+          buttonPayloads: [],
+          nextStep: 5
+        },
+        {
+          step: 5,
+          message: "Thank you for your interest! Our team will contact you shortly to schedule your personalized demo. In the meantime, visit our website for more information.",
           buttons: [],
           buttonPayloads: [],
           nextStep: 0
@@ -189,6 +229,15 @@ function getStepConfigs(industry: string): StepConfig[] {
   }
 }
 
+function resolveUserInput(userInput: string, stepConfig: StepConfig): string {
+  const cleanInput = userInput.trim()
+  const num = parseInt(cleanInput, 10)
+  if (!isNaN(num) && num >= 1 && num <= (stepConfig?.buttons?.length || 0)) {
+    return stepConfig.buttons[num - 1].toLowerCase().trim()
+  }
+  return cleanInput.toLowerCase()
+}
+
 export async function handleAiFlow({
   payload,
   conversationId,
@@ -212,8 +261,30 @@ export async function handleAiFlow({
     console.log(`🏢 Industry: ${industry}`)
     console.log(`📊 AI Status: new_user=${conversationData.is_new_user}, enabled=${conversationData.ai_enabled}, step=${conversationData.current_step}`)
 
-    // Get industry-specific step configurations
-    const STEP_CONFIGS = getStepConfigs(industry)
+    // Try to load custom config first
+    const { data: customConfig } = await supabase
+      .from('ai_flow_configs')
+      .select('steps')
+      .eq('company_id', whatsappSettings.company_id)
+      .eq('industry', industry)
+      .maybeSingle()
+
+    // Merge custom message/buttons with hardcoded payloads/nextStep
+    const defaultConfigs = getStepConfigs(industry)
+
+    const STEP_CONFIGS: StepConfig[] = customConfig?.steps
+      ? defaultConfigs.map(defaultStep => {
+          const custom = (customConfig.steps as { step: number; message: string; buttons: string[] }[])
+            .find(s => s.step === defaultStep.step)
+          if (!custom) return defaultStep
+          return {
+            ...defaultStep,
+            message: custom.message || defaultStep.message,
+            buttons: custom.buttons?.length ? custom.buttons : defaultStep.buttons,
+            // buttonPayloads and nextStep always come from defaultStep — never from custom
+          }
+        })
+      : defaultConfigs
 
     // Incoming message is stored by whatsapp-webhook / whatsapp-meta-webhook before handleAiFlow runs.
 
@@ -243,22 +314,27 @@ export async function handleAiFlow({
       return new Response('Invalid step', { status: 400, headers: corsHeaders })
     }
 
+    const resolvedInput = resolveUserInput(userInput, stepConfig)
+
     let nextStep = stepConfig.nextStep
     let updateData: any = {}
     let inputValid = false
 
     // Process user input based on industry and current step
-    console.log(`🎯 Processing input for ${industry} industry, step ${currentStep}, input: "${userInput}"`)
+    console.log(`🎯 Processing input for ${industry} industry, step ${currentStep}, input: "${userInput}" (resolved: "${resolvedInput}")`)
 
     if (industry === 'automobile_dealers') {
       console.log('🚗 Routing to automobile flow')
-      inputValid = await processAutomobileFlow(userInput, currentStep, updateData, conversationId, stepConfig, whatsappSettings, payload, supabase, accountSid, industry)
+      inputValid = await processAutomobileFlow(resolvedInput, currentStep, updateData, conversationId, stepConfig, whatsappSettings, payload, supabase, accountSid, industry)
     } else if (industry === 'education') {
       console.log('📚 Routing to education flow')
-      inputValid = await processEducationFlow(userInput, currentStep, updateData, conversationId, stepConfig, whatsappSettings, payload, supabase, accountSid, industry)
+      inputValid = await processEducationFlow(resolvedInput, currentStep, updateData, conversationId, stepConfig, whatsappSettings, payload, supabase, accountSid, industry)
+    } else if (industry === 'internal_crm') {
+      console.log('🏢 Routing to internal CRM flow')
+      inputValid = await processInternalCrmFlow(userInput, currentStep, updateData, payload, stepConfig)
     } else {
       console.log('🏠 Routing to real estate flow (default)')
-      inputValid = await processRealEstateFlow(userInput, currentStep, updateData, conversationId, stepConfig, whatsappSettings, payload, supabase, accountSid, industry)
+      inputValid = await processRealEstateFlow(resolvedInput, currentStep, updateData, conversationId, stepConfig, whatsappSettings, payload, supabase, accountSid, industry)
     }
 
     if (inputValid) {
@@ -293,9 +369,17 @@ export async function handleAiFlow({
         const nextStepConfig = STEP_CONFIGS.find(config => config.step === nextStep)!
         await sendStepMessage(whatsappSettings, provider, payload.From, nextStepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
 
-        // If this is the final step (nextStep of the config we just sent is 0), create summary
+        // If this is the final step (nextStep of the config we just sent is 0), send suggestions + summary
         if (nextStepConfig.nextStep === 0) {
-          console.log('🎯 Final step sent, creating summary for conversation:', conversationId)
+          console.log('🎯 Final step sent, sending matched catalog suggestions')
+          await sendMatchedCatalogSuggestions(
+            supabase,
+            conversationId,
+            whatsappSettings.company_id,
+            industry
+          )
+
+          console.log('🎯 Creating conversation summary for conversation:', conversationId)
           await createConversationSummary(supabase, conversationId, whatsappSettings.company_id)
           console.log('✅ Summary creation completed')
         }
@@ -303,7 +387,7 @@ export async function handleAiFlow({
     } else {
       // Input was invalid, send current step message again
       console.log(`❌ Invalid input for step ${currentStep}, sending current step message again`)
-        await sendStepMessage(whatsappSettings, provider, payload.From, stepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
+      await sendStepMessage(whatsappSettings, provider, payload.From, stepConfig, supabase, conversationId, whatsappSettings.company_id, accountSid)
     }
 
     return new Response('', { status: 200, headers: corsHeaders })
@@ -315,6 +399,114 @@ export async function handleAiFlow({
 }
 
 // Industry-specific processing functions
+
+// ── internal_crm flow ──────────────────────────────────────────────────────
+async function processInternalCrmFlow(
+  userInput: string,
+  currentStep: number,
+  updateData: Record<string, string>,
+  payload: { Body: string },
+  stepConfig: StepConfig
+): Promise<boolean> {
+  if (currentStep === 1) {
+    // Dynamic number → payload lookup (safe against button reordering)
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      updateData.purpose = stepConfig.buttonPayloads[numInput - 1]
+      return true
+    }
+    // Text-based fallback
+    const textMap: Record<string, string> = {
+      'real estate': 'real_estate',
+      'realestate': 'real_estate',
+      'education': 'education',
+      'automobile': 'automobile',
+      'auto': 'automobile',
+    }
+    const mapped = textMap[userInput] ?? textMap[userInput.replace(/\s+/g, '')] ?? null
+    if (mapped) {
+      updateData.purpose = mapped
+      return true
+    }
+    // fuzzy
+    if (userInput.includes('real') || userInput.includes('estate') || userInput.includes('property')) {
+      updateData.purpose = 'real_estate'
+      return true
+    }
+    if (userInput.includes('edu') || userInput.includes('school') || userInput.includes('college')) {
+      updateData.purpose = 'education'
+      return true
+    }
+    if (userInput.includes('auto') || userInput.includes('car') || userInput.includes('vehicle')) {
+      updateData.purpose = 'automobile'
+      return true
+    }
+    return false
+  } else if (currentStep === 2) {
+    // Dynamic number → payload lookup
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      updateData.interest = stepConfig.buttonPayloads[numInput - 1]
+      return true
+    }
+    // Text-based fallback
+    const textMap: Record<string, string> = {
+      'small': 'small',
+      '< 100': 'small',
+      '<100': 'small',
+      'medium': 'medium',
+      '100-500': 'medium',
+      'large': 'large',
+      '500+': 'large',
+    }
+    const mapped = textMap[userInput] ?? textMap[userInput.replace(/\s+/g, '')] ?? null
+    if (mapped) {
+      updateData.interest = mapped
+      return true
+    }
+    if (userInput.length > 0) {
+      updateData.interest = payload.Body.trim()
+      return true
+    }
+    return false
+  } else if (currentStep === 3) {
+    // Dynamic number → payload lookup
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      updateData.budget = stepConfig.buttonPayloads[numInput - 1]   // reuse budget field for demo intent
+      return true
+    }
+    // Text-based fallback
+    const textMap: Record<string, string> = {
+      'yes': 'schedule_demo',
+      'yes, schedule demo': 'schedule_demo',
+      'schedule demo': 'schedule_demo',
+      'schedule': 'schedule_demo',
+      'send more info': 'send_info',
+      'more info': 'send_info',
+      'info': 'send_info',
+      'not now': 'not_now',
+      'no': 'not_now',
+      'later': 'not_now',
+    }
+    const mapped = textMap[userInput] ?? null
+    if (mapped) {
+      updateData.budget = mapped
+      return true
+    }
+    if (userInput.length > 0) {
+      updateData.budget = payload.Body.trim()
+      return true
+    }
+    return false
+  } else if (currentStep === 4) {
+    // Acknowledgement step — any reply advances
+    return true
+  }
+  return false
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function processRealEstateFlow(
   userInput: string,
   currentStep: number,
@@ -327,23 +519,17 @@ async function processRealEstateFlow(
   accountSid: string | undefined,
   industry: string
 ): Promise<boolean> {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  }
-
   if (currentStep === 1) {
     let purposeValue: string | null = null
 
-    if (userInput === '1') {
-      purposeValue = 'buy'
-    } else if (userInput === '2') {
-      purposeValue = 'rent'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      purposeValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
-      if (userInput.includes('buy')) {
+      if (userInput.includes('buy') || userInput.includes('purchase')) {
         purposeValue = 'buy'
-      } else if (userInput.includes('rent')) {
+      } else if (userInput.includes('rent') || userInput.includes('lease')) {
         purposeValue = 'rent'
       } else {
         purposeValue = await extractFromText(userInput, currentStep, 'real_estate')
@@ -359,14 +545,10 @@ async function processRealEstateFlow(
   } else if (currentStep === 2) {
     let propertyTypeValue: string | null = null
 
-    if (userInput === '1') {
-      propertyTypeValue = 'apartment'
-    } else if (userInput === '2') {
-      propertyTypeValue = 'villa'
-    } else if (userInput === '3') {
-      propertyTypeValue = 'plot'
-    } else if (userInput === '4') {
-      propertyTypeValue = 'commercial'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      propertyTypeValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
       const textMap: { [key: string]: string } = {
         'apartment': 'apartment',
@@ -419,19 +601,13 @@ async function processAutomobileFlow(
   accountSid: string | undefined,
   industry: string
 ): Promise<boolean> {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  }
-
   if (currentStep === 1) {
     let purposeValue: string | null = null
 
-    if (userInput === '1') {
-      purposeValue = 'buy'
-    } else if (userInput === '2') {
-      purposeValue = 'service'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      purposeValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
       if (userInput.includes('buy') || userInput.includes('purchase')) {
         purposeValue = 'buy'
@@ -451,20 +627,21 @@ async function processAutomobileFlow(
   } else if (currentStep === 2) {
     let vehicleTypeValue: string | null = null
 
-    if (userInput === '1') {
-      vehicleTypeValue = 'car'
-    } else if (userInput === '2') {
-      vehicleTypeValue = 'bike'
-    } else if (userInput === '3') {
-      vehicleTypeValue = 'used_car'
-    } else if (userInput === '4') {
-      vehicleTypeValue = 'used_bike'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      vehicleTypeValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
       const textMap: { [key: string]: string } = {
         'car': 'car',
         'bike': 'bike',
+        'motorcycle': 'bike',
+        'scooter': 'bike',
         'used car': 'used_car',
-        'used bike': 'used_bike'
+        'second hand car': 'used_car',
+        'pre-owned car': 'used_car',
+        'used bike': 'used_bike',
+        'second hand bike': 'used_bike',
       }
 
       if (textMap[userInput]) {
@@ -511,19 +688,13 @@ async function processEducationFlow(
   accountSid: string | undefined,
   industry: string
 ): Promise<boolean> {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  }
-
   if (currentStep === 1) {
     let interestValue: string | null = null
 
-    if (userInput === '1') {
-      interestValue = 'yes'
-    } else if (userInput === '2') {
-      interestValue = 'info'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      interestValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
       const lowerInput = userInput.trim()
       if (lowerInput === 'yes' || lowerInput.includes('yes') || lowerInput.includes('interested') || lowerInput.includes('enroll')) {
@@ -544,36 +715,38 @@ async function processEducationFlow(
   } else if (currentStep === 2) {
     let courseValue: string | null = null
 
-    if (userInput === '1') {
-      courseValue = 'engineering'
-    } else if (userInput === '2') {
-      courseValue = 'medical'
-    } else if (userInput === '3') {
-      courseValue = 'commerce'
-    } else if (userInput === '4') {
-      courseValue = 'arts'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      courseValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
-      const lowerInput = userInput.trim()
-      const textMap: { [key: string]: string } = {
-        'engineering': 'engineering',
-        'medical': 'medical',
-        'commerce': 'commerce',
-        'arts': 'arts',
-        'art': 'arts'
+      // Text-based fallback (label synonyms → payload)
+      const courseTextMap: { [key: string]: string } = {
+        'coding': 'coding',
+        'programming': 'coding',
+        'web development': 'web_development',
+        'web dev': 'web_development',
+        'web_development': 'web_development',
+        'ai & ml': 'ai_ml',
+        'ai ml': 'ai_ml',
+        'ai': 'ai_ml',
+        'ml': 'ai_ml',
+        'artificial intelligence': 'ai_ml',
+        'machine learning': 'ai_ml',
+        'data science': 'data_science',
+        'data_science': 'data_science',
+        'analytics': 'data_science',
       }
 
-      if (textMap[lowerInput]) {
-        courseValue = textMap[lowerInput]
-      } else if (lowerInput.includes('engineer')) {
-        courseValue = 'engineering'
-      } else if (lowerInput.includes('medic') || lowerInput.includes('doctor')) {
-        courseValue = 'medical'
-      } else if (lowerInput.includes('commerce') || lowerInput.includes('business')) {
-        courseValue = 'commerce'
-      } else if (lowerInput.includes('art')) {
-        courseValue = 'arts'
-      } else {
-        courseValue = await extractFromText(userInput, currentStep, 'education')
+      const lowerInput = userInput.trim().toLowerCase()
+      courseValue = courseTextMap[lowerInput] ?? null
+
+      if (!courseValue) {
+        if (lowerInput.includes('web')) courseValue = 'web_development'
+        else if (lowerInput.includes('code') || lowerInput.includes('coding') || lowerInput.includes('program')) courseValue = 'coding'
+        else if (lowerInput.includes('ai') || lowerInput.includes('machine') || lowerInput.includes('deep learning')) courseValue = 'ai_ml'
+        else if (lowerInput.includes('data')) courseValue = 'data_science'
+        else courseValue = await extractFromText(userInput, currentStep, 'education')
       }
     }
 
@@ -584,46 +757,48 @@ async function processEducationFlow(
       return false
     }
   } else if (currentStep === 3) {
-    let studyModeValue: string | null = null
+    let courseTypeValue: string | null = null
 
-    if (userInput === '1') {
-      studyModeValue = 'full_time'
-    } else if (userInput === '2') {
-      studyModeValue = 'part_time'
-    } else if (userInput === '3') {
-      studyModeValue = 'online'
+    // Dynamic: number reply maps to buttonPayloads[N-1]
+    const numInput = parseInt(userInput, 10)
+    if (!isNaN(numInput) && numInput >= 1 && numInput <= stepConfig.buttonPayloads.length) {
+      courseTypeValue = stepConfig.buttonPayloads[numInput - 1]
     } else {
-      const lowerInput = userInput.trim()
-      const textMap: { [key: string]: string } = {
-        'full time': 'full_time',
-        'full-time': 'full_time',
-        'part time': 'part_time',
-        'part-time': 'part_time',
-        'online': 'online'
+      // Text-based fallback (label synonyms → payload)
+      const courseTypeMap: { [key: string]: string } = {
+        'online': 'online',
+        'virtual': 'online',
+        'remote': 'online',
+        'offline': 'offline',
+        'in person': 'offline',
+        'in-person': 'offline',
+        'classroom': 'offline',
+        'campus': 'offline',
+        'hybrid': 'hybrid',
+        'blended': 'hybrid',
       }
 
-      if (textMap[lowerInput]) {
-        studyModeValue = textMap[lowerInput]
-      } else if (lowerInput.includes('full') && lowerInput.includes('time')) {
-        studyModeValue = 'full_time'
-      } else if (lowerInput.includes('part') && lowerInput.includes('time')) {
-        studyModeValue = 'part_time'
-      } else if (lowerInput.includes('online') || lowerInput.includes('virtual')) {
-        studyModeValue = 'online'
-      } else {
-        studyModeValue = await extractFromText(userInput, currentStep, 'education')
+      const lowerInput = userInput.trim().toLowerCase()
+      courseTypeValue = courseTypeMap[lowerInput] ?? null
+
+      if (!courseTypeValue) {
+        if (lowerInput.includes('online') || lowerInput.includes('virtual') || lowerInput.includes('remote')) courseTypeValue = 'online'
+        else if (lowerInput.includes('offline') || lowerInput.includes('classroom') || lowerInput.includes('campus')) courseTypeValue = 'offline'
+        else if (lowerInput.includes('hybrid') || lowerInput.includes('blend')) courseTypeValue = 'hybrid'
+        else courseTypeValue = await extractFromText(userInput, currentStep, 'education')
       }
     }
 
-    if (studyModeValue && studyModeValue !== 'unclear') {
-      updateData.study_mode = studyModeValue
+    if (courseTypeValue && courseTypeValue !== 'unclear') {
+      updateData.study_mode = courseTypeValue
       return true
     } else {
       return false
     }
   } else if (currentStep === 4) {
+    // Collect subjects of interest — stored as subjects_interest for matching against courses.subjects_covered
     if (userInput.length > 0) {
-      updateData.budget = payload.Body.trim()
+      updateData.subjects_interest = payload.Body.trim()
       return true
     } else {
       return false
@@ -710,10 +885,15 @@ async function createConversationSummary(
       summary += `\n\n🚗 Ready for automobile specialist follow-up.`
     } else if (industry === 'education') {
       summary += `\n• Interest: ${conversation.interest || 'Not specified'}`
-      summary += `\n• Course: ${conversation.course || 'Not specified'}`
-      summary += `\n• Study Mode: ${conversation.study_mode || 'Not specified'}`
-      summary += `\n• Budget: ${conversation.budget || 'Not specified'}`
+      summary += `\n• Course Field: ${conversation.course || 'Not specified'}`
+      summary += `\n• Course Type: ${conversation.study_mode || 'Not specified'}`
+      summary += `\n• Subjects of Interest: ${conversation.subjects_interest || 'Not specified'}`
       summary += `\n\n📚 Ready for education counselor follow-up.`
+    } else if (industry === 'internal_crm') {
+      summary += `\n• Vertical Interest: ${conversation.purpose || 'Not specified'}`
+      summary += `\n• Lead Volume: ${conversation.interest || 'Not specified'}`
+      summary += `\n• Demo Interest: ${conversation.budget || 'Not specified'}`
+      summary += `\n\n🏢 Ready for AiLeadX sales team follow-up.`
     } else {
       summary += `\n• Purpose: ${conversation.purpose || 'Not specified'}`
       summary += `\n• Property Type: ${conversation.property_type || 'Not specified'}`

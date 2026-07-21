@@ -21,6 +21,7 @@ import { useCurrentCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { BuySeatDialog } from './BuySeatDialog';
 import { UpgradeDialog } from '@/components/subscription/UpgradeDialog';
+import { RenewalSeatAdjuster } from './RenewalSeatAdjuster';
 
 function formatInr(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
@@ -149,10 +150,6 @@ export function BillingView() {
     setUpgradeOpen(true);
   };
 
-  const handlePayRenewal = async () => {
-    await payRenewal();
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <Card>
@@ -208,15 +205,11 @@ export function BillingView() {
             </p>
           </div>
 
-          {billing.nextBillingDate && nextAmount > 0 && (
-            <Button
-              className="w-full"
-              onClick={handlePayRenewal}
-              disabled={renewalLoading}
-            >
-              {renewalLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Pay Now — {formatInr(nextAmount)} due {format(billing.nextBillingDate, 'dd MMM yyyy')}
-            </Button>
+          {billing.nextBillingDate && (
+            <RenewalSeatAdjuster
+              onPay={(adjustedExtraSeats) => payRenewal(adjustedExtraSeats)}
+              isLoading={renewalLoading}
+            />
           )}
         </CardContent>
       </Card>

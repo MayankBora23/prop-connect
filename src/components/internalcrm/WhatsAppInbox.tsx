@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
     useWhatsAppConversations,
@@ -7,12 +7,16 @@ import {
     useWhatsAppMessagesRealtime,
     useDeleteWhatsAppConversation,
     useClearWhatsAppChat,
-    useDeleteWhatsAppMessage
+    useDeleteWhatsAppMessage,
+    useConversationRealtime
 } from '@/hooks/useWhatsApp';
-import { useAllCompanies } from '@/hooks/useCompany';
+import { useAllCompanies, useCurrentCompany } from '@/hooks/useCompany';
+import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useInternalLeads } from '@/hooks/useInternalLeads';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Building2, SendHorizontal, User, Home, RefreshCw } from 'lucide-react';
+import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Building2, SendHorizontal, User, Home, RefreshCw, LayoutTemplate, Bell } from 'lucide-react';
+import { TemplateSelectorDialog } from '../whatsapp-templates/TemplateSelectorDialog';
+import { useApprovedTemplates, useSendTemplate } from '@/hooks/useWhatsAppTemplates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,20 +34,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DeleteContactDialog } from '../inbox/DeleteContactDialog';
+import { SetReminderDialog } from '../inbox/SetReminderDialog';
 import { SaveInternalLeadDialog } from './SaveInternalLeadDialog';
 import { WhatsAppMessage } from '@/hooks/useWhatsApp';
+import { ChatHeaderControls } from '../inbox/ChatHeaderControls';
+import { HumanTakeoverBanner } from '../inbox/HumanTakeoverBanner';
+import { AgentAvailabilitySelector } from '../inbox/AgentAvailabilitySelector';
+
 
 export function InternalCRMWhatsAppInbox() {
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteContactDialogOpen, setDeleteContactDialogOpen] = useState(false);
+    const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
     const [saveInternalLeadDialogOpen, setSaveInternalLeadDialogOpen] = useState(false);
     const [bulkSendDialogOpen, setBulkSendDialogOpen] = useState(false);
     const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
     const [bulkMessage, setBulkMessage] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [replyToMessage, setReplyToMessage] = useState<WhatsAppMessage | null>(null);
+    const [bannerDismissed, setBannerDismissed] = useState(false);
+
+    const { data: currentProfile } = useCurrentProfile();
+    const currentUserRole = currentProfile?.role || 'sales';
+    const currentProfileId = currentProfile?.id || '';
+
+    useConversationRealtime(selectedConversationId || '');
+
+    useEffect(() => {
+        setBannerDismissed(false);
+    }, [selectedConversationId]);
 
     // Filter states for bulk send
     const [industryFilter, setIndustryFilter] = useState<string>('all');
@@ -70,6 +91,16 @@ export function InternalCRMWhatsAppInbox() {
     const clearChat = useClearWhatsAppChat();
     const deleteMessage = useDeleteWhatsAppMessage();
     const { data: companies } = useAllCompanies();
+    const { data: company } = useCurrentCompany();
+    const { data: approvedTemplates = [] } = useApprovedTemplates();
+    const bulkSendTemplate = useSendTemplate();
+
+    const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+    const [bulkMessageType, setBulkMessageType] = useState<'free_form' | 'template'>('free_form');
+    const [bulkSelectedTemplateId, setBulkSelectedTemplateId] = useState<string>('');
+    const [bulkTemplateVariableValues, setBulkTemplateVariableValues] = useState<Record<string, string>>({});
+
+    const isMetaProvider = company?.whatsapp_provider === 'meta';
     const { toast } = useToast();
 
     // Subscribe to conversation changes for realtime updates
@@ -166,6 +197,47 @@ export function InternalCRMWhatsAppInbox() {
     const activeConversation = selectedConversationId ? conversations?.find(c => c.id === selectedConversationId) : null;
     const activeMessages = messagesData?.data || [];
 
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const { conversationId } = (e as CustomEvent<{ conversationId: string }>).detail;
+            const conv = conversations?.find((c) => c.id === conversationId);
+            if (conv) setSelectedConversationId(conv.id);
+        };
+        window.addEventListener('navigate-to-whatsapp-conversation', handler);
+        return () => window.removeEventListener('navigate-to-whatsapp-conversation', handler);
+    }, [conversations]);
+
+    useEffect(() => {
+        const pending = sessionStorage.getItem('pendingWhatsAppConversationId');
+        if (!pending || !conversations?.length) return;
+        const conv = conversations.find((c) => c.id === pending);
+        if (conv) {
+            setSelectedConversationId(conv.id);
+            sessionStorage.removeItem('pendingWhatsAppConversationId');
+        }
+    }, [conversations]);
+
+    const isWithin24HourWindow = useMemo(() => {
+        if (!activeConversation?.last_customer_message_at) return false;
+        const hoursElapsed = (Date.now() - new Date(activeConversation.last_customer_message_at).getTime()) / 3600000;
+        return hoursElapsed < 24;
+    }, [activeConversation]);
+
+    const canSendMessage = useMemo(() => {
+        if (!activeConversation) return false;
+        if (['super_admin', 'admin', 'manager'].includes(currentUserRole)) return true;
+        if (activeConversation.chat_status === 'ai_handling') return false;
+        if (activeConversation.assigned_to === currentProfileId) return true;
+        if (!activeConversation.assigned_to) return true;
+        return false;
+    }, [activeConversation, currentUserRole, currentProfileId]);
+
+    const canSendFreeForm = useMemo(() => {
+        if (!canSendMessage) return false;
+        if (isMetaProvider && !isWithin24HourWindow) return false;
+        return true;
+    }, [canSendMessage, isMetaProvider, isWithin24HourWindow]);
+
     const handleFileSelect = (files: FileList | null) => {
         if (files) {
             const fileArray = Array.from(files);
@@ -211,7 +283,11 @@ export function InternalCRMWhatsAppInbox() {
     };
 
     const handleBulkSend = async () => {
-        if (!bulkMessage.trim() && selectedFiles.length === 0) return;
+        if (isMetaProvider && bulkMessageType === 'template') {
+            if (!bulkSelectedTemplateId) return;
+        } else {
+            if (!bulkMessage.trim() && selectedFiles.length === 0) return;
+        }
         if (selectedContacts.length === 0) return;
 
         try {
@@ -222,6 +298,31 @@ export function InternalCRMWhatsAppInbox() {
                 try {
                     const conversation = conversations?.find(conv => conv.id === contactId);
                     if (!conversation) continue;
+
+                    if (isMetaProvider && bulkMessageType === 'template') {
+                        const contactName = conversation ? getContactName(conversation.contact_phone, conversation.contact_name) : '';
+                        const resolvedValues = { ...bulkTemplateVariableValues };
+
+                        const selectedTpl = approvedTemplates.find(t => t.id === bulkSelectedTemplateId);
+                        selectedTpl?.variables.forEach((v: string) => {
+                            if (['customer_name', 'student_name', 'name'].includes(v.toLowerCase()) && !resolvedValues[v]) {
+                                resolvedValues[v] = contactName || '';
+                            }
+                        });
+
+                        await bulkSendTemplate.mutateAsync({
+                            conversationId: contactId,
+                            templateId: bulkSelectedTemplateId,
+                            variableValues: resolvedValues
+                        });
+
+                        totalSent++;
+
+                        if (selectedContacts.length > 1) {
+                            await new Promise(resolve => setTimeout(resolve, 3500));
+                        }
+                        continue;
+                    }
 
                     let fileUrls: string[] = [];
                     let fileNames: string[] = [];
@@ -284,6 +385,9 @@ export function InternalCRMWhatsAppInbox() {
             setSelectedContacts([]);
             setBulkMessage('');
             clearAllFiles();
+            setBulkMessageType('free_form');
+            setBulkSelectedTemplateId('');
+            setBulkTemplateVariableValues({});
 
             toast({
                 title: 'Bulk send completed',
@@ -302,7 +406,7 @@ export function InternalCRMWhatsAppInbox() {
     };
 
     const handleSendMessage = async () => {
-        if ((!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId) return;
+        if ((!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendMessage) return;
 
         try {
             let fileUrls: string[] = [];
@@ -419,6 +523,7 @@ export function InternalCRMWhatsAppInbox() {
                 <div className="p-4 border-b border-border space-y-3">
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-semibold text-foreground flex-1">Conversations</h2>
+                        <AgentAvailabilitySelector />
                         <Button
                             variant="ghost"
                             size="sm"
@@ -509,6 +614,14 @@ export function InternalCRMWhatsAppInbox() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
+                            {activeConversation && currentProfile?.company_id && (
+                                <ChatHeaderControls
+                                    conversation={activeConversation}
+                                    companyId={currentProfile.company_id}
+                                    currentUserRole={currentUserRole}
+                                    currentProfileId={currentProfileId}
+                                />
+                            )}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -539,6 +652,13 @@ export function InternalCRMWhatsAppInbox() {
                                         <MessageSquareOff className="mr-2 h-4 w-4" />
                                         Clear Chat
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => setReminderDialogOpen(true)}
+                                        disabled={!activeConversation}
+                                    >
+                                        <Bell className="mr-2 h-4 w-4" />
+                                        Set Reminder
+                                    </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                         onClick={() => setDeleteContactDialogOpen(true)}
@@ -551,6 +671,14 @@ export function InternalCRMWhatsAppInbox() {
                             </DropdownMenu>
                         </div>
                     </div>
+
+                    {activeConversation && currentProfile?.company_id && !bannerDismissed && (
+                        <HumanTakeoverBanner
+                            conversation={activeConversation}
+                            companyId={currentProfile.company_id}
+                            onDismiss={() => setBannerDismissed(true)}
+                        />
+                    )}
 
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-border">
@@ -684,12 +812,29 @@ export function InternalCRMWhatsAppInbox() {
                             </div>
                         )}
 
+                        {isMetaProvider && !isWithin24HourWindow && (
+                            <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm flex items-center justify-between text-orange-800">
+                                <span className="font-medium">24-hour window closed. Send a pre-approved template to continue.</span>
+                                <Button size="sm" onClick={() => setTemplateSelectorOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white border-0 text-xs">
+                                    Send Template
+                                </Button>
+                            </div>
+                        )}
+
+                        {isMetaProvider && isWithin24HourWindow && (
+                            <div className="mb-2 text-[10px] text-green-600 font-semibold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                Service window open
+                            </div>
+                        )}
+
                         <div className="flex items-end gap-3 max-w-5xl mx-auto">
                             <div className="flex items-center gap-1 pb-1">
                                 <button
                                     onClick={() => handleAttachmentClick('image')}
                                     className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
                                     title="Images"
+                                    disabled={!canSendFreeForm}
                                 >
                                     <Image className="h-5 w-5" />
                                 </button>
@@ -697,19 +842,33 @@ export function InternalCRMWhatsAppInbox() {
                                     onClick={() => handleAttachmentClick('document')}
                                     className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
                                     title="Documents"
+                                    disabled={!canSendFreeForm}
                                 >
                                     <FileText className="h-5 w-5" />
                                 </button>
+                                {isMetaProvider && (
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="rounded-full hover:bg-secondary text-muted-foreground shrink-0 h-10 w-10"
+                                        onClick={() => setTemplateSelectorOpen(true)}
+                                        title="Send Template"
+                                        type="button"
+                                    >
+                                        <LayoutTemplate className="h-5 w-5" />
+                                    </Button>
+                                )}
                             </div>
 
                             <div className="flex-1 relative">
                                 <textarea
-                                    placeholder="Type your message here..."
-                                    className="w-full bg-secondary/50 text-foreground text-sm rounded-2xl px-5 py-3 min-h-[48px] max-h-40 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none border border-border/50 placeholder:text-muted-foreground/50 transition-all"
+                                    placeholder={!canSendFreeForm ? "24h window closed — use Send Template above" : "Type your message here..."}
+                                    className="w-full bg-secondary/50 text-foreground text-sm rounded-2xl px-5 py-3 min-h-[48px] max-h-40 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none border border-border/50 placeholder:text-muted-foreground/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
+                                    disabled={!canSendFreeForm}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                        if (e.key === 'Enter' && !e.shiftKey && canSendFreeForm) {
                                             e.preventDefault();
                                             handleSendMessage();
                                         }
@@ -719,7 +878,7 @@ export function InternalCRMWhatsAppInbox() {
 
                             <Button
                                 onClick={handleSendMessage}
-                                disabled={(!newMessage.trim() && selectedFiles.length === 0) || createMessage.isPending}
+                                disabled={(!newMessage.trim() && selectedFiles.length === 0) || createMessage.isPending || !canSendFreeForm}
                                 className="rounded-full h-12 w-12 gradient-primary shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all p-0 flex items-center justify-center shrink-0"
                             >
                                 <Send className="h-5 w-5" />
@@ -756,6 +915,13 @@ export function InternalCRMWhatsAppInbox() {
                 />
             )}
 
+            <SetReminderDialog
+                open={reminderDialogOpen}
+                onOpenChange={setReminderDialogOpen}
+                conversationId={activeConversation?.id ?? ''}
+                contactName={getContactName(activeConversation?.contact_phone || '', activeConversation?.contact_name) || 'Contact'}
+            />
+
             {activeConversation && (
                 <SaveInternalLeadDialog
                     open={saveInternalLeadDialogOpen}
@@ -777,7 +943,25 @@ export function InternalCRMWhatsAppInbox() {
                 setIndustryFilter={setIndustryFilter}
                 stageFilter={stageFilter}
                 setStageFilter={setStageFilter}
+                isMetaProvider={isMetaProvider}
+                approvedTemplates={approvedTemplates}
+                bulkMessageType={bulkMessageType}
+                setBulkMessageType={setBulkMessageType}
+                bulkSelectedTemplateId={bulkSelectedTemplateId}
+                setBulkSelectedTemplateId={setBulkSelectedTemplateId}
+                bulkTemplateVariableValues={bulkTemplateVariableValues}
+                setBulkTemplateVariableValues={setBulkTemplateVariableValues}
             />
+
+            {activeConversation && (
+                <TemplateSelectorDialog
+                    open={templateSelectorOpen}
+                    onOpenChange={setTemplateSelectorOpen}
+                    conversationId={activeConversation.id}
+                    contactName={getContactName(activeConversation.contact_phone, activeConversation.contact_name) || undefined}
+                    onSent={() => refetchMessages()}
+                />
+            )}
         </div>
     );
 }
@@ -794,7 +978,15 @@ function BulkSendDialog({
     industryFilter,
     setIndustryFilter,
     stageFilter,
-    setStageFilter
+    setStageFilter,
+    isMetaProvider,
+    approvedTemplates,
+    bulkMessageType,
+    setBulkMessageType,
+    bulkSelectedTemplateId,
+    setBulkSelectedTemplateId,
+    bulkTemplateVariableValues,
+    setBulkTemplateVariableValues
 }: any) {
     const industries = ['all', 'real_estate', 'healthcare', 'education', 'hotel', 'restaurant', 'ecommerce', 'car_dealer', 'general'];
     const stages = ['all', 'new', 'contacted', 'demo_scheduled', 'trial_started', 'closed_won', 'closed_lost'];
@@ -810,34 +1002,108 @@ function BulkSendDialog({
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    {isMetaProvider && (
                         <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filter Industry</label>
-                            <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Message Type</label>
+                            <Select value={bulkMessageType} onValueChange={(val: string) => setBulkMessageType(val)}>
                                 <SelectTrigger className="bg-secondary/50 border-none h-10">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {industries.map(ind => (
-                                        <SelectItem key={ind} value={ind}>{ind.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
-                                    ))}
+                                    <SelectItem value="free_form">Free-form Message</SelectItem>
+                                    <SelectItem value="template">Template Message</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filter Stage</label>
-                            <Select value={stageFilter} onValueChange={setStageFilter}>
-                                <SelectTrigger className="bg-secondary/50 border-none h-10">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {stages.map(stage => (
-                                        <SelectItem key={stage} value={stage}>{stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    )}
+
+                    {isMetaProvider && bulkMessageType === 'template' ? (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Approved Template</label>
+                                <Select
+                                    value={bulkSelectedTemplateId}
+                                    onValueChange={(val: string) => {
+                                        setBulkSelectedTemplateId(val);
+                                        const t = approvedTemplates.find((x: any) => x.id === val);
+                                        const initialVals: Record<string, string> = {};
+                                        t?.variables.forEach((v: string) => { initialVals[v] = ''; });
+                                        setBulkTemplateVariableValues(initialVals);
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-secondary/50 border-none h-10">
+                                        <SelectValue placeholder="Select Template" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {approvedTemplates.map((t: any) => (
+                                            <SelectItem key={t.id} value={t.id}>{t.template_name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {(() => {
+                                const t = approvedTemplates.find((x: any) => x.id === bulkSelectedTemplateId);
+                                if (!t || t.variables.length === 0) return null;
+                                return (
+                                    <div className="space-y-3 bg-secondary/30 p-4 border rounded-lg">
+                                        <span className="text-xs font-semibold text-muted-foreground block mb-2">Template Variables</span>
+                                        {t.variables.map((v: string) => (
+                                            <div key={v} className="grid grid-cols-3 items-center gap-3">
+                                                <label className="text-xs font-medium truncate col-span-1">{v}</label>
+                                                <input
+                                                    placeholder={`Value for ${v}...`}
+                                                    className="h-8 text-xs col-span-2 border border-border rounded px-2 bg-background"
+                                                    value={bulkTemplateVariableValues[v] || ''}
+                                                    onChange={(e) => setBulkTemplateVariableValues((prev: any) => ({ ...prev, [v]: e.target.value }))}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filter Industry</label>
+                                    <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                                        <SelectTrigger className="bg-secondary/50 border-none h-10">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {industries.map(ind => (
+                                                <SelectItem key={ind} value={ind}>{ind.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filter Stage</label>
+                                    <Select value={stageFilter} onValueChange={setStageFilter}>
+                                        <SelectTrigger className="bg-secondary/50 border-none h-10">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {stages.map(stage => (
+                                                <SelectItem key={stage} value={stage}>{stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Broadcast Message</label>
+                                <textarea
+                                    className="w-full min-h-[120px] bg-secondary/50 border border-border/50 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                                    placeholder="What do you want to announce today?"
+                                    value={bulkMessage}
+                                    onChange={(e) => setBulkMessage(e.target.value)}
+                                />
+                            </div>
+                        </>
+                    )}
 
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -865,16 +1131,6 @@ function BulkSendDialog({
                             ))}
                         </div>
                     </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Broadcast Message</label>
-                        <textarea
-                            className="w-full min-h-[120px] bg-secondary/50 border border-border/50 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                            placeholder="What do you want to announce today?"
-                            value={bulkMessage}
-                            onChange={(e) => setBulkMessage(e.target.value)}
-                        />
-                    </div>
                 </div>
 
                 <DialogFooter className="p-6 pt-2 border-t bg-secondary/10 flex justify-between items-center">
@@ -884,7 +1140,12 @@ function BulkSendDialog({
                         <Button
                             onClick={onSend}
                             className="gradient-primary min-w-[140px] shadow-lg"
-                            disabled={!bulkMessage.trim() || selectedContacts.length === 0}
+                            disabled={
+                                selectedContacts.length === 0 ||
+                                ((isMetaProvider && bulkMessageType === 'template')
+                                    ? !bulkSelectedTemplateId || (approvedTemplates.find((x: any) => x.id === bulkSelectedTemplateId)?.variables.some((v: string) => !bulkTemplateVariableValues[v]?.trim()) ?? false)
+                                    : !bulkMessage.trim())
+                            }
                         >
                             Blast to {selectedContacts.length}
                         </Button>

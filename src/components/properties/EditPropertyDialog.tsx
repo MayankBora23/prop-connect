@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Building2, Loader2 } from 'lucide-react';
 import type { Property } from '@/hooks/useProperties';
 import { ImageUpload } from '@/components/ui/image-upload';
+import { getPropertyArea } from '@/lib/formatPropertyArea';
 
 const propertySchema = z.object({
   title: z.string().min(1, 'Title is required').max(100),
@@ -43,23 +44,22 @@ export function EditPropertyDialog({ property, open, onOpenChange }: EditPropert
     defaultValues: {
       title: property?.title || '',
       location: property?.location || '',
-      bhk: property?.bhk || '',
-      area: property?.area || '',
-      price: property?.price || '',
+      bhk: property?.bhk != null ? String(property.bhk) : '',
+      area: getPropertyArea(property ?? {}) != null ? String(getPropertyArea(property ?? {})) : '',
+      price: property?.price != null ? String(property.price) : '',
       description: property?.description || '',
       status: property?.status || 'available',
     },
   });
 
-  // Update form values when property changes
   React.useEffect(() => {
     if (property) {
       form.reset({
         title: property.title,
         location: property.location,
-        bhk: property.bhk,
-        area: property.area,
-        price: property.price,
+        bhk: property.bhk != null ? String(property.bhk) : '',
+        area: getPropertyArea(property) != null ? String(getPropertyArea(property)) : '',
+        price: property.price != null ? String(property.price) : '',
         description: property.description || '',
         status: property.status,
       });

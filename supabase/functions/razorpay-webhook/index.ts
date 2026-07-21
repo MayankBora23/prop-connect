@@ -79,6 +79,86 @@ serve(async (req) => {
     }
 
     const now = new Date().toISOString()
+
+    const orderType = (order.order_type as string) ?? 'wallet_recharge'
+
+    if (orderType === 'telephony') {
+      // Mark order completed (same pattern as wallet branch)
+      const { error: updateOrderErr } = await supabase.from('razorpay_orders').update({
+        status: 'completed',
+        razorpay_payment_id,
+        credits_added: true,
+        updated_at: now,
+      }).eq('id', order.id).eq('credits_added', false)
+
+      if (updateOrderErr) {
+        console.error('Failed to update razorpay_orders:', updateOrderErr)
+        return new Response('ok', { status: 200, headers: corsHeaders })
+      }
+
+      // Read users_count from payment notes
+      const usersCount = Math.max(2, Number(payment?.notes?.users_count ?? 2))
+      const amountPaid = Number(order.amount_inr)
+
+      // If active subscription exists, extend from its valid_till
+      // If expired or new, start from now
+      const { data: existing } = await supabase
+        .from('company_telephony_subscriptions')
+        .select('valid_till')
+        .eq('company_id', order.company_id)
+        .eq('status', 'active')
+        .order('valid_till', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const baseDate = existing?.valid_till && new Date(existing.valid_till) > new Date()
+        ? new Date(existing.valid_till)
+        : new Date()
+
+      const newValidTill = new Date(baseDate)
+      newValidTill.setMonth(newValidTill.getMonth() + 3)
+
+      const { error: insertSubErr } = await supabase.from('company_telephony_subscriptions').insert({
+        company_id: order.company_id,
+        users_count: usersCount,
+        amount_paid: amountPaid,
+        valid_from: baseDate.toISOString(),
+        valid_till: newValidTill.toISOString(),
+        razorpay_order_id: order.razorpay_order_id,
+        razorpay_payment_id,
+        status: 'active',
+      })
+
+      if (insertSubErr) {
+        console.error('Failed to insert telephony subscription:', insertSubErr)
+        return new Response('ok', { status: 200, headers: corsHeaders })
+      }
+
+      console.log('Telephony subscription activated:', {
+        company_id: order.company_id,
+        users_count: usersCount,
+        valid_till: newValidTill.toISOString(),
+      })
+
+      // Insert a record into wallet_transactions so the customer sees this in transaction history
+      const { error: txErr } = await supabase.from('wallet_transactions').insert({
+        company_id: order.company_id,
+        type: 'credit',
+        provider: 'callerdesk',
+        service_type: 'call',
+        amount_inr: amountPaid,
+        status: 'completed',
+        notes: `CallerDesk Telephony — ${usersCount} users`,
+        reference_id: razorpay_payment_id,
+      })
+
+      if (txErr) {
+        console.error('Failed to insert wallet_transactions for telephony:', txErr)
+      }
+
+      return new Response('ok', { status: 200, headers: corsHeaders })
+    }
+
     const { error: updateOrderErr } = await supabase
       .from('razorpay_orders')
       .update({

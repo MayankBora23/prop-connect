@@ -13,6 +13,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from './useCompany';
 import type { TelephonyProviderKey } from './useTelephony';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type { TelephonyProviderKey };
 
@@ -98,13 +100,6 @@ export type CallAnalyticsData = {
   profiles_meta: Record<string, ProfileTelephonyMeta>;
 };
 
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
-}
-
 type UserContext = {
   userId: string;
   companyId: string;
@@ -115,24 +110,19 @@ async function getUserContext(): Promise<UserContext | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('company_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!profile?.company_id) return null;
+  const companyId = await getCompanyId();
+  if (!companyId) return null;
 
   const { data: roleRow } = await supabase
     .from('user_roles')
     .select('role')
     .eq('user_id', user.id)
-    .eq('company_id', profile.company_id)
+    .eq('company_id', companyId)
     .maybeSingle();
 
   return {
     userId: user.id,
-    companyId: profile.company_id,
+    companyId,
     role: (roleRow?.role as AppRole) || 'sales',
   };
 }
@@ -363,8 +353,13 @@ export function useCallAnalytics(
   customFrom?: Date,
   customTo?: Date
 ) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['call-analytics', provider, filter, customFrom?.toISOString(), customTo?.toISOString()],
+    queryKey: ['call-analytics', provider, filter, customFrom?.toISOString(), customTo?.toISOString(), companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async (): Promise<CallAnalyticsData> => {
       const ctx = await getUserContext();
       if (!ctx) {
@@ -462,6 +457,8 @@ export function useCallLogs(
     provider?: TelephonyProviderKey;
   }
 ) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
   const telephonyProvider = options?.provider ?? 'twilio';
   const search = options?.search ?? '';
   const statusFilter = options?.statusFilter ?? '';
@@ -481,7 +478,10 @@ export function useCallLogs(
       pageSize,
       options?.customFrom?.toISOString(),
       options?.customTo?.toISOString(),
+      companyId,
     ],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async (): Promise<CallLogsPageResult> => {
       const ctx = await getUserContext();
       if (!ctx) throw new Error('No company found');
@@ -561,7 +561,7 @@ export function useCallLogsRealtime() {
     let cancelled = false;
 
     void (async () => {
-      const companyId = await getUserCompanyId();
+      const companyId = await getCompanyId();
       if (!companyId || cancelled) return;
 
       channel = supabase

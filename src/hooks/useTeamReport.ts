@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import type { ProfileWithRole } from '@/hooks/useProfiles';
 import type { AppRole } from '@/hooks/useCompany';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type TeamActivityLogRow = Tables<'team_activity_log'>;
 
@@ -219,9 +221,9 @@ function buildTeamReportPayload(
     return {
       user_id: p.user_id,
       name: p.name,
-      email: p.email,
+      email: (p as ProfileWithRole & { email?: string | null }).email ?? null,
       role: p.role,
-      avatar_url: p.avatar_url,
+      avatar_url: (p as ProfileWithRole & { avatar_url?: string | null }).avatar_url ?? null,
       total_tasks,
       completed_tasks,
       pending_tasks,
@@ -327,23 +329,17 @@ function buildTeamReportPayload(
 export function useTeamReport(filter: string, customFrom?: Date | null, customTo?: Date | null) {
   const from = customFrom ?? undefined;
   const to = customTo ?? undefined;
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
 
   return useQuery({
-    queryKey: ['team-report', filter, from?.toISOString(), to?.toISOString()],
+    queryKey: ['team-report', filter, from?.toISOString(), to?.toISOString(), companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth.user;
-      if (!user) return EMPTY_PAYLOAD;
+      const company_id = await getCompanyId();
+      if (!company_id) return EMPTY_PAYLOAD;
 
-      const { data: me } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!me?.company_id) return EMPTY_PAYLOAD;
-
-      const company_id = me.company_id;
       const { fromDate, toDate } = getDateRange(filter, from, to);
 
       const [profilesRes, followUpsRes, siteVisitsRes, activityRes] = await Promise.all([
@@ -425,6 +421,8 @@ export function useTeamMemberDetail(
   const from = customFrom ?? undefined;
   const to = customTo ?? undefined;
   const enabled = options?.enabled ?? true;
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
 
   return useQuery({
     queryKey: [
@@ -433,22 +431,14 @@ export function useTeamMemberDetail(
       filter,
       from?.toISOString(),
       to?.toISOString(),
+      companyId,
     ],
-    enabled: enabled && !!profileUserId,
+    enabled: enabled && !!profileUserId && !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth.user;
-      if (!user) throw new Error('Not authenticated');
+      const company_id = await getCompanyId();
+      if (!company_id) throw new Error('No company');
 
-      const { data: me } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!me?.company_id) throw new Error('No company');
-
-      const company_id = me.company_id;
       const { fromDate, toDate } = getDateRange(filter, from, to);
 
       const [memberProfileRes, tasksRes, activitiesRes] = await Promise.all([

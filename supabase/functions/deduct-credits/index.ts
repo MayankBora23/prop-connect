@@ -42,7 +42,7 @@ function pricingCountry(
   return destination_country
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -95,6 +95,20 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // Meta WhatsApp deduction is handled directly in send-whatsapp-message
+    // with a flat platform fee read from service_pricing.
+    // Routing Meta through here would cause double-deduction.
+    if (provider === 'meta' && service_type === 'whatsapp') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          reason: 'meta_whatsapp_handled_in_send_function',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
 
     const { data: existing } = await supabase
       .from('wallet_transactions')

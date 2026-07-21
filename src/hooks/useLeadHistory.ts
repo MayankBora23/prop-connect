@@ -3,17 +3,12 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { logTeamActivity } from '@/lib/logTeamActivity';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type LeadHistoryLeadType = 'real_estate' | 'automobile' | 'internal_crm';
 
 export type LeadInteraction = Tables<'lead_interactions'>;
-
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
-}
 
 async function assertCanModifyInteraction(interactionId: string): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -96,10 +91,15 @@ export async function insertLeadReassignmentAuditEntry(opts: {
 }
 
 export function useLeadHistory(leadId: string, leadType: LeadHistoryLeadType) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['lead-history', leadId],
+    queryKey: ['lead-history', leadId, companyId],
+    staleTime: 60_000,
+    enabled: typeof leadId === 'string' && leadId.length > 0 && !!companyId,
     queryFn: async () => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -113,7 +113,6 @@ export function useLeadHistory(leadId: string, leadType: LeadHistoryLeadType) {
       if (error) throw error;
       return (data || []) as LeadInteraction[];
     },
-    enabled: typeof leadId === 'string' && leadId.length > 0,
   });
 }
 

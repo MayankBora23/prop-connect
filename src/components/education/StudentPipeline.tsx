@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStudents, Student } from '@/hooks/useStudents';
 import { StudentCard } from './StudentCard';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Enums } from '@/integrations/supabase/types';
 import { useUpdateStudent } from '@/hooks/useStudents';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 type StudentStage = 'new_students' | 'contacted' | 'demo_scheduled' | 'demo_attended' | 'interested' | 'fees_discussed' | 'enrolled' | 'lost';
 
@@ -23,9 +25,24 @@ export function StudentPipeline() {
   const { data: students, isLoading } = useStudents();
   const updateStudent = useUpdateStudent();
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
+  const { search } = useSectionSearch();
+
+  const filteredStudents = useMemo(
+    () =>
+      filterBySearch(students, search, (student) => [
+        student.name,
+        student.phone,
+        student.email,
+        student.parent_name,
+        student.parent_phone,
+        student.parent_email,
+        student.stage,
+      ]),
+    [students, search]
+  );
 
   const getStudentsByStage = (stage: StudentStage) => {
-    return (students || []).filter((student) => student.stage === stage);
+    return filteredStudents.filter((student) => student.stage === stage);
   };
 
   const handleDragStart = (student: Student) => {

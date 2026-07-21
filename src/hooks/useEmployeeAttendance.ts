@@ -44,6 +44,7 @@ export function useTodayAttendance() {
 
   return useQuery({
     queryKey: ['today-attendance', company?.id],
+    staleTime: 60_000,
     queryFn: async () => {
       if (!company?.id) return [];
 
@@ -77,6 +78,7 @@ export function useAttendanceByDate(date: string) {
 
   return useQuery({
     queryKey: ['attendance-by-date', company?.id, date],
+    staleTime: 60_000,
     queryFn: async () => {
       if (!company?.id) return [];
 
@@ -106,6 +108,7 @@ export function useAttendanceByDate(date: string) {
 export function useEmployeeAttendanceHistory(employeeId: string, startDate?: string, endDate?: string) {
   return useQuery({
     queryKey: ['employee-attendance-history', employeeId, startDate, endDate],
+    staleTime: 60_000,
     queryFn: async () => {
       let query = (supabase as any)
         .from('employee_attendance')
@@ -133,6 +136,7 @@ export function useEmployeeAttendanceHistory(employeeId: string, startDate?: str
 export function useMonthlyAttendance(employeeId: string, year: number, month: number) {
   return useQuery({
     queryKey: ['monthly-attendance', employeeId, year, month],
+    staleTime: 60_000,
     queryFn: async () => {
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDate = new Date(year, month, 0).toISOString().split('T')[0];
@@ -257,6 +261,7 @@ export function useBulkMarkAttendance() {
 export function useAttendanceStats(employeeId: string, startDate: string, endDate: string) {
   return useQuery({
     queryKey: ['attendance-stats', employeeId, startDate, endDate],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('employee_attendance')

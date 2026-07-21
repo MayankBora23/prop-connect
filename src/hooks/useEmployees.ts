@@ -35,6 +35,7 @@ export function useEmployees() {
 
   return useQuery({
     queryKey: ['employees', company?.id],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       if (!company?.id) return [];
 
@@ -52,8 +53,13 @@ export function useEmployees() {
 }
 
 export function useEmployee(id: string) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['employee', id],
+    queryKey: ['employee', id, companyId],
+    enabled: !!id && !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('employees')

@@ -9,8 +9,10 @@ import { useDeleteTestDrive, useUpdateTestDrive } from '@/hooks/useTestDrives';
 import { ScheduleTestDriveDialog } from './ScheduleTestDriveDialog';
 import { EditTestDriveDialog } from './EditTestDriveDialog';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { TestDriveWithRelations } from '@/hooks/useAutoTypes';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function TestDrivesView() {
   const { data: testDrives, isLoading: testDrivesLoading } = useTestDrives();
@@ -21,15 +23,51 @@ export function TestDrivesView() {
   const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<{ id: string; name: string; phone?: string; email?: string } | null>(null);
   const [editTestDriveOpen, setEditTestDriveOpen] = useState(false);
   const [selectedTestDriveForEdit, setSelectedTestDriveForEdit] = useState<TestDriveWithRelations | null>(null);
+  const { search } = useSectionSearch();
 
-  // Get leads that are scheduled for test drives
-  const scheduledLeads = leads?.filter(lead => lead.status === 'test_drive_scheduled') || [];
+  const filterLead = (lead: { name?: string; phone?: string; email?: string; preferred_brand?: string; preferred_model?: string }) =>
+    filterBySearch([lead], search, (item) => [
+      item.name,
+      item.phone,
+      item.email,
+      item.preferred_brand,
+      item.preferred_model,
+    ]).length > 0;
 
-  // Filter test drives by status
-  const scheduledTestDrives = (testDrives || []).filter(td => td.status === 'scheduled');
-  const completedTestDrives = (testDrives || []).filter(td => td.status === 'completed');
-  const cancelledTestDrives = (testDrives || []).filter(td => td.status === 'cancelled');
-  const noShowTestDrives = (testDrives || []).filter(td => td.status === 'no_show');
+  const filterTestDrive = (testDrive: TestDriveWithRelations) =>
+    filterBySearch([testDrive], search, (item) => [
+      item.auto_leads?.name,
+      item.auto_leads?.phone,
+      item.driver_name,
+      item.driver_phone,
+      item.vehicles?.brand,
+      item.vehicles?.model,
+      item.status,
+      item.feedback,
+      item.notes,
+    ]).length > 0;
+
+  const scheduledLeads = useMemo(
+    () => (leads?.filter((lead) => lead.status === 'test_drive_scheduled') || []).filter(filterLead),
+    [leads, search]
+  );
+
+  const scheduledTestDrives = useMemo(
+    () => (testDrives || []).filter((td) => td.status === 'scheduled').filter(filterTestDrive),
+    [testDrives, search]
+  );
+  const completedTestDrives = useMemo(
+    () => (testDrives || []).filter((td) => td.status === 'completed').filter(filterTestDrive),
+    [testDrives, search]
+  );
+  const cancelledTestDrives = useMemo(
+    () => (testDrives || []).filter((td) => td.status === 'cancelled').filter(filterTestDrive),
+    [testDrives, search]
+  );
+  const noShowTestDrives = useMemo(
+    () => (testDrives || []).filter((td) => td.status === 'no_show').filter(filterTestDrive),
+    [testDrives, search]
+  );
 
   const isLoading = testDrivesLoading || leadsLoading;
 

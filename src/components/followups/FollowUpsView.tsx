@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFollowUps, FollowUpWithLead, useUpdateFollowUp } from '@/hooks/useFollowUps';
 import { useLeads } from '@/hooks/useLeads';
 import { useProfiles } from '@/hooks/useProfiles';
@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { AddFollowUpDialog } from './AddFollowUpDialog';
 import { EditFollowUpDialog } from './EditFollowUpDialog';
 import type { Enums } from '@/integrations/supabase/types';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 type FollowUpType = Enums<'follow_up_type'>;
 
@@ -24,17 +26,50 @@ export function FollowUpsView() {
   const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<any>(null);
   const [editFollowUpDialogOpen, setEditFollowUpDialogOpen] = useState(false);
   const [selectedFollowUpForEditing, setSelectedFollowUpForEditing] = useState<FollowUpWithLead | null>(null);
+  const { search } = useSectionSearch();
 
-  const pendingFollowUps = (followUps || []).filter(f => f.status === 'pending');
-  const missedFollowUps = (followUps || []).filter(f => f.status === 'missed');
-  const completedFollowUps = (followUps || []).filter(f => f.status === 'completed');
+  const filterFollowUp = (followUp: FollowUpWithLead) =>
+    filterBySearch([followUp], search, (item) => [
+      item.leads?.name,
+      item.leads?.phone,
+      item.leads?.email,
+      item.notes,
+      item.type,
+      item.status,
+    ]).length > 0;
 
-  // Get leads in follow-up stage that don't have pending follow-ups
-  const followUpStageLeads = (leads || []).filter(lead => {
-    const isInFollowUpStage = lead.stage === 'follow-up';
-    const hasPendingFollowUp = pendingFollowUps.some(fu => fu.lead_id === lead.id);
-    return isInFollowUpStage && !hasPendingFollowUp;
-  });
+  const filterLead = (lead: { name?: string; phone?: string; email?: string; source?: string }) =>
+    filterBySearch([lead], search, (item) => [
+      item.name,
+      item.phone,
+      item.email,
+      item.source,
+    ]).length > 0;
+
+  const pendingFollowUps = useMemo(
+    () => (followUps || []).filter((f) => f.status === 'pending').filter(filterFollowUp),
+    [followUps, search]
+  );
+  const missedFollowUps = useMemo(
+    () => (followUps || []).filter((f) => f.status === 'missed').filter(filterFollowUp),
+    [followUps, search]
+  );
+  const completedFollowUps = useMemo(
+    () => (followUps || []).filter((f) => f.status === 'completed').filter(filterFollowUp),
+    [followUps, search]
+  );
+
+  const followUpStageLeads = useMemo(
+    () =>
+      (leads || []).filter((lead) => {
+        const isInFollowUpStage = lead.stage === 'follow-up';
+        const hasPendingFollowUp = (followUps || [])
+          .filter((f) => f.status === 'pending')
+          .some((fu) => fu.lead_id === lead.id);
+        return isInFollowUpStage && !hasPendingFollowUp && filterLead(lead);
+      }),
+    [leads, followUps, search]
+  );
 
   const getTypeIcon = (type: FollowUpType) => {
     switch (type) {
@@ -210,20 +245,11 @@ export function FollowUpsView() {
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm text-foreground">{lead.property_type || '-'}</p>
-                      <p className="text-xs text-muted-foreground">{(lead as any).location || (lead.city ? `${lead.city}${lead.state ? ', ' + lead.state : ''}` : '-') || '-'}</p>
+                      <p className="text-xs text-muted-foreground">{lead.location || '-'}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-primary">
-                        {(lead as any).budget ||
-                          (lead.budget_min && lead.budget_max
-                            ? `$${lead.budget_min.toLocaleString()} - $${lead.budget_max.toLocaleString()}`
-                            : lead.budget_min
-                              ? `$${lead.budget_min.toLocaleString()}+`
-                              : lead.budget_max
-                                ? `Up to $${lead.budget_max.toLocaleString()}`
-                                : '-'
-                          )
-                        }
+                        {lead.budget || '-'}
                       </p>
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">

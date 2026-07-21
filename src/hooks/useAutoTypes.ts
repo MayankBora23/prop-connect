@@ -97,6 +97,50 @@ export interface BookingWithRelations {
     year: number;
     fuel_type: string;
     variant?: string | null;
+    transmission?: string | null;
+    mileage?: number | null;
+    color?: string | null;
+    price?: number | null;
+  } | null;
+}
+
+export interface QuoteWithRelations {
+  id: string;
+  lead_id?: string | null;
+  vehicle_id: string;
+  quote_number?: string | null;
+  quote_date: string;
+  valid_until?: string | null;
+  vehicle_price: number;
+  discount_amount?: number | null;
+  accessories_cost?: number | null;
+  registration_cost?: number | null;
+  insurance_cost?: number | null;
+  total_amount: number;
+  status?: string | null;
+  notes?: string | null;
+  terms_conditions?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  company_id: string;
+  auto_leads?: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string | null;
+    preferred_brand?: string | null;
+    preferred_model?: string | null;
+  } | null;
+  vehicles?: {
+    id: string;
+    brand: string;
+    model: string;
+    year: number;
+    fuel_type: string;
+    transmission?: string | null;
+    price?: number | null;
+    variant?: string | null;
   } | null;
 }
 
@@ -112,6 +156,7 @@ export interface TestDriveWithRelations {
   duration_minutes: number;
   status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   feedback?: string | null;
+  notes?: string | null;
   rating?: number | null;
   assigned_to?: string | null;
   created_by?: string | null;
@@ -132,6 +177,9 @@ export interface TestDriveWithRelations {
     year: number;
     fuel_type: string;
     variant?: string | null;
+    transmission?: string | null;
+    mileage?: number | null;
+    color?: string | null;
   } | null;
 }
 

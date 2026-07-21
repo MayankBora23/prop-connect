@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { StudentPipeline } from './StudentPipeline';
 import { useStudents } from '@/hooks/useStudents';
 import { LayoutGrid, List, Filter, Download, Upload } from 'lucide-react';
@@ -17,6 +17,8 @@ import { EditStudentDialog } from './EditStudentDialog';
 import { Edit, Trash2, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Student } from '@/hooks/useStudents';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 function AssignStudentSelect({ studentId, assignedTo }: { studentId: string, assignedTo?: string }) {
   const { data: profiles, isLoading } = useProfiles();
@@ -83,6 +85,21 @@ export function StudentsView() {
   const { data: students, isLoading } = useStudents();
   const deleteStudent = useDeleteStudent();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
+  const { search } = useSectionSearch();
+
+  const filteredStudents = useMemo(
+    () =>
+      filterBySearch(students, search, (student) => [
+        student.name,
+        student.phone,
+        student.email,
+        student.parent_name,
+        student.parent_phone,
+        student.parent_email,
+        student.stage,
+      ]),
+    [students, search]
+  );
 
   const handleEdit = (student: Student) => {
     setSelectedStudent(student);
@@ -266,14 +283,14 @@ export function StudentsView() {
                     <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>
                 </tr>
               ))
-            ) : (students || []).length === 0 ? (
-              <tr>
+            ) : filteredStudents.length === 0 ? (
+                <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  No students found. Add your first student to get started.
-                </td>
-              </tr>
-            ) : (
-              (students || []).map((student) => (
+                    {search.trim() ? 'No students match your search.' : 'No students found. Add your first student to get started.'}
+                  </td>
+                </tr>
+              ) : (
+              filteredStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-secondary/50 transition-colors cursor-pointer">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

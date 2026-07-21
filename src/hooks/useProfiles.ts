@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
 import type { AppRole } from './useCompany';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type Profile = Tables<'profiles'>;
 export type ProfileUpdate = TablesUpdate<'profiles'>;
@@ -9,29 +11,27 @@ export type ProfileUpdate = TablesUpdate<'profiles'>;
 export type ProfileWithRole = Profile & {
   role: AppRole | null;
   agent_availability?: string | null;
+  email?: string | null;
+  phone?: string | null;
 };
 
 export function useProfiles() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['team-members'],
+    queryKey: ['team-members', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
-      // Get current user's company
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!profile?.company_id) return [];
+      const company_id = await getCompanyId();
+      if (!company_id) return [];
 
       // Fetch profiles from the same company
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('company_id', profile.company_id)
+        .eq('company_id', company_id)
         .order('name', { ascending: true });
 
       if (profilesError) throw profilesError;
@@ -40,7 +40,7 @@ export function useProfiles() {
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .eq('company_id', profile.company_id);
+        .eq('company_id', company_id);
 
       if (rolesError) throw rolesError;
 
@@ -58,6 +58,7 @@ export function useProfiles() {
 export function useCurrentProfile() {
   return useQuery({
     queryKey: ['currentProfile'],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;

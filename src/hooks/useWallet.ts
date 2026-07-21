@@ -3,6 +3,8 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Wallet, WalletTransaction, UsageLog, ServicePricing } from '@/types/credits';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 import {
   startOfMonth,
   endOfMonth,
@@ -13,24 +15,15 @@ import {
 
 export type { Wallet, WalletTransaction, UsageLog, ServicePricing };
 
-async function getCompanyId(): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('company_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  return profile?.company_id ?? null;
-}
-
 export function useWallet() {
   const queryClient = useQueryClient();
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
 
   const query = useQuery({
-    queryKey: ['wallet'],
+    queryKey: ['wallet', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<Wallet | null> => {
       const companyId = await getCompanyId();
       if (!companyId) return null;
@@ -80,7 +73,8 @@ export function useWallet() {
 
 export interface WalletTransactionFilters {
   type?: 'credit' | 'debit';
-  provider?: 'twilio' | 'meta';
+  provider?: 'twilio' | 'meta' | 'callerdesk';
+  exclude_provider?: string;
   service_type?: 'whatsapp' | 'call';
   date_from?: string;
   date_to?: string;
@@ -88,8 +82,13 @@ export interface WalletTransactionFilters {
 }
 
 export function useWalletTransactions(filters?: WalletTransactionFilters) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['wallet_transactions', filters],
+    queryKey: ['wallet_transactions', companyId, filters],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<WalletTransaction[]> => {
       const companyId = await getCompanyId();
       if (!companyId) return [];
@@ -103,6 +102,9 @@ export function useWalletTransactions(filters?: WalletTransactionFilters) {
       if (filters?.type) q = q.eq('type', filters.type);
       if (filters?.provider) {
         q = q.eq('provider', filters.provider);
+      }
+      if (filters?.exclude_provider) {
+        q = q.or(`provider.neq.${filters.exclude_provider},provider.is.null`);
       }
       if (filters?.service_type) {
         q = q.eq('service_type', filters.service_type);
@@ -131,8 +133,13 @@ export interface UsageLogFilters {
 }
 
 export function useUsageLogs(filters?: UsageLogFilters) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['usage_logs', filters],
+    queryKey: ['usage_logs', companyId, filters],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<UsageLog[]> => {
       const companyId = await getCompanyId();
       if (!companyId) return [];
@@ -166,6 +173,7 @@ export function useUsageLogs(filters?: UsageLogFilters) {
 export function useServicePricing() {
   return useQuery({
     queryKey: ['service_pricing'],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<ServicePricing[]> => {
       const { data, error } = await supabase
         .from('service_pricing')
@@ -191,8 +199,13 @@ export interface CurrentMonthStats {
 }
 
 export function useCurrentMonthStats() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['usage_logs_month_stats'],
+    queryKey: ['usage_logs_month_stats', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<CurrentMonthStats> => {
       const companyId = await getCompanyId();
       if (!companyId) {
@@ -267,8 +280,13 @@ export function useCurrentMonthStats() {
 }
 
 export function useDailyCreditsLast30Days() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['usage_logs_daily_30'],
+    queryKey: ['usage_logs_daily_30', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<{ date: string; credits: number }[]> => {
       const companyId = await getCompanyId();
       if (!companyId) return [];
@@ -360,3 +378,24 @@ export function useConfirmRazorpayPayment() {
     },
   });
 }
+
+export function useCompanyWalletHistory(companyId: string | null) {
+  return useQuery({
+    queryKey: ['company-wallet-history', companyId],
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<WalletTransaction[]> => {
+      if (!companyId) return []
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('type', 'credit')          // only top-ups, not usage debits
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (error) throw error
+      return (data ?? []) as WalletTransaction[]
+    },
+  })
+}
+

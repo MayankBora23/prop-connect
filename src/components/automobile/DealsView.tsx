@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,6 +18,8 @@ import { EditDealDialog } from './EditDealDialog';
 import { DealInvoiceDialog } from './DealInvoiceDialog';
 import { toast } from 'sonner';
 import type { DealWithRelations } from '@/hooks/useAutoTypes';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 const paymentSchema = z.object({
   amount_received: z.number().min(0, 'Amount cannot be negative'),
@@ -37,6 +39,22 @@ export function DealsView() {
   const [selectedDealForInvoice, setSelectedDealForInvoice] = useState<DealWithRelations | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedDealForPayment, setSelectedDealForPayment] = useState<DealWithRelations | null>(null);
+  const { search } = useSectionSearch();
+
+  const filteredDeals = useMemo(
+    () =>
+      filterBySearch(deals, search, (deal) => [
+        deal.deal_number,
+        deal.auto_leads?.name,
+        deal.auto_leads?.phone,
+        deal.auto_leads?.email,
+        deal.vehicles?.brand,
+        deal.vehicles?.model,
+        deal.deal_status,
+        deal.rc_number,
+      ]),
+    [deals, search]
+  );
 
   const paymentForm = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -218,19 +236,14 @@ export function DealsView() {
                   <td className="px-4 py-3"><Skeleton className="h-8 w-20" /></td>
                 </tr>
               ))
-            ) : !deals || deals.length === 0 ? (
+            ) : filteredDeals.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  No deals found. Create your first deal to get started.
-                  <br />
-                  <small className="text-xs">
-                    Debug: {error ? `Error: ${error.message}` : 'No error'}
-                    {deals && ` | Array length: ${deals.length}`}
-                  </small>
+                  {search.trim() ? 'No deals match your search.' : 'No deals found. Create your first deal to get started.'}
                 </td>
               </tr>
             ) : (
-              (deals || []).map((deal: DealWithRelations) => (
+              filteredDeals.map((deal: DealWithRelations) => (
                 <tr key={deal.id} className="hover:bg-secondary/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">

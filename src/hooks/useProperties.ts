@@ -1,23 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type Property = Tables<'properties'>;
 export type PropertyInsert = Omit<TablesInsert<'properties'>, 'company_id'>;
 export type PropertyUpdate = TablesUpdate<'properties'>;
 
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
-}
-
 export function useProperties() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['properties'],
+    queryKey: ['properties', companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -33,10 +33,15 @@ export function useProperties() {
 }
 
 export function useProperty(id: string) {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['properties', id],
+    queryKey: ['properties', id, companyId],
+    enabled: !!id && !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -49,7 +54,6 @@ export function useProperty(id: string) {
       if (error) throw error;
       return data as Property | null;
     },
-    enabled: !!id,
   });
 }
 
@@ -58,7 +62,7 @@ export function useCreateProperty() {
 
   return useMutation({
     mutationFn: async (property: PropertyInsert) => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
       
       const { data, error } = await supabase

@@ -65,9 +65,10 @@ interface CompanyRow {
   whatsapp_provider: WhatsappProvider | null
   meta_phone_number_id: string | null
   meta_access_token: string | null
+  industry: string | null
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -145,7 +146,7 @@ serve(async (req) => {
     // Resolve provider + credentials from companies
     const { data: companyRow, error: companyError } = await supabase
       .from('companies')
-      .select('whatsapp_provider, meta_phone_number_id, meta_access_token')
+      .select('whatsapp_provider, meta_phone_number_id, meta_access_token, industry')
       .eq('id', conversation.company_id)
       .maybeSingle<CompanyRow>()
 
@@ -158,10 +159,6 @@ serve(async (req) => {
 
     const to_number = conversation.contact_phone
     const destination_country_raw = getCountryCode(to_number)
-    // NOTE: Wallet/balance enforcement removed.
-    // We still keep destination country normalization (used by logs/analytics elsewhere).
-    // Pricing + balance checks are intentionally bypassed to avoid blocking sends.
-    const _pricing_country = pricingDestinationCountry(provider, destination_country_raw)
 
     // Build message body for Twilio, including quoted reply context if provided
     const twilioBody = body || ''
@@ -180,8 +177,8 @@ serve(async (req) => {
             ? repliedMsg.body
             : (repliedMsg.file_names && repliedMsg.file_names[0]) ? repliedMsg.file_names[0] : ''
           if (preview) {
-          // Do NOT modify the actual message body for native reply.
-          // We only capture the replied message SID so we can pass it via a supported API later.
+            // Do NOT modify the actual message body for native reply.
+            // We only capture the replied message SID so we can pass it via a supported API later.
           }
           repliedMessageSid = repliedMsg.message_sid || null
         }
@@ -267,6 +264,113 @@ serve(async (req) => {
       }
 
       outboundMessageSid = metaResponse.messageSid
+
+      // internal_crm is exempt from platform fees — Meta bills them directly
+      if (companyRow?.industry === 'internal_crm') {
+        console.log('internal_crm company — skipping platform fee deduction')
+      } else {
+        // ── META PLATFORM FEE DEDUCTION ───────────────────────────────────────
+        // Flat platform fee per outbound message. Rate is read from service_pricing
+        // so it can be updated from DB without redeployment.
+        // Meta's own charges are handled by Meta directly — not tracked here.
+        try {
+          // Read platform fee from service_pricing table
+          const { data: pricingRow } = await supabase
+            .from('service_pricing')
+            .select('client_price_inr')
+            .eq('provider', 'meta')
+            .eq('service_type', 'whatsapp')
+            .eq('message_category', 'platform_fee')
+            .eq('is_active', true)
+            .maybeSingle()
+
+          const PLATFORM_FEE_INR = pricingRow
+            ? Number(pricingRow.client_price_inr)
+            : 0.20  // safe fallback if row not found
+
+          // Check wallet
+          const { data: wallet } = await supabase
+            .from('wallets')
+            .select('balance, min_balance_threshold')
+            .eq('company_id', conversation.company_id)
+            .maybeSingle()
+
+          if (wallet) {
+            const balance = Number(wallet.balance)
+            const minThreshold = Number(wallet.min_balance_threshold ?? 0)
+
+            if (balance >= PLATFORM_FEE_INR && balance > minThreshold) {
+              // Atomic deduction via existing RPC
+              const { data: newBalance, error: rpcErr } = await supabase.rpc(
+                'try_deduct_wallet_balance',
+                {
+                  p_company_id: conversation.company_id,
+                  p_cost: PLATFORM_FEE_INR,
+                }
+              )
+
+              if (!rpcErr && newBalance !== null && newBalance !== undefined) {
+                // Log to wallet_transactions
+                await supabase.from('wallet_transactions').insert({
+                  company_id: conversation.company_id,
+                  type: 'debit',
+                  provider: 'meta',
+                  service_type: 'whatsapp',
+                  amount_inr: PLATFORM_FEE_INR,
+                  usage_quantity: 1,
+                  destination_country: destination_country_raw,
+                  message_category: 'platform_fee',
+                  reference_id: outboundMessageSid ?? `meta_${Date.now()}`,
+                  status: 'completed',
+                })
+
+                // Log to usage_logs
+                await supabase.from('usage_logs').insert({
+                  company_id: conversation.company_id,
+                  provider: 'meta',
+                  service_type: 'whatsapp',
+                  usage_type: 'message',
+                  quantity: 1,
+                  destination_country: destination_country_raw,
+                  message_category: 'platform_fee',
+                  credits_deducted: PLATFORM_FEE_INR,
+                  reference_id: outboundMessageSid ?? `meta_${Date.now()}`,
+                })
+
+                console.log('Meta platform fee deducted:', {
+                  company_id: conversation.company_id,
+                  amount: PLATFORM_FEE_INR,
+                  new_balance: newBalance,
+                  message_sid: outboundMessageSid,
+                })
+              } else {
+                // Deduction failed — log but do not block
+                console.warn('Meta platform fee deduction failed:', {
+                  company_id: conversation.company_id,
+                  rpc_error: rpcErr,
+                })
+              }
+            } else {
+              // Insufficient balance — log but do not block
+              // Message was already sent to Meta, cannot unsend it
+              console.warn('Meta platform fee: insufficient wallet balance', {
+                company_id: conversation.company_id,
+                balance,
+                required: PLATFORM_FEE_INR,
+              })
+            }
+          } else {
+            console.warn('Meta platform fee: wallet not found', {
+              company_id: conversation.company_id,
+            })
+          }
+        } catch (deductionErr) {
+          // Never let deduction error affect message delivery response
+          console.error('Meta platform fee deduction error (non-blocking):', deductionErr)
+        }
+        // ── END META DEDUCTION ─────────────────────────────────────────────────
+      }
+
       console.log('Meta message sent successfully:', outboundMessageSid)
     }
 
@@ -453,6 +557,6 @@ async function sendTwilioMessage(
     return { success: true, messageSid: data.sid }
 
   } catch (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }

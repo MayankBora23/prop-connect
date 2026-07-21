@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useBookings } from '@/hooks/useBookings';
 import { useAutoLeads } from '@/hooks/useAutoLeads';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +14,8 @@ import { BookingBillDialog } from './BookingBillDialog';
 import { AddDealDialog } from './AddDealDialog';
 import { toast } from 'sonner';
 import type { BookingWithRelations } from '@/hooks/useAutoTypes';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function BookingsView() {
   const { data: bookings, isLoading: bookingsLoading } = useBookings();
@@ -28,14 +30,45 @@ export function BookingsView() {
   const [dealBookingOpen, setDealBookingOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingWithRelations | null>(null);
   const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<{ id: string; name: string; phone?: string; email?: string } | null>(null);
+  const { search } = useSectionSearch();
 
-  // Get leads that are in "booking_done" stage (delivered/sold)
-  const bookingDoneLeads = leads?.filter(lead => lead.status === 'booking_done') || [];
+  const filterLead = (lead: { name?: string; phone?: string; email?: string; preferred_brand?: string; preferred_model?: string }) =>
+    filterBySearch([lead], search, (item) => [
+      item.name,
+      item.phone,
+      item.email,
+      item.preferred_brand,
+      item.preferred_model,
+    ]).length > 0;
 
-  // Filter bookings by status
-  const confirmedBookings = (bookings || []).filter(b => b.status === 'confirmed');
-  const completedBookings = (bookings || []).filter(b => b.status === 'completed');
-  const cancelledBookings = (bookings || []).filter(b => b.status === 'cancelled');
+  const filterBooking = (booking: BookingWithRelations) =>
+    filterBySearch([booking], search, (item) => [
+      item.booking_number,
+      item.auto_leads?.name,
+      item.auto_leads?.phone,
+      item.vehicles?.brand,
+      item.vehicles?.model,
+      item.status,
+      item.delivery_location,
+    ]).length > 0;
+
+  const bookingDoneLeads = useMemo(
+    () => (leads?.filter((lead) => lead.status === 'booking_done') || []).filter(filterLead),
+    [leads, search]
+  );
+
+  const confirmedBookings = useMemo(
+    () => (bookings || []).filter((b) => b.status === 'confirmed').filter(filterBooking),
+    [bookings, search]
+  );
+  const completedBookings = useMemo(
+    () => (bookings || []).filter((b) => b.status === 'completed').filter(filterBooking),
+    [bookings, search]
+  );
+  const cancelledBookings = useMemo(
+    () => (bookings || []).filter((b) => b.status === 'cancelled').filter(filterBooking),
+    [bookings, search]
+  );
 
   const isLoading = bookingsLoading || leadsLoading;
 

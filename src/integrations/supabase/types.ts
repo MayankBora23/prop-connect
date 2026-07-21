@@ -9,6 +9,41 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      ai_flow_configs: {
+        Row: {
+          id: string
+          company_id: string
+          industry: string
+          steps: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          industry: string
+          steps: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          industry?: string
+          steps?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_flow_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -392,8 +427,8 @@ export interface Database {
         Row: {
           address: string | null
           amenities: string[] | null
-          area_sqft: number | null
-          bhk: number | null
+          area: string | null
+          bhk: string | null
           city: string | null
           company_id: string | null
           created_at: string
@@ -401,7 +436,7 @@ export interface Database {
           id: string
           images: string[] | null
           location: string | null
-          price: number | null
+          price: string | null
           property_type: string | null
           status: Database["public"]["Enums"]["property_status"]
           title: string
@@ -410,8 +445,8 @@ export interface Database {
         Insert: {
           address?: string | null
           amenities?: string[] | null
-          area_sqft?: number | null
-          bhk?: number | null
+          area?: string | null
+          bhk?: string | null
           city?: string | null
           company_id?: string | null
           created_at?: string
@@ -419,7 +454,7 @@ export interface Database {
           id?: string
           images?: string[] | null
           location?: string | null
-          price?: number | null
+          price?: string | null
           property_type?: string | null
           status?: Database["public"]["Enums"]["property_status"]
           title: string
@@ -428,8 +463,8 @@ export interface Database {
         Update: {
           address?: string | null
           amenities?: string[] | null
-          area_sqft?: number | null
-          bhk?: number | null
+          area?: string | null
+          bhk?: string | null
           city?: string | null
           company_id?: string | null
           created_at?: string
@@ -437,7 +472,7 @@ export interface Database {
           id?: string
           images?: string[] | null
           location?: string | null
-          price?: number | null
+          price?: string | null
           property_type?: string | null
           status?: Database["public"]["Enums"]["property_status"]
           title?: string
@@ -1780,6 +1815,86 @@ export interface Database {
           },
           {
             foreignKeyName: "support_attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          id: string
+          company_id: string
+          template_name: string
+          meta_template_id: string | null
+          category: string
+          language: string
+          status: string
+          body_text: string
+          variables: string[]
+          header_type: string
+          header_text: string | null
+          header_media_url: string | null
+          footer_text: string | null
+          buttons: Json
+          rejection_reason: string | null
+          is_library_template: boolean | null
+          industry: string | null
+          created_by: string | null
+          last_synced_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          template_name: string
+          meta_template_id?: string | null
+          category: string
+          language?: string
+          status?: string
+          body_text: string
+          variables?: string[]
+          header_type?: string
+          header_text?: string | null
+          header_media_url?: string | null
+          footer_text?: string | null
+          buttons?: Json
+          rejection_reason?: string | null
+          is_library_template?: boolean | null
+          industry?: string | null
+          created_by?: string | null
+          last_synced_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          template_name?: string
+          meta_template_id?: string | null
+          category?: string
+          language?: string
+          status?: string
+          body_text?: string
+          variables?: string[]
+          header_type?: string
+          header_text?: string | null
+          header_media_url?: string | null
+          footer_text?: string | null
+          buttons?: Json
+          rejection_reason?: string | null
+          is_library_template?: boolean | null
+          industry?: string | null
+          created_by?: string | null
+          last_synced_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_templates_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

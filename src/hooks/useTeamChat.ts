@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useCallback } from 'react';
 import { useIndustry } from './useIndustry';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 // Define types for team chat messages
 export interface TeamChatMessage {
@@ -24,75 +26,30 @@ export interface TeamChatMessageInsert {
   reply_to_message_id?: string | null;
 }
 
-// Cache company_id to avoid repeated queries
-let cachedCompanyId: string | null = null;
-let companyIdPromise: Promise<string | null> | null = null;
-
-// Function to clear cache (useful for logout/login scenarios)
+// Kept for backward compatibility with useAuth logout flow
 export function clearCompanyIdCache() {
-  cachedCompanyId = null;
-  companyIdPromise = null;
+  // no-op: company id resolution uses shared getCompanyId()
 }
-
-async function getUserCompanyId(): Promise<string | null> {
-  // Return cached value if available
-  if (cachedCompanyId) return cachedCompanyId;
-
-  // Return pending promise if already fetching
-  if (companyIdPromise) return companyIdPromise;
-
-  // Start new fetch
-  companyIdPromise = (async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      cachedCompanyId = data?.company_id || null;
-      return cachedCompanyId;
-    } catch (error) {
-      console.error('Failed to get company ID:', error);
-      return null;
-    } finally {
-      companyIdPromise = null;
-    }
-  })();
-
-  return companyIdPromise;
-}
-
 
 export function useTeamChatMessages(limit: number = 50) {
   const { data: industry, isLoaded } = useIndustry();
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
 
   return useQuery({
-    queryKey: ['team_chat_messages', limit, industry],
+    queryKey: ['team_chat_messages', limit, industry, companyId],
     queryFn: async () => {
-      // Clear cached company_id if industry changed (safety check)
-      if (industry && cachedCompanyId) {
-        // We can't easily check if the cached company matches the current user,
-        // but we can at least ensure we have fresh data when industry changes
-        const currentCompanyId = await getUserCompanyId();
-        if (currentCompanyId !== cachedCompanyId) {
-          clearCompanyIdCache();
-        }
-      }
-      const companyId = await getUserCompanyId();
-      if (!companyId || !industry) return [];
+      const resolvedCompanyId = await getCompanyId();
+      if (!resolvedCompanyId || !industry) return [];
 
       try {
-        console.log('Fetching team chat messages', { companyId, industry, limit });
+        console.log('Fetching team chat messages', { companyId: resolvedCompanyId, industry, limit });
 
         // Get messages
         const { data: messages, error } = await (supabase as any)
           .from('team_chat_messages')
           .select('*')
-          .eq('company_id', companyId)
+          .eq('company_id', resolvedCompanyId)
           .eq('industry', industry)
           .order('created_at', { ascending: false })
           .limit(limit);
@@ -117,7 +74,7 @@ export function useTeamChatMessages(limit: number = 50) {
         return [];
       }
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes (reduced for more frequent refetch)
+    staleTime: 30_000,
     gcTime: 1000 * 60 * 30, // 30 minutes
     refetchInterval: 1000 * 10, // Poll every 10 seconds as fallback
     refetchIntervalInBackground: true, // Continue polling when tab is not active
@@ -126,7 +83,7 @@ export function useTeamChatMessages(limit: number = 50) {
       if (error?.code === '42P01') return false;
       return failureCount < 3;
     },
-    enabled: isLoaded && !!industry, // Only run query when industry is loaded and available
+    enabled: isLoaded && !!industry && !!companyId, // Only run query when industry is loaded and available
   });
 }
 
@@ -140,7 +97,7 @@ export function useSendChatMessage() {
       if (!user) throw new Error('User not authenticated');
 
       // Always get fresh company_id to avoid stale cache issues
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       if (!industry) throw new Error('Industry not found');
@@ -248,7 +205,7 @@ export function useTeamChatRealtime(onNewMessage?: (message: TeamChatMessage) =>
           isSubscribed = false;
         }
 
-        const companyId = await getUserCompanyId();
+        const companyId = await getCompanyId();
         if (!companyId || !industry) {
           console.log('Skipping realtime setup: companyId or industry not available', { companyId: !!companyId, industry });
           return;

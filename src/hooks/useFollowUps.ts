@@ -4,18 +4,25 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase
 import { useCreateNotification } from './useNotifications';
 import { useProfiles } from './useProfiles';
 import { logTeamActivity } from '@/lib/logTeamActivity';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type FollowUp = Tables<'follow_ups'>;
 export type FollowUpInsert = TablesInsert<'follow_ups'>;
 export type FollowUpUpdate = TablesUpdate<'follow_ups'>;
 
 export type FollowUpWithLead = FollowUp & {
-  leads: { name: string } | null;
+  leads: { name: string; phone?: string | null; email?: string | null } | null;
 };
 
 export function useFollowUps() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['follow_ups'],
+    queryKey: ['follow_ups', companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('follow_ups')
@@ -31,13 +38,6 @@ export function useFollowUps() {
   });
 }
 
-async function getUserCompanyId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).maybeSingle();
-  return data?.company_id || null;
-}
-
 export function useCreateFollowUp() {
   const queryClient = useQueryClient();
   const createNotification = useCreateNotification();
@@ -45,7 +45,7 @@ export function useCreateFollowUp() {
 
   return useMutation({
     mutationFn: async (followUp: FollowUpInsert) => {
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase
@@ -138,7 +138,7 @@ export function useUpdateFollowUp() {
 
       if (fetchError) throw fetchError;
 
-      const company_id = await getUserCompanyId();
+      const company_id = await getCompanyId();
       if (!company_id) throw new Error('No company found');
 
       const { data, error } = await supabase

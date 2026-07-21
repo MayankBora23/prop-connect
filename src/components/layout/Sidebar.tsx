@@ -8,7 +8,6 @@ import {
   Calendar,
   Clock,
   UserCog,
-  Zap,
   BarChart3,
   ChevronLeft,
   ChevronRight,
@@ -21,8 +20,9 @@ import {
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useIndustry } from '@/hooks/useIndustry';
 import { useTicketStats } from '@/hooks/useSupport';
-import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, Banknote, Shield, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone, Video } from 'lucide-react';
+import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone, Video, LayoutTemplate } from 'lucide-react';
 import { ShieldCheck } from 'lucide-react';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 interface SidebarProps {
   activeTab: string;
@@ -43,10 +43,10 @@ const realEstateMenuItems = [
   { id: 'followups', label: 'Follow-ups', icon: Clock, badge: 5 },
   { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
-  { id: 'automation', label: 'Automation', icon: Zap, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'billing', label: 'Billing', icon: CreditCard, badge: undefined },
+  { id: 'templates', label: 'WA Templates', icon: LayoutTemplate, badge: undefined, metaOnly: true },
   { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -70,6 +70,7 @@ const educationMenuItems = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'billing', label: 'Billing', icon: CreditCard, badge: undefined },
+  { id: 'templates', label: 'WA Templates', icon: LayoutTemplate, badge: undefined, metaOnly: true },
   { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -84,8 +85,6 @@ const automobileMenuItems = [
   { id: 'test-drives', label: 'Test Drives', icon: Calendar, badge: undefined },
   { id: 'bookings', label: 'Bookings', icon: FileCheck, badge: undefined },
   { id: 'deals', label: 'Deals', icon: Briefcase, badge: undefined },
-  { id: 'finance', label: 'Finance', icon: Banknote, badge: undefined },
-  { id: 'insurance', label: 'Insurance', icon: Shield, badge: undefined },
   { id: 'employees', label: 'Employees', icon: UserCheck, badge: undefined },
   { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
   { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
@@ -95,6 +94,7 @@ const automobileMenuItems = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
   { id: 'billing', label: 'Billing', icon: CreditCard, badge: undefined },
+  { id: 'templates', label: 'WA Templates', icon: LayoutTemplate, badge: undefined, metaOnly: true },
   { id: 'support', label: 'Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -115,6 +115,7 @@ const internalCRMMenuItems = [
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
+  { id: 'templates', label: 'WA Templates', icon: LayoutTemplate, badge: undefined, metaOnly: true },
   { id: 'support', label: 'Client Support', icon: LifeBuoy, badge: undefined },
   { id: 'profile-settings', label: 'Profile Settings', icon: User, badge: undefined },
   { id: 'company-settings', label: 'Platform Settings', icon: Settings, superAdminOnly: true, badge: undefined },
@@ -132,6 +133,8 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
   const { data: profile } = useCurrentProfile();
   const { data: ticketStats } = useTicketStats();
   const { data: industry, isLoading: industryLoading, isLoaded } = useIndustry();
+  const { data: company } = useCurrentCompany();
+  const isMetaProvider = company?.whatsapp_provider === 'meta';
   if (industryLoading || !isLoaded) {
     return (
       <aside className="w-64 h-screen flex items-center justify-center">
@@ -164,7 +167,11 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
     return items;
   }, [baseMenuItems, canSeeTeamReports]);
 
-  const visibleMenuItems = menuItems.filter((item) => !item.superAdminOnly || isSuperAdmin);
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (item.superAdminOnly && !isSuperAdmin) return false;
+    if ((item as any).metaOnly && !isMetaProvider) return false;
+    return true;
+  });
 
   return (
     <aside
@@ -204,9 +211,9 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
           const isAdminRole = profile?.role === 'super_admin' || profile?.role === 'admin';
           const supportUnread =
             item.id === 'support' &&
-            isAdminRole &&
-            ticketStats?.unread_by_admin &&
-            ticketStats.unread_by_admin > 0
+              isAdminRole &&
+              ticketStats?.unread_by_admin &&
+              ticketStats.unread_by_admin > 0
               ? ticketStats.unread_by_admin
               : undefined;
           const badge = supportUnread ?? item.badge;

@@ -231,22 +231,41 @@ serve(async (req) => {
         .eq('id', company_id)
         .single()
 
-      const user_limit = Number(company?.user_limit ?? 0)
-      const plan_included_seats = Number(sub?.plan_included_seats ?? 0)
+      const notes = typeof payment?.notes === 'object' && payment?.notes ? payment.notes : {}
+
+      const adjustedExtraSeats = notes.adjusted_extra_seats !== undefined
+        ? Math.max(0, Number(notes.adjusted_extra_seats))
+        : Math.max(0, Number(company?.user_limit ?? 0) - Number(sub?.plan_included_seats ?? 0))
+
+      const finalUserLimit = Number(sub?.plan_included_seats ?? 0) + adjustedExtraSeats
+
       const extra_seat_rate = Number(sub?.extra_seat_rate ?? 499)
-      const newNextBillingAmount = await recalcNextBillingAmount(
-        supabase,
-        company_id,
-        billing_cycle,
-        sub?.plan_slug ?? plan_slug,
-        plan_included_seats,
-        extra_seat_rate,
-        user_limit
-      )
+      const monthlyMultiplier = billing_cycle === 'yearly' ? 12 : billing_cycle === 'quarterly' ? 3 : 1
+
+      const { data: plan } = await supabase
+        .from('subscription_plans')
+        .select('monthly_price, quarterly_price, yearly_price')
+        .eq('slug', sub?.plan_slug ?? plan_slug)
+        .maybeSingle()
+
+      const planBasePrice = plan ? (
+        billing_cycle === 'monthly' ? Number(plan.monthly_price) :
+        billing_cycle === 'quarterly' ? Number(plan.quarterly_price) :
+        Number(plan.yearly_price)
+      ) : 0;
+
+      const newNextBillingAmount = planBasePrice + (adjustedExtraSeats * extra_seat_rate * monthlyMultiplier)
 
       const periodStartIso = newPeriodStart.toISOString()
       const periodEndIso = newPeriodEnd.toISOString()
 
+      // Update companies
+      await supabase
+        .from('companies')
+        .update({ subscription_status: 'active', user_limit: finalUserLimit })
+        .eq('id', company_id)
+
+      // Update company_subscriptions — use existing purchased_extra_seats column
       await supabase
         .from('company_subscriptions')
         .update({
@@ -254,6 +273,7 @@ serve(async (req) => {
           current_period_start: periodStartIso,
           current_period_end: periodEndIso,
           next_billing_date: periodEndIso,
+          purchased_extra_seats: adjustedExtraSeats,
           next_billing_amount: newNextBillingAmount,
           amount_paid: amount_inr,
           razorpay_payment_id,
@@ -261,12 +281,7 @@ serve(async (req) => {
         })
         .eq('company_id', company_id)
 
-      await supabase
-        .from('companies')
-        .update({ subscription_status: 'active' })
-        .eq('id', company_id)
-
-      console.log('Renewal completed:', { company_id, periodEndIso })
+      console.log('Renewal completed:', { company_id, periodEndIso, adjustedExtraSeats, finalUserLimit })
       return new Response('ok', { status: 200, headers: corsHeaders })
     }
 

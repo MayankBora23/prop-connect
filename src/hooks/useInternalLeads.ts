@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Enums } from '@/integrations/supabase/types';
 import { insertLeadReassignmentAuditEntry } from '@/hooks/useLeadHistory';
+import { getCompanyId } from '@/lib/getCompanyId';
+import { useCurrentCompany } from '@/hooks/useCompany';
 
 export type InternalLeadStage =
   | 'new'
@@ -27,8 +29,13 @@ export type InternalLead = {
 };
 
 export function useInternalLeads() {
+  const { data: company } = useCurrentCompany();
+  const companyId = company?.id;
+
   return useQuery({
-    queryKey: ['internalLeads'],
+    queryKey: ['internalLeads', companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('internal_leads')
@@ -110,24 +117,17 @@ export function useUpdateInternalLead() {
         Object.prototype.hasOwnProperty.call(priorRow, 'assigned_to') &&
         (updates as { assigned_to?: string | null }).assigned_to !== priorRow.assigned_to
       ) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: actorProfile } = await supabase
-            .from('profiles')
-            .select('company_id')
-            .eq('user_id', user.id)
-            .maybeSingle();
-          if (actorProfile?.company_id) {
-            try {
-              await insertLeadReassignmentAuditEntry({
-                companyId: actorProfile.company_id,
-                leadId: id,
-                leadType: 'internal_crm',
-                newAssigneeUserId: (updates as { assigned_to?: string | null }).assigned_to ?? null,
-              });
-            } catch (e) {
-              console.warn('Failed to log internal lead reassignment', e);
-            }
+        const companyId = await getCompanyId();
+        if (companyId) {
+          try {
+            await insertLeadReassignmentAuditEntry({
+              companyId,
+              leadId: id,
+              leadType: 'internal_crm',
+              newAssigneeUserId: (updates as { assigned_to?: string | null }).assigned_to ?? null,
+            });
+          } catch (e) {
+            console.warn('Failed to log internal lead reassignment', e);
           }
         }
       }

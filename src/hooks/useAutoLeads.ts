@@ -36,7 +36,11 @@ export interface AutoLead {
   last_called_at: string | null;
 }
 
-export type AutoLeadInsert = Omit<AutoLead, 'id' | 'created_at' | 'updated_at' | 'company_id'>;
+export type AutoLeadInsert = Omit<
+  AutoLead,
+  'id' | 'created_at' | 'updated_at' | 'company_id' | 'is_telephony_enabled' | 'last_called_at'
+> &
+  Partial<Pick<AutoLead, 'is_telephony_enabled' | 'last_called_at'>>;
 export type AutoLeadUpdate = Partial<AutoLeadInsert>;
 
 export function useAutoLeads() {

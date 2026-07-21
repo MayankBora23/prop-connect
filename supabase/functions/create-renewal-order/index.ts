@@ -36,7 +36,10 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
-    const body = (await req.json().catch(() => ({}))) as { company_id?: string }
+    const body = (await req.json().catch(() => ({}))) as {
+      company_id?: string
+      adjusted_extra_seats?: number
+    }
     const company_id = body.company_id ?? ''
 
     if (!company_id) {
@@ -119,8 +122,12 @@ serve(async (req) => {
     const plan_included_seats = Number(sub.plan_included_seats ?? 0)
     const extra_seat_rate = Number(sub.extra_seat_rate ?? 499)
     const user_limit = Number(company.user_limit ?? plan_included_seats)
-    const extraSeatsAtRenewal = Math.max(0, user_limit - plan_included_seats)
-    const extraSeatsCost = extraSeatsAtRenewal * extra_seat_rate * monthlyMultiplier
+    
+    const extraSeatsForNextCycle = body.adjusted_extra_seats !== undefined
+      ? Math.max(0, Number(body.adjusted_extra_seats))
+      : Math.max(0, user_limit - plan_included_seats)  // existing behaviour
+
+    const extraSeatsCost = extraSeatsForNextCycle * extra_seat_rate * monthlyMultiplier
 
     const planBasePrice =
       billing_cycle === 'monthly'
@@ -129,10 +136,8 @@ serve(async (req) => {
           ? Number(plan.quarterly_price)
           : Number(plan.yearly_price)
 
-    let totalRenewalAmount =
-      sub.next_billing_amount != null && Number(sub.next_billing_amount) > 0
-        ? Number(sub.next_billing_amount)
-        : Math.round(planBasePrice + extraSeatsCost)
+    const totalRenewalAmount = Math.round(planBasePrice + extraSeatsCost)
+    // Always recalculate from scratch — do NOT use next_billing_amount from DB
 
     if (!Number.isFinite(totalRenewalAmount) || totalRenewalAmount <= 0) {
       return new Response(
@@ -169,6 +174,7 @@ serve(async (req) => {
           company_id: String(company_id),
           purpose: 'renewal',
           billing_cycle: String(billing_cycle),
+          adjusted_extra_seats: String(extraSeatsForNextCycle),
         },
       }),
     })

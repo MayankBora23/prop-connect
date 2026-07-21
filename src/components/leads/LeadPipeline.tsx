@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLeads, useUpdateLead, type Lead } from '@/hooks/useLeads';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Enums } from '@/integrations/supabase/types';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 type LeadStage = Enums<'lead_stage'>;
 
@@ -25,9 +27,26 @@ export function LeadPipeline({ onOpenHistory }: LeadPipelineProps) {
   const { data: leads, isLoading } = useLeads();
   const updateLead = useUpdateLead();
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
+  const { search } = useSectionSearch();
+
+  const filteredLeads = useMemo(
+    () =>
+      filterBySearch(leads, search, (lead) => [
+        lead.name,
+        lead.phone,
+        lead.email,
+        lead.source,
+        lead.property_type,
+        lead.location,
+        lead.budget,
+        lead.stage,
+        lead.lead_status,
+      ]),
+    [leads, search]
+  );
 
   const getLeadsByStage = (stage: LeadStage) => {
-    return (leads || []).filter((lead) => lead.stage === stage);
+    return filteredLeads.filter((lead) => lead.stage === stage);
   };
 
   const handleDragStart = (lead: Lead) => {

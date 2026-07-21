@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useEnrolledStudents, useDeleteEnrollment } from '@/hooks/useEnrollments';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +10,8 @@ import { EditEnrollmentDialog } from './EditEnrollmentDialog';
 import { AddEnrollmentDialog } from './AddEnrollmentDialog';
 import { InstallmentDialog } from './InstallmentDialog';
 import type { EnrollmentStatus } from '@/hooks/useEnrollments';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 function EnrollmentRow({ student, enrollment }: { student: any; enrollment: any }) {
   const deleteEnrollment = useDeleteEnrollment();
@@ -180,14 +182,23 @@ function EnrollmentRow({ student, enrollment }: { student: any; enrollment: any 
 export function EnrollmentsView() {
   const [filter, setFilter] = useState<'all' | EnrollmentStatus>('all');
   const { data: enrolledStudents, isLoading } = useEnrolledStudents();
+  const { search } = useSectionSearch();
 
-  const filteredStudents = (enrolledStudents || []).filter(
-    (student) => {
+  const filteredStudents = useMemo(() => {
+    const statusFiltered = (enrolledStudents || []).filter((student) => {
       if (filter === 'all') return true;
       const enrollment = student.enrollment;
-      return enrollment ? enrollment.status === filter : filter === 'active'; // Students without enrollment are considered "active" (ready to enroll)
-    }
-  );
+      return enrollment ? enrollment.status === filter : filter === 'active';
+    });
+    return filterBySearch(statusFiltered, search, (student) => [
+      student.name,
+      student.phone,
+      student.email,
+      student.enrollment?.courses?.name,
+      student.enrollment?.batches?.name,
+      student.enrollment?.status,
+    ]);
+  }, [enrolledStudents, filter, search]);
 
   return (
     <div className="space-y-4 animate-fade-in">

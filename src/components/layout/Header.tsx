@@ -22,9 +22,22 @@ interface HeaderProps {
   subtitle?: string;
   onAddNew?: () => void;
   addNewLabel?: string;
+  showSearch?: boolean;
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
 }
 
-export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: HeaderProps) {
+export function Header({
+  title,
+  subtitle,
+  onAddNew,
+  addNewLabel = 'Add New',
+  showSearch = false,
+  search = '',
+  onSearchChange,
+  searchPlaceholder = 'Search...',
+}: HeaderProps) {
   const { user, signOut } = useAuth();
   const { data: profile } = useCurrentProfile();
   const { data: company } = useCurrentCompany();
@@ -47,13 +60,17 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: H
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search leads, properties..."
-              className="w-64 pl-9 bg-secondary border-0"
-            />
-          </div>
+          {showSearch && onSearchChange && (
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder={searchPlaceholder}
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-64 pl-9 bg-secondary border-0"
+              />
+            </div>
+          )}
 
           <NotificationCenter />
 
@@ -61,19 +78,18 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: H
             <button
               type="button"
               onClick={() => setUpgradeOpen(true)}
-              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                subscriptionData.isTrialActive && subscriptionData.daysLeftInTrial <= 3
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${subscriptionData.isTrialActive && subscriptionData.daysLeftInTrial <= 3
                   ? 'bg-red-50 border-red-200 text-red-700 animate-pulse'
                   : subscriptionData.isTrialActive
                     ? 'bg-amber-50 border-amber-200 text-amber-700'
                     : subscriptionData.isActive &&
-                        subscriptionData.daysUntilBilling !== null &&
-                        subscriptionData.daysUntilBilling <= 5
+                      subscriptionData.daysUntilBilling !== null &&
+                      subscriptionData.daysUntilBilling <= 5
                       ? 'bg-blue-50 border-blue-200 text-blue-700'
                       : subscriptionData.isActive
                         ? 'bg-green-50 border-green-200 text-green-700'
                         : 'bg-red-50 border-red-200 text-red-700'
-              }`}
+                }`}
             >
               {subscriptionData.isTrialActive && <Clock className="w-3 h-3" />}
               {subscriptionData.isActive && <Crown className="w-3 h-3" />}

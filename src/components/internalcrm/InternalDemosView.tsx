@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useInternalDemos, useUpdateInternalDemo, useDeleteInternalDemo, InternalDemo } from '@/hooks/useInternalDemos';
 import { useInternalLeads, InternalLead } from '@/hooks/useInternalLeads';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +29,8 @@ import {
 import { ScheduleDemoDialog } from './ScheduleDemoDialog';
 import { EditDemoDialog } from './EditDemoDialog';
 import { toast } from 'sonner';
+import { useSectionSearch } from '@/hooks/useSectionSearch';
+import { filterBySearch } from '@/lib/sectionSearch';
 
 export function InternalDemosView() {
     const { data: demos, isLoading: demosLoading } = useInternalDemos();
@@ -40,11 +42,32 @@ export function InternalDemosView() {
     const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<InternalLead | null>(null);
     const [editDemoOpen, setEditDemoOpen] = useState(false);
     const [selectedDemoForEdit, setSelectedDemoForEdit] = useState<InternalDemo | null>(null);
+    const { search } = useSectionSearch();
 
     const isLoading = demosLoading || leadsLoading;
 
-    // Leads that are in "demo_scheduled" stage but might not have a demo record yet (or we want to show them)
-    const pendingLeads = leads?.filter(lead => lead.stage === 'demo_scheduled') || [];
+    const pendingLeads = useMemo(
+        () =>
+            filterBySearch(
+                leads?.filter((lead) => lead.stage === 'demo_scheduled') || [],
+                search,
+                (lead) => [lead.company_name, lead.lead_name, lead.phone_no, lead.industry]
+            ),
+        [leads, search]
+    );
+
+    const filteredDemos = useMemo(
+        () =>
+            filterBySearch(demos, search, (demo) => [
+                demo.internal_leads?.company_name,
+                demo.internal_leads?.lead_name,
+                demo.internal_leads?.phone_no,
+                demo.status,
+                demo.notes,
+                demo.meeting_link,
+            ]),
+        [demos, search]
+    );
 
     const getDemoStatusColor = (status: string) => {
         switch (status) {
@@ -289,20 +312,20 @@ export function InternalDemosView() {
 
             {/* Tables by status */}
             <DemoTable
-                items={(demos || []).filter(d => d.status === 'scheduled')}
+                items={filteredDemos.filter(d => d.status === 'scheduled')}
                 title="Scheduled Demos"
                 dotColor="bg-blue-500"
             />
 
             <DemoTable
-                items={(demos || []).filter(d => d.status === 'completed')}
+                items={filteredDemos.filter(d => d.status === 'completed')}
                 title="Completed Demos"
                 dotColor="bg-green-500"
             />
 
-            {(demos || []).filter(d => d.status === 'cancelled').length > 0 && (
+            {filteredDemos.filter(d => d.status === 'cancelled').length > 0 && (
                 <DemoTable
-                    items={(demos || []).filter(d => d.status === 'cancelled')}
+                    items={filteredDemos.filter(d => d.status === 'cancelled')}
                     title="Cancelled Demos"
                     dotColor="bg-gray-500"
                 />

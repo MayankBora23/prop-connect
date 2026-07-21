@@ -16,6 +16,7 @@ export type InternalDemo = {
     demo_time: string;
     status: DemoStatus;
     notes: string | null;
+    meeting_link?: string | null;
     created_at: string;
     updated_at: string;
     internal_leads?: InternalLead;
