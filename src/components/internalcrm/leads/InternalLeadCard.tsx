@@ -1,6 +1,6 @@
 import type { InternalLead } from '@/hooks/useInternalLeads';
 import { cn } from '@/lib/utils';
-import { Building2, Phone, MapPin, Users, MessageCircle, Calendar, History } from 'lucide-react';
+import { Building2, Phone, MapPin, Users, MessageCircle, Calendar, History, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 
@@ -75,7 +75,7 @@ export function InternalLeadCard({
       <div className="space-y-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{lead.industry.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</span>
+          <span className="truncate">{(lead.industry || 'other').replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</span>
         </div>
         {lead.phone_no && (
           <div className="flex items-center gap-2">
@@ -83,10 +83,22 @@ export function InternalLeadCard({
             <span>{lead.phone_no}</span>
           </div>
         )}
+        {lead.email && (
+          <div className="flex items-center gap-2">
+            <Mail className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{lead.email}</span>
+          </div>
+        )}
         {lead.address && (
           <div className="flex items-center gap-2">
             <MapPin className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{lead.address}</span>
+          </div>
+        )}
+        {lead.message && (
+          <div className="flex items-start gap-2 bg-muted/50 p-1.5 rounded text-[11px] border border-border/40 mt-1">
+            <MessageCircle className="w-3.5 h-3.5 shrink-0 text-coral mt-0.5" />
+            <span className="line-clamp-2 text-muted-foreground">{lead.message}</span>
           </div>
         )}
         <div className="flex items-center gap-2">

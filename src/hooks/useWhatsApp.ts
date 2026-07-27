@@ -115,7 +115,8 @@ function dedupeWhatsAppMessages<T extends { id: string; message_sid?: string | n
 }
 
 async function getCurrentProfileId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
   if (!user) return null
 
   const { data: profile } = await supabase
@@ -823,7 +824,8 @@ export function useUpdateAgentAvailability() {
 
   return useMutation({
     mutationFn: async ({ availability }: { availability: 'available' | 'busy' | 'offline' }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) throw new Error('Not authenticated')
 
       const { data, error } = await supabase
@@ -972,9 +974,9 @@ export function useHumanTakeover() {
 
       if (arErr) throw arErr
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
       const notifRows = (adminRoles || [])
-        .filter((r) => r.user_id && r.user_id !== user?.id)
+        .filter((r) => r.user_id && r.user_id !== session?.user?.id)
         .map((r) => ({
           user_id: r.user_id as string,
           type: 'system_alert' as const,

@@ -126,7 +126,8 @@ export function useAddLeadInteraction() {
       interaction_type: string;
       note: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error('Not authenticated');
 
       const { data: profile, error: profileError } = await supabase

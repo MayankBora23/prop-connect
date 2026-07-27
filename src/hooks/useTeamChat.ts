@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useCallback } from 'react';
 import { useIndustry } from './useIndustry';
-import { getCompanyId } from '@/lib/getCompanyId';
+import { getCompanyId, clearCompanyIdCache as _clearCompanyIdCacheImpl } from '@/lib/getCompanyId';
 import { useCurrentCompany } from '@/hooks/useCompany';
 
 // Define types for team chat messages
@@ -26,9 +26,9 @@ export interface TeamChatMessageInsert {
   reply_to_message_id?: string | null;
 }
 
-// Kept for backward compatibility with useAuth logout flow
+// Kept for backward compatibility with useAuth logout flow — delegates to real cache clear
 export function clearCompanyIdCache() {
-  // no-op: company id resolution uses shared getCompanyId()
+  _clearCompanyIdCacheImpl();
 }
 
 export function useTeamChatMessages(limit: number = 50) {
@@ -93,7 +93,8 @@ export function useSendChatMessage() {
 
   return useMutation({
     mutationFn: async (message: Omit<TeamChatMessageInsert, 'sender_id' | 'company_id' | 'industry'>) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error('User not authenticated');
 
       // Always get fresh company_id to avoid stale cache issues

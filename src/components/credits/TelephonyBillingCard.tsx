@@ -90,7 +90,7 @@ export function TelephonyBillingCard() {
         })
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
       const RazorpayCtor = getRazorpay()
       const rzp = new RazorpayCtor({
         key: order.key_id,
@@ -101,7 +101,7 @@ export function TelephonyBillingCard() {
         description: `CallerDesk Telephony — ${usersCount} users × 3 months`,
         prefill: {
           name: profile?.name ?? undefined,
-          email: user?.email ?? undefined,
+          email: session?.user?.email ?? undefined,
         },
         handler: async () => {
           setPayStatus('verifying')

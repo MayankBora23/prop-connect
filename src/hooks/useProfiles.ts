@@ -60,7 +60,8 @@ export function useCurrentProfile() {
     queryKey: ['currentProfile'],
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return null;
 
       const { data: profile, error: profileError } = await supabase

@@ -18,8 +18,10 @@ export type InternalLead = {
   company_name: string;
   lead_name: string;
   phone_no: string | null;
+  email: string | null;
   address: string | null;
-  industry: Enums<'industry_type'>;
+  message: string | null;
+  industry: Enums<'industry_type'> | null;
   user_limit: number | null;
   stage: InternalLeadStage;
   is_telephony_enabled: boolean | null;
@@ -52,6 +54,7 @@ type CreateInternalLeadInput = {
   company_name: string;
   lead_name: string;
   phone_no?: string;
+  email?: string;
   address?: string;
   industry: Enums<'industry_type'>;
   user_limit?: number;
@@ -69,6 +72,7 @@ export function useCreateInternalLead() {
           company_name: payload.company_name,
           lead_name: payload.lead_name,
           phone_no: payload.phone_no ?? null,
+          email: payload.email ?? null,
           address: payload.address ?? null,
           industry: payload.industry,
           user_limit: payload.user_limit ?? null,

@@ -46,7 +46,8 @@ export function useTasks() {
     queryKey: ['tasks', companyId],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return { assigned: [], pending: [], completed: [] };
 
       const tasks: TaskCategory = {

@@ -23,6 +23,12 @@ const internalLeadSchema = z.object({
         .regex(/^[0-9+\-\s]*$/, 'Invalid phone number format')
         .optional()
         .or(z.literal('')),
+    email: z
+        .string()
+        .trim()
+        .email('Invalid email address')
+        .optional()
+        .or(z.literal('')),
     address: z.string().trim().max(500).optional().or(z.literal('')),
     industry: z.custom<Enums<'industry_type'>>(),
     user_limit: z.string().trim().optional().or(z.literal('')),
@@ -63,6 +69,7 @@ export function EditInternalLeadDialog({ lead, open, onOpenChange }: EditInterna
             company_name: '',
             lead_name: '',
             phone_no: '',
+            email: '',
             address: '',
             industry: 'real_estate',
             user_limit: '',
@@ -77,6 +84,7 @@ export function EditInternalLeadDialog({ lead, open, onOpenChange }: EditInterna
                 company_name: lead.company_name,
                 lead_name: lead.lead_name,
                 phone_no: lead.phone_no || '',
+                email: lead.email || '',
                 address: lead.address || '',
                 industry: lead.industry,
                 user_limit: lead.user_limit?.toString() || '',
@@ -94,6 +102,7 @@ export function EditInternalLeadDialog({ lead, open, onOpenChange }: EditInterna
                 company_name: data.company_name,
                 lead_name: data.lead_name,
                 phone_no: data.phone_no || null,
+                email: data.email || null,
                 address: data.address || null,
                 industry: data.industry,
                 user_limit: data.user_limit ? Number(data.user_limit) : null,
@@ -164,6 +173,20 @@ export function EditInternalLeadDialog({ lead, open, onOpenChange }: EditInterna
                                     <FormLabel>Phone No</FormLabel>
                                     <FormControl>
                                         <Input placeholder="Enter phone number" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Email</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Enter email address" type="email" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

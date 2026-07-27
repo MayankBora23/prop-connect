@@ -98,7 +98,8 @@ export function InternalLeadsView() {
         !search ||
         lead.company_name.toLowerCase().includes(search.toLowerCase()) ||
         lead.lead_name.toLowerCase().includes(search.toLowerCase()) ||
-        (lead.phone_no ?? '').toLowerCase().includes(search.toLowerCase());
+        (lead.phone_no ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (lead.email ?? '').toLowerCase().includes(search.toLowerCase());
 
       const matchesIndustry = industryFilter === 'all' || lead.industry === industryFilter;
       const matchesStage = stageFilter === 'all' || lead.stage === stageFilter;
@@ -285,11 +286,17 @@ export function InternalLeadsView() {
                       </td>
                       <td className="px-4 py-3">
                         <p className="text-sm text-foreground">{lead.phone_no || '-'}</p>
-                        <p className="text-xs text-muted-foreground">{lead.address || '-'}</p>
+                        {lead.email && <p className="text-xs text-muted-foreground">{lead.email}</p>}
+                        {lead.address && <p className="text-xs text-muted-foreground">{lead.address}</p>}
+                        {lead.message && (
+                          <p className="text-xs text-muted-foreground italic bg-secondary/40 p-1.5 rounded mt-1 border border-border/50 max-w-[200px] truncate" title={lead.message}>
+                            💬 {lead.message}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border">
-                          {lead.industry.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          {(lead.industry || 'other').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-primary">

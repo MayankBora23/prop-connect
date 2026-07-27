@@ -122,9 +122,8 @@ export function UpgradeDialog({ open, onOpenChange }: UpgradeDialogProps) {
         });
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
       const RazorpayCtor = getRazorpay();
       const rzp = new RazorpayCtor({

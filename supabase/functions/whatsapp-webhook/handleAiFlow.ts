@@ -176,7 +176,7 @@ function getStepConfigs(industry: string): StepConfig[] {
           message: "Thank you! Our AiLeadX team will reach out to you soon. We look forward to helping you streamline your lead management! 🚀",
           buttons: [],
           buttonPayloads: [],
-          nextStep: 5
+          nextStep: 0
         },
         {
           step: 5,
@@ -371,6 +371,12 @@ export async function handleAiFlow({
 
         // If this is the final step (nextStep of the config we just sent is 0), send suggestions + summary
         if (nextStepConfig.nextStep === 0) {
+          // Disable AI and mark flow complete now — don't wait for another user reply
+          await supabase
+            .from('whatsapp_conversations')
+            .update({ ai_enabled: false, is_new_user: false })
+            .eq('id', conversationId)
+
           console.log('🎯 Final step sent, sending matched catalog suggestions')
           await sendMatchedCatalogSuggestions(
             supabase,
@@ -499,7 +505,7 @@ async function processInternalCrmFlow(
       return true
     }
     return false
-  } else if (currentStep === 4) {
+  } else if (currentStep === 4 || currentStep === 5) {
     // Acknowledgement step — any reply advances
     return true
   }
@@ -584,6 +590,8 @@ async function processRealEstateFlow(
     } else {
       return false
     }
+  } else if (currentStep === 5) {
+    return true
   }
 
   return false
@@ -671,6 +679,8 @@ async function processAutomobileFlow(
     } else {
       return false
     }
+  } else if (currentStep === 5) {
+    return true
   }
 
   return false
@@ -803,6 +813,8 @@ async function processEducationFlow(
     } else {
       return false
     }
+  } else if (currentStep === 5) {
+    return true
   }
 
   return false

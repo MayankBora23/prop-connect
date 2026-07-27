@@ -254,12 +254,14 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
       <div className="p-3 border-t border-sidebar-border">
         <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
           <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-sidebar-primary-foreground font-semibold text-sm">
-            PS
+            {profile?.name
+              ? profile.name.split(' ').filter(Boolean).slice(0, 2).map((w: string) => w[0].toUpperCase()).join('')
+              : '?'}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">Priya Sharma</p>
-              <p className="text-xs text-muted-foreground truncate">Manager</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.name || 'Admin'}</p>
+              <p className="text-xs text-muted-foreground truncate">{profile?.role || 'admin'}</p>
             </div>
           )}
         </div>

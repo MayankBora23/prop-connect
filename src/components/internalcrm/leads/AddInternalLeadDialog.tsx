@@ -35,6 +35,12 @@ const internalLeadSchema = z.object({
     .regex(/^[0-9+\-\s]*$/, 'Invalid phone number format')
     .optional()
     .or(z.literal('')),
+  email: z
+    .string()
+    .trim()
+    .email('Invalid email address')
+    .optional()
+    .or(z.literal('')),
   address: z.string().trim().max(500).optional().or(z.literal('')),
   industry: z.custom<Enums<'industry_type'>>(),
   user_limit: z
@@ -68,6 +74,7 @@ export function AddInternalLeadDialog({ open, onOpenChange }: AddInternalLeadDia
       company_name: '',
       lead_name: '',
       phone_no: '',
+      email: '',
       address: '',
       industry: 'real_estate',
       user_limit: '',
@@ -80,6 +87,7 @@ export function AddInternalLeadDialog({ open, onOpenChange }: AddInternalLeadDia
         company_name: data.company_name,
         lead_name: data.lead_name,
         phone_no: data.phone_no || undefined,
+        email: data.email || undefined,
         address: data.address || undefined,
         industry: data.industry,
         user_limit: data.user_limit ? Number(data.user_limit) : undefined,
@@ -153,6 +161,20 @@ export function AddInternalLeadDialog({ open, onOpenChange }: AddInternalLeadDia
                   <FormLabel>Phone No</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter phone number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter email address" type="email" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -18,6 +18,7 @@ import {
 import { useSubscription } from '@/hooks/useSubscription';
 import { useRenewalPayment } from '@/hooks/useRenewalPayment';
 import { useCurrentCompany } from '@/hooks/useCompany';
+import { getCompanyId } from '@/lib/getCompanyId';
 import { supabase } from '@/integrations/supabase/client';
 import { BuySeatDialog } from './BuySeatDialog';
 import { UpgradeDialog } from '@/components/subscription/UpgradeDialog';
@@ -43,19 +44,6 @@ function statusLabel(status: string, isActive: boolean, isTrialActive: boolean):
   if (isTrialActive) return 'Trialing';
   if (status === 'cancelled') return 'Cancelled';
   return 'Expired';
-}
-
-async function getCompanyId(): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('company_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  return profile?.company_id ?? null;
 }
 
 type PaymentRow = {

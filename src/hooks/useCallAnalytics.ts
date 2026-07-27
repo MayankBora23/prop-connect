@@ -107,7 +107,8 @@ type UserContext = {
 };
 
 async function getUserContext(): Promise<UserContext | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
 
   const companyId = await getCompanyId();

@@ -41,14 +41,17 @@ const companySchema = z.object({
   zip_code: z.string().max(20).optional().or(z.literal('')),
 });
 
-const whatsappSchema = z.object({
+const whatsappTwilioSchema = z.object({
   twilio_sid: z.string().min(1, 'Twilio SID is required'),
   twilio_auth_token: z.string().min(1, 'Twilio Auth Token is required'),
   whatsapp_number: z.string().min(1, 'WhatsApp number is required'),
+});
+
+const telephonySchema = z.object({
+  telephony_provider: z.enum(['twilio', 'callerdesk']),
   twilio_api_key_sid: z.string().optional().or(z.literal('')),
   twilio_api_key_secret: z.string().optional().or(z.literal('')),
   twilio_twiml_app_sid: z.string().optional().or(z.literal('')),
-  telephony_provider: z.enum(['twilio', 'callerdesk']).optional(),
   callerdesk_api_key: z.string().optional().or(z.literal('')),
   callerdesk_secret_key: z.string().optional().or(z.literal('')),
   callerdesk_integration_key: z.string().optional().or(z.literal('')),
@@ -56,7 +59,8 @@ const whatsappSchema = z.object({
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
-type WhatsAppFormData = z.infer<typeof whatsappSchema>;
+type WhatsAppTwilioFormData = z.infer<typeof whatsappTwilioSchema>;
+type TelephonyFormData = z.infer<typeof telephonySchema>;
 
 type MaskedMetaTokenInfo = {
   masked_access_token: string;
@@ -114,16 +118,22 @@ export function CompanySettingsView() {
     },
   });
 
-  const whatsappForm = useForm<WhatsAppFormData>({
-    resolver: zodResolver(whatsappSchema),
+  const twilioWhatsAppForm = useForm<WhatsAppTwilioFormData>({
+    resolver: zodResolver(whatsappTwilioSchema),
     defaultValues: {
       twilio_sid: '',
       twilio_auth_token: '',
       whatsapp_number: '',
+    },
+  });
+
+  const telephonyForm = useForm<TelephonyFormData>({
+    resolver: zodResolver(telephonySchema),
+    defaultValues: {
+      telephony_provider: 'twilio',
       twilio_api_key_sid: '',
       twilio_api_key_secret: '',
       twilio_twiml_app_sid: '',
-      telephony_provider: 'twilio',
       callerdesk_api_key: '',
       callerdesk_secret_key: '',
       callerdesk_integration_key: '',
@@ -155,21 +165,23 @@ export function CompanySettingsView() {
 
   useEffect(() => {
     if (whatsappSettings) {
-      whatsappForm.reset({
+      twilioWhatsAppForm.reset({
         twilio_sid: whatsappSettings.twilio_sid || '',
         twilio_auth_token: whatsappSettings.twilio_auth_token || '',
         whatsapp_number: whatsappSettings.whatsapp_number || '',
+      });
+      telephonyForm.reset({
+        telephony_provider: (whatsappSettings as any).telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio',
         twilio_api_key_sid: whatsappSettings.twilio_api_key_sid || '',
         twilio_api_key_secret: whatsappSettings.twilio_api_key_secret || '',
         twilio_twiml_app_sid: whatsappSettings.twilio_twiml_app_sid || '',
-        telephony_provider: (whatsappSettings as any).telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio',
         callerdesk_api_key: (whatsappSettings as any).callerdesk_api_key || '',
         callerdesk_secret_key: (whatsappSettings as any).callerdesk_secret_key || '',
         callerdesk_integration_key: (whatsappSettings as any).callerdesk_integration_key || '',
         callerdesk_virtual_number: (whatsappSettings as any).callerdesk_virtual_number || '',
       });
     }
-  }, [whatsappSettings, whatsappForm]);
+  }, [whatsappSettings, twilioWhatsAppForm, telephonyForm]);
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isLoading = companyLoading || profileLoading || whatsappLoading || metaTokenLoading;
@@ -190,22 +202,45 @@ export function CompanySettingsView() {
     }
   };
 
-  const onWhatsAppSubmit = async (data: WhatsAppFormData) => {
+  const onWhatsAppSubmit = async (data: WhatsAppTwilioFormData) => {
     if (!company?.id) return;
 
     try {
-      const integrationKey = normalizeCallerDeskIntegrationInput(data.callerdesk_integration_key || '') || null
-
       if (whatsappSettings) {
         await updateWhatsAppSettings.mutateAsync({
           id: whatsappSettings.id,
           twilio_sid: data.twilio_sid,
           twilio_auth_token: data.twilio_auth_token,
           whatsapp_number: data.whatsapp_number,
+        } as any);
+      } else {
+        await createWhatsAppSettings.mutateAsync({
+          company_id: company.id,
+          twilio_sid: data.twilio_sid,
+          twilio_auth_token: data.twilio_auth_token,
+          whatsapp_number: data.whatsapp_number,
+          telephony_provider: 'twilio',
+        } as any);
+      }
+      toast.success('WhatsApp settings saved successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save WhatsApp settings');
+    }
+  };
+
+  const onTelephonySubmit = async (data: TelephonyFormData) => {
+    if (!company?.id) return;
+
+    try {
+      const integrationKey = normalizeCallerDeskIntegrationInput(data.callerdesk_integration_key || '') || null;
+
+      if (whatsappSettings) {
+        await updateWhatsAppSettings.mutateAsync({
+          id: whatsappSettings.id,
+          telephony_provider: data.telephony_provider,
           twilio_api_key_sid: data.twilio_api_key_sid || null,
           twilio_api_key_secret: data.twilio_api_key_secret || null,
           twilio_twiml_app_sid: data.twilio_twiml_app_sid || null,
-          telephony_provider: data.telephony_provider || 'twilio',
           callerdesk_api_key: data.callerdesk_api_key || null,
           callerdesk_secret_key: data.callerdesk_secret_key || null,
           callerdesk_integration_key: integrationKey,
@@ -214,13 +249,13 @@ export function CompanySettingsView() {
       } else {
         await createWhatsAppSettings.mutateAsync({
           company_id: company.id,
-          twilio_sid: data.twilio_sid,
-          twilio_auth_token: data.twilio_auth_token,
-          whatsapp_number: data.whatsapp_number,
+          twilio_sid: '',
+          twilio_auth_token: '',
+          whatsapp_number: '',
+          telephony_provider: data.telephony_provider,
           twilio_api_key_sid: data.twilio_api_key_sid || null,
           twilio_api_key_secret: data.twilio_api_key_secret || null,
           twilio_twiml_app_sid: data.twilio_twiml_app_sid || null,
-          telephony_provider: data.telephony_provider || 'twilio',
           callerdesk_api_key: data.callerdesk_api_key || null,
           callerdesk_secret_key: data.callerdesk_secret_key || null,
           callerdesk_integration_key: integrationKey,
@@ -228,20 +263,19 @@ export function CompanySettingsView() {
         } as any);
       }
 
-      const savedProvider = data.telephony_provider === 'callerdesk' ? 'callerdesk' : 'twilio';
-      applyOptimisticTelephonyProvider(queryClient, company.id, savedProvider);
+      applyOptimisticTelephonyProvider(queryClient, company.id, data.telephony_provider || 'twilio');
       await queryClient.invalidateQueries({ queryKey: telephonySettingsQueryKey(company.id) });
-      toast.success('Telephony settings saved');
+      toast.success('Voice Telephony settings saved successfully');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save WhatsApp settings');
+      toast.error(error.message || 'Failed to save Voice Telephony settings');
     }
   };
 
   const handleTelephonyProviderChange = async (nextProvider: 'twilio' | 'callerdesk') => {
     if (!company?.id) return;
 
-    const prev = whatsappForm.getValues('telephony_provider') || 'twilio';
-    whatsappForm.setValue('telephony_provider', nextProvider, { shouldDirty: true, shouldTouch: true });
+    const prev = telephonyForm.getValues('telephony_provider') || 'twilio';
+    telephonyForm.setValue('telephony_provider', nextProvider, { shouldDirty: true, shouldTouch: true });
 
     // Instant sync for Telephony dialer + analytics (before API completes)
     applyOptimisticTelephonyProvider(queryClient, company.id, nextProvider);
@@ -257,9 +291,9 @@ export function CompanySettingsView() {
         // Create minimal row so provider can be saved immediately
         await createWhatsAppSettings.mutateAsync({
           company_id: company.id,
-          twilio_sid: whatsappForm.getValues('twilio_sid') || '',
-          twilio_auth_token: whatsappForm.getValues('twilio_auth_token') || '',
-          whatsapp_number: whatsappForm.getValues('whatsapp_number') || '',
+          twilio_sid: '',
+          twilio_auth_token: '',
+          whatsapp_number: '',
           telephony_provider: nextProvider,
         } as any);
       }
@@ -267,7 +301,7 @@ export function CompanySettingsView() {
       await queryClient.invalidateQueries({ queryKey: telephonySettingsQueryKey(company.id) });
       toast.success(`Telephony provider set to ${nextProvider === 'twilio' ? 'Twilio' : 'CallerDesk'}`);
     } catch (error: any) {
-      whatsappForm.setValue('telephony_provider', prev as any, { shouldDirty: true });
+      telephonyForm.setValue('telephony_provider', prev as any, { shouldDirty: true });
       applyOptimisticTelephonyProvider(queryClient, company.id, prev as 'twilio' | 'callerdesk');
       toast.error(error.message || 'Failed to update Telephony provider');
     } finally {
@@ -606,7 +640,7 @@ export function CompanySettingsView() {
                 WhatsApp Business Integration
               </CardTitle>
               <CardDescription>
-                Configure Twilio WhatsApp Business API for customer communication
+                Configure Twilio or Meta Cloud API for customer communication
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -631,11 +665,11 @@ export function CompanySettingsView() {
                   </Select>
                 </div>
 
-                <Form {...whatsappForm}>
-                  <form onSubmit={whatsappForm.handleSubmit(onWhatsAppSubmit)} className="space-y-6">
-                    {whatsappProvider === 'twilio' && (
+                {whatsappProvider === 'twilio' ? (
+                  <Form {...twilioWhatsAppForm}>
+                    <form onSubmit={twilioWhatsAppForm.handleSubmit(onWhatsAppSubmit)} className="space-y-6">
                       <FormField
-                        control={whatsappForm.control}
+                        control={twilioWhatsAppForm.control}
                         name="twilio_sid"
                         render={({ field }) => (
                           <FormItem>
@@ -650,11 +684,9 @@ export function CompanySettingsView() {
                           </FormItem>
                         )}
                       />
-                    )}
 
-                    {whatsappProvider === 'twilio' && (
                       <FormField
-                        control={whatsappForm.control}
+                        control={twilioWhatsAppForm.control}
                         name="twilio_auth_token"
                         render={({ field }) => (
                           <FormItem>
@@ -674,11 +706,9 @@ export function CompanySettingsView() {
                           </FormItem>
                         )}
                       />
-                    )}
 
-                    {whatsappProvider === 'twilio' && (
                       <FormField
-                        control={whatsappForm.control}
+                        control={twilioWhatsAppForm.control}
                         name="whatsapp_number"
                         render={({ field }) => (
                           <FormItem>
@@ -693,285 +723,56 @@ export function CompanySettingsView() {
                           </FormItem>
                         )}
                       />
-                    )}
 
-                  {/* Telephony Settings Section */}
-                  <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Phone className="w-5 h-5" />
-                      Voice Telephony Integration
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Configure your telephony provider for outbound calling capabilities.
-                      These settings are optional and only required if you want to enable voice calling.
-                    </p>
-
-                    <FormField
-                      control={whatsappForm.control}
-                      name="telephony_provider"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telephony Provider</FormLabel>
-                          <Select
-                            value={field.value || 'twilio'}
-                            onValueChange={(v) => {
-                              field.onChange(v as 'twilio' | 'callerdesk');
-                              void handleTelephonyProviderChange(v as 'twilio' | 'callerdesk');
-                            }}
-                            disabled={isSavingTelephonyProvider || updateWhatsAppSettings.isPending || createWhatsAppSettings.isPending}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-[260px]">
-                                <SelectValue placeholder="Select provider" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="twilio">Twilio</SelectItem>
-                              <SelectItem value="callerdesk">CallerDesk</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {whatsappForm.watch('telephony_provider') !== 'callerdesk' && (
-                      <>
-                        <FormField
-                          control={whatsappForm.control}
-                          name="twilio_api_key_sid"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Twilio API Key SID</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                  <Input {...field} placeholder="SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={whatsappForm.control}
-                          name="twilio_api_key_secret"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Twilio API Key Secret</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                  <Input
-                                    {...field}
-                                    type="password"
-                                    placeholder="Your Twilio API Key Secret"
-                                    className="pl-10 font-mono text-sm"
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={whatsappForm.control}
-                          name="twilio_twiml_app_sid"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Twilio TwiML App SID</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                  <Input {...field} placeholder="APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg mt-4">
-                          <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Twilio Voice Setup:</h4>
-                          <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
-                            <li>Create an API Key in Twilio Console → Settings → API Keys</li>
-                            <li>Create a TwiML App in Twilio Console → Voice → Manage → TwiML Apps</li>
-                            <li>Set Voice Request URL: <code>https://your-project.supabase.co/functions/v1/voice-router</code></li>
-                            <li>Set Status Callback URL: <code>https://your-project.supabase.co/functions/v1/voice-status</code></li>
-                            <li>Each agent needs a Twilio <strong>Agent Identity</strong> in Profile Settings (not the CallerDesk bridge number)</li>
-                            <li>Enable telephony for leads by checking "Enable Telephony" in lead details</li>
+                      <div className="bg-muted p-4 rounded-lg space-y-4">
+                        <div>
+                          <h4 className="font-medium mb-2">Setup Instructions:</h4>
+                          <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                            <li>Get your Twilio Account SID and Auth Token from your Twilio Console</li>
+                            <li><strong>For Sandbox Testing:</strong> Use Twilio's shared sandbox number (+14155238886)</li>
+                            <li><strong>For Production:</strong> Purchase or verify your own unique WhatsApp Business number</li>
+                            <li>Deploy the Edge Function to Supabase (see APPLY_WHATSAPP_MIGRATION.md)</li>
+                            <li>Use the webhook URL below in Twilio Console → WhatsApp → Senders</li>
+                            <li>Test by sending a WhatsApp message to your business number</li>
                           </ol>
                         </div>
-                      </>
-                    )}
 
-                    {whatsappForm.watch('telephony_provider') === 'callerdesk' && (
-                      <>
-                        <FormField
-                          control={whatsappForm.control}
-                          name="callerdesk_api_key"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CallerDesk API Key</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Paste CallerDesk API key" className="font-mono text-sm" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={whatsappForm.control}
-                          name="callerdesk_secret_key"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CallerDesk Secret Key</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="password" placeholder="Paste CallerDesk secret key" className="font-mono text-sm" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={whatsappForm.control}
-                          name="callerdesk_integration_key"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Integration key (click-to-call authcode)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="From CallerDesk → API: Integration key only (not API key / secret)"
-                                  className="font-mono text-sm"
-                                />
-                              </FormControl>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Sent as <span className="font-mono">authcode</span> to CallerDesk. Must be from the{' '}
-                                <strong>same CallerDesk account</strong> as your virtual/IVR number. If you still see
-                                &quot;Invalid Auth Code&quot;, regenerate the key in CallerDesk, paste again, save, and
-                                confirm Click-to-call coins are not zero. A full click-to-call URL is also accepted; we
-                                extract <span className="font-mono">authcode</span> on save.
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3 bg-muted/20">
-                          Each team member sets their own <strong>Bridge Number (Agent)</strong> in{' '}
-                          <strong>Profile Settings</strong> (CallerDesk Bridge Number). Admins only configure
-                          integration key and virtual number here.
-                        </p>
-
-                        <FormField
-                          control={whatsappForm.control}
-                          name="callerdesk_virtual_number"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CallerDesk Virtual/IVR Number</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="e.g. 01141234567" className="font-mono text-sm" />
-                              </FormControl>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Your CallerDesk DID/IVR number — found in CallerDesk Dashboard → Virtual Numbers
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="border rounded-md p-4 bg-muted/30 space-y-2">
-                          <p className="text-xs text-muted-foreground rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-3 mb-3">
-                            <strong>Important:</strong> Each agent bridge mobile must be a CallerDesk member in a
-                            Call Group linked to this virtual number. Reports with &quot;Call Group: Not Assigned&quot;
-                            usually fail to connect the customer (Leg B).
+                        <div className="border-t pt-4">
+                          <h4 className="font-medium mb-2 text-amber-700">⚠️ Important: Multi-Tenant Sandbox Support</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Twilio uses shared sandbox numbers across all accounts. This CRM automatically routes messages
+                            by Account SID for sandbox testing, then switches to phone number routing for production.
                           </p>
-                          <p className="text-sm font-medium leading-none">CallerDesk Webhook URL</p>
-                          <div className="flex items-center gap-2">
-                            <Input readOnly value={callerdeskWebhookUrl} className="font-mono text-xs" />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => copyToClipboard(callerdeskWebhookUrl, 'CallerDesk Webhook URL')}
-                              disabled={!callerdeskWebhookUrl}
-                              className="shrink-0"
-                            >
-                              Copy URL
-                            </Button>
+                        </div>
+
+                        {whatsappSettings && (
+                          <div className="border-t pt-4">
+                            <h4 className="font-medium mb-2">Webhook URL for Twilio:</h4>
+                            <div className="bg-background p-3 rounded border font-mono text-sm break-all">
+                              https://your-project.supabase.co/functions/v1/whatsapp-webhook
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Replace <code>your-project</code> with your actual Supabase project URL.<br />
+                              <strong>⚠️ DO NOT use the cloudflared tunnel URL here!</strong><br />
+                              Twilio webhooks must point to Supabase, not your local tunnel.
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Configure this webhook in CallerDesk to send call reports to Supabase.
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {whatsappProvider === 'twilio' && (
-                    <div className="bg-muted p-4 rounded-lg space-y-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Setup Instructions:</h4>
-                      <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                        <li>Get your Twilio Account SID and Auth Token from your Twilio Console</li>
-                        <li><strong>For Sandbox Testing:</strong> Use Twilio's shared sandbox number (+14155238886)</li>
-                        <li><strong>For Production:</strong> Purchase or verify your own unique WhatsApp Business number</li>
-                        <li>Deploy the Edge Function to Supabase (see APPLY_WHATSAPP_MIGRATION.md)</li>
-                        <li>Use the webhook URL below in Twilio Console → WhatsApp → Senders</li>
-                        <li>Test by sending a WhatsApp message to your business number</li>
-                      </ol>
-                    </div>
-
-                    <div className="border-t pt-4">
-                      <h4 className="font-medium mb-2 text-amber-700">⚠️ Important: Multi-Tenant Sandbox Support</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Twilio uses shared sandbox numbers across all accounts. This CRM automatically routes messages
-                        by Account SID for sandbox testing, then switches to phone number routing for production.
-                      </p>
-                    </div>
-
-                    {whatsappSettings && (
-                      <div className="border-t pt-4">
-                        <h4 className="font-medium mb-2">Webhook URL for Twilio:</h4>
-                        <div className="bg-background p-3 rounded border font-mono text-sm break-all">
-                          https://your-project.supabase.co/functions/v1/whatsapp-webhook
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Replace <code>your-project</code> with your actual Supabase project URL.<br />
-                          <strong>⚠️ DO NOT use the cloudflared tunnel URL here!</strong><br />
-                          Twilio webhooks must point to Supabase, not your local tunnel.
-                        </p>
+                        )}
                       </div>
-                    )}
-                    </div>
-                  )}
 
-                  <Button
-                    type="submit"
-                    disabled={
-                      createWhatsAppSettings.isPending ||
-                      updateWhatsAppSettings.isPending ||
-                      (whatsappProvider === 'meta' && !whatsappSettings)
-                    }
-                    className="w-full"
-                  >
-                    {(createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending) && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    {whatsappProvider === 'meta'
-                      ? 'Save Voice Telephony Settings'
-                      : whatsappSettings
-                        ? 'Update WhatsApp Settings'
-                        : 'Save WhatsApp Settings'}
-                  </Button>
-                  </form>
-                </Form>
-
-                {whatsappProvider === 'meta' && (
+                      <Button
+                        type="submit"
+                        disabled={createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending}
+                        className="w-full"
+                      >
+                        {(createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending) && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        {whatsappSettings ? 'Update WhatsApp Settings' : 'Save WhatsApp Settings'}
+                      </Button>
+                    </form>
+                  </Form>
+                ) : (
                   <div className="space-y-6">
                     <div className="space-y-2">
                       <p className="text-sm font-medium leading-none">Meta Phone ID</p>
@@ -1074,6 +875,238 @@ export function CompanySettingsView() {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Voice Telephony Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                Voice Telephony Integration
+              </CardTitle>
+              <CardDescription>
+                Configure your telephony provider for outbound calling capabilities.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...telephonyForm}>
+                <form onSubmit={telephonyForm.handleSubmit(onTelephonySubmit)} className="space-y-6">
+                  <FormField
+                    control={telephonyForm.control}
+                    name="telephony_provider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telephony Provider</FormLabel>
+                        <Select
+                          value={field.value || 'twilio'}
+                          onValueChange={(v) => {
+                            field.onChange(v as 'twilio' | 'callerdesk');
+                            void handleTelephonyProviderChange(v as 'twilio' | 'callerdesk');
+                          }}
+                          disabled={isSavingTelephonyProvider || updateWhatsAppSettings.isPending || createWhatsAppSettings.isPending}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-[260px]">
+                              <SelectValue placeholder="Select provider" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="twilio">Twilio</SelectItem>
+                            <SelectItem value="callerdesk">CallerDesk</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {telephonyForm.watch('telephony_provider') !== 'callerdesk' ? (
+                    <>
+                      <FormField
+                        control={telephonyForm.control}
+                        name="twilio_api_key_sid"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Twilio API Key SID</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input {...field} placeholder="SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={telephonyForm.control}
+                        name="twilio_api_key_secret"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Twilio API Key Secret</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Your Twilio API Key Secret"
+                                  className="pl-10 font-mono text-sm"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={telephonyForm.control}
+                        name="twilio_twiml_app_sid"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Twilio TwiML App SID</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Settings className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input {...field} placeholder="APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="pl-10 font-mono text-sm" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg mt-4">
+                        <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Twilio Voice Setup:</h4>
+                        <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
+                          <li>Create an API Key in Twilio Console → Settings → API Keys</li>
+                          <li>Create a TwiML App in Twilio Console → Voice → Manage → TwiML Apps</li>
+                          <li>Set Voice Request URL: <code>https://your-project.supabase.co/functions/v1/voice-router</code></li>
+                          <li>Set Status Callback URL: <code>https://your-project.supabase.co/functions/v1/voice-status</code></li>
+                          <li>Each agent needs a Twilio <strong>Agent Identity</strong> in Profile Settings (not the CallerDesk bridge number)</li>
+                          <li>Enable telephony for leads by checking "Enable Telephony" in lead details</li>
+                        </ol>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <FormField
+                        control={telephonyForm.control}
+                        name="callerdesk_api_key"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CallerDesk API Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Paste CallerDesk API key" className="font-mono text-sm" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={telephonyForm.control}
+                        name="callerdesk_secret_key"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CallerDesk Secret Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="password" placeholder="Paste CallerDesk secret key" className="font-mono text-sm" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={telephonyForm.control}
+                        name="callerdesk_integration_key"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Integration key (click-to-call authcode)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="From CallerDesk → API: Integration key only (not API key / secret)"
+                                className="font-mono text-sm"
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Sent as <span className="font-mono">authcode</span> to CallerDesk. Must be from the{' '}
+                              <strong>same CallerDesk account</strong> as your virtual/IVR number. If you still see
+                              &quot;Invalid Auth Code&quot;, regenerate the key in CallerDesk, paste again, save, and
+                              confirm Click-to-call coins are not zero. A full click-to-call URL is also accepted; we
+                              extract <span className="font-mono">authcode</span> on save.
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3 bg-muted/20">
+                        Each team member sets their own <strong>Bridge Number (Agent)</strong> in{' '}
+                        <strong>Profile Settings</strong> (CallerDesk Bridge Number). Admins only configure
+                        integration key and virtual number here.
+                      </p>
+
+                      <FormField
+                        control={telephonyForm.control}
+                        name="callerdesk_virtual_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CallerDesk Virtual/IVR Number</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g. 01141234567" className="font-mono text-sm" />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Your CallerDesk DID/IVR number — found in CallerDesk Dashboard → Virtual Numbers
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="border rounded-md p-4 bg-muted/30 space-y-2">
+                        <p className="text-xs text-muted-foreground rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-3 mb-3">
+                          <strong>Important:</strong> Each agent bridge mobile must be a CallerDesk member in a
+                          Call Group linked to this virtual number. Reports with &quot;Call Group: Not Assigned&quot;
+                          usually fail to connect the customer (Leg B).
+                        </p>
+                        <p className="text-sm font-medium leading-none">CallerDesk Webhook URL</p>
+                        <div className="flex items-center gap-2">
+                          <Input readOnly value={callerdeskWebhookUrl} className="font-mono text-xs" />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => copyToClipboard(callerdeskWebhookUrl, 'CallerDesk Webhook URL')}
+                            disabled={!callerdeskWebhookUrl}
+                            className="shrink-0"
+                          >
+                            Copy URL
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Configure this webhook in CallerDesk to send call reports to Supabase.
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending}
+                    className="w-full"
+                  >
+                    {(createWhatsAppSettings.isPending || updateWhatsAppSettings.isPending) && (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    )}
+                    Save Voice Telephony Settings
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </TabsContent>

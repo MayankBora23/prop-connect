@@ -184,7 +184,7 @@ export function InternalCRMWhatsAppInbox() {
         if (company) return `${company.industry.replace(/_/g, ' ')} • ${company.email || ''}`;
 
         const lead = internalLeads?.find(l => normalizePhone(l.phone_no || '') === cleanPhone);
-        if (lead) return `${lead.industry.replace(/_/g, ' ')} • ${lead.stage.replace(/_/g, ' ')}`;
+        if (lead) return `${(lead.industry || 'other').replace(/_/g, ' ')} • ${lead.stage.replace(/_/g, ' ')}`;
 
         return phone;
     };

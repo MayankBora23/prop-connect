@@ -24,6 +24,7 @@ interface SaveInternalLeadDialogProps {
 export function SaveInternalLeadDialog({ open, onOpenChange, conversation }: SaveInternalLeadDialogProps) {
     const [companyName, setCompanyName] = useState('');
     const [leadName, setLeadName] = useState(conversation.contact_name || '');
+    const [email, setEmail] = useState('');
     const [address, setAddress] = useState('');
     const [industry, setIndustry] = useState<any>('real_estate');
     const [userLimit, setUserLimit] = useState('');
@@ -51,6 +52,7 @@ export function SaveInternalLeadDialog({ open, onOpenChange, conversation }: Sav
                 company_name: companyName.trim(),
                 lead_name: leadName.trim(),
                 phone_no: phoneNumber,
+                email: email.trim() || undefined,
                 address: address.trim() || undefined,
                 industry: industry,
                 user_limit: userLimit ? parseInt(userLimit) : undefined,
@@ -69,6 +71,7 @@ export function SaveInternalLeadDialog({ open, onOpenChange, conversation }: Sav
         if (!newOpen) {
             setCompanyName('');
             setLeadName(conversation.contact_name || '');
+            setEmail('');
             setAddress('');
             setIndustry('real_estate');
             setUserLimit('');
@@ -110,6 +113,17 @@ export function SaveInternalLeadDialog({ open, onOpenChange, conversation }: Sav
                                 onChange={(e) => setLeadName(e.target.value)}
                             />
                         </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="email">Email (Optional)</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            placeholder="Enter email address..."
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
                     </div>
 
                     <div className="grid gap-2">
