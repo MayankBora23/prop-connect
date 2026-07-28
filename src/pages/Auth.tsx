@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Mail, Lock, User, Briefcase, GraduationCap, Home, Car } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, GraduationCap, Home, Car } from 'lucide-react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { z } from 'zod';
 
@@ -200,6 +201,16 @@ export default function Auth() {
           navigate('/');
         }
       } else {
+        // Guard: internal_crm companies cannot be created via public registration
+        if (industry === 'internal_crm') {
+          toast({
+            title: 'Not allowed',
+            description: 'Internal CRM accounts cannot be registered from this page.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
         // Create company and super admin user
         await createCompanyWithUser.mutateAsync({
           companyName,
@@ -240,14 +251,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-            <Building2 className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">RealCRM</h1>
-            <p className="text-xs text-muted-foreground">Multi-Industry CRM</p>
-          </div>
+        <div className="flex items-center justify-center mb-8">
+          <BrandLogo variant="banner" linkToHome={false} />
         </div>
 
         <Card className="card-elevated border-0">
@@ -377,13 +382,14 @@ export default function Auth() {
                             <span>Automobile Dealers</span>
                           </div>
                         </SelectItem>
+                        {/* Internal CRM option hidden — registration not allowed via public form
                         <SelectItem value="internal_crm">
                           <div className="flex items-center gap-2">
                             <Briefcase className="w-4 h-4" />
                             <span>Internal CRM (Admin Only)</span>
                           </div>
                         </SelectItem>
-                        {/* non-target industries removed */}
+                        */}
                       </SelectContent>
                     </Select>
                   </div>

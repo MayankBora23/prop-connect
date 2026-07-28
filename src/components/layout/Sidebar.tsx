@@ -11,13 +11,13 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  Home,
   Settings,
   Briefcase,
   Wallet,
   LifeBuoy,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { useIndustry } from '@/hooks/useIndustry';
 import { useTicketStats } from '@/hooks/useSupport';
 import { GraduationCap, BookOpen, Users2, CalendarCheck, FileText, DollarSign, Stethoscope, User, File, Pill, CreditCard, Car, FileCheck, ShoppingBag, Package, Archive, ClipboardList, Receipt, RotateCcw, Tag, Truck, QrCode, CheckCircle, UserCheck, Phone, Video, LayoutTemplate } from 'lucide-react';
@@ -89,7 +89,7 @@ const automobileMenuItems = [
   { id: 'employee-attendance', label: 'Employee Attendance', icon: Calendar, badge: undefined },
   { id: 'telephony', label: 'Telephony', icon: Phone, badge: undefined },
   { id: 'whatsapp-inbox', label: 'WhatsApp Inbox', icon: MessageSquare, badge: undefined },
-  { id: 'workspace', label: 'Workspace', icon: Home, badge: undefined },
+  { id: 'workspace', label: 'Workspace', icon: Briefcase, badge: undefined },
   { id: 'team', label: 'Team', icon: UserCog, badge: undefined },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: undefined },
   { id: 'credits', label: 'Credits', icon: Wallet, badge: undefined },
@@ -184,11 +184,11 @@ export function Sidebar({ activeTab, onTabChange, onCollapsedChange }: SidebarPr
       {/* Logo */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <Home className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg text-sidebar-foreground">RealCRM</span>
+          <BrandLogo variant="header" linkToHome={false} className="shadow-none ring-0" />
+        )}
+        {collapsed && (
+          <div className="flex items-center justify-center w-full">
+            <BrandLogo variant="header" linkToHome={false} className="shadow-none ring-0 !h-8 !max-w-[2rem] overflow-hidden" />
           </div>
         )}
         <button
