@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 import { useProfiles } from '@/hooks/useProfiles';
-import { useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
+import { useCreateLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
 import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
@@ -22,6 +22,8 @@ import type { Enums } from '@/integrations/supabase/types';
 import type { Lead } from '@/hooks/useLeads';
 import { useSectionSearch } from '@/hooks/useSectionSearch';
 import { filterBySearch } from '@/lib/sectionSearch';
+import { ImportCSVDialog } from './ImportCSVDialog';
+import { generateCSV, downloadCSV, normalizePhone } from '@/lib/csvUtils';
 
 function LeadStatusSelect({ leadId, leadStatus }: { leadId: string, leadStatus?: Enums<'lead_status'> }) {
   const updateLead = useUpdateLead();
@@ -119,8 +121,10 @@ export function LeadsView() {
   const [selectedHistoryLeadName, setSelectedHistoryLeadName] = useState('');
   const { data: leads, isLoading } = useLeads();
   const deleteLead = useDeleteLead();
+  const createLead = useCreateLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
   const { search } = useSectionSearch();
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const filteredLeads = useMemo(
     () =>
@@ -249,6 +253,85 @@ export function LeadsView() {
     }
   };
 
+  const handleImport = async (data: Record<string, string>[]) => {
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const row of data) {
+      // Rows are pre-keyed by the column-mapping dialog (canonical keys)
+      const name = row['Name'];
+      const phone = row['Phone'];
+      const email = row['Email'];
+      const budget = row['Budget'];
+      const location = row['Location'];
+      const property_type = row['Property Type'];
+      const source = row['Source'];
+      const stage = row['Stage'];
+
+      if (!name || !phone) {
+        errors.push(`Row missing required fields (Name and Phone)`);
+        continue;
+      }
+
+      const validStages = ['new', 'contacted', 'follow-up', 'site-visit', 'negotiation', 'closed-won', 'closed-lost'];
+      const normalizedStage = stage && validStages.includes(stage.toLowerCase())
+        ? (stage.toLowerCase() as any)
+        : 'new';
+
+      try {
+        await createLead.mutateAsync({
+          name: name.trim(),
+          phone: normalizePhone(phone),
+          email: email?.trim() || null,
+          budget: budget?.trim() || 'Not Specified',
+          location: location?.trim() || null,
+          property_type: property_type?.trim() || null,
+          source: source?.trim() || 'CSV Import',
+          stage: normalizedStage,
+        });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import ${name}: ${err.message || 'Unknown error'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      console.error(errors);
+      if (successCount === 0) {
+        throw new Error(`All imports failed. e.g. ${errors[0]}`);
+      } else {
+        toast.warning(`Imported ${successCount} leads, but ${errors.length} failed.`);
+      }
+    }
+  };
+
+
+  const handleExport = () => {
+    if (!filteredLeads || filteredLeads.length === 0) {
+      toast.error('No leads available to export');
+      return;
+    }
+    const headers = [
+      { key: 'name', label: 'Name' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'email', label: 'Email' },
+      { key: 'budget', label: 'Budget' },
+      { key: 'location', label: 'Location' },
+      { key: 'property_type', label: 'Property Type' },
+      { key: 'source', label: 'Source' },
+      { key: 'stage', label: 'Stage' },
+      { key: 'created_at', label: 'Created At' },
+    ];
+    const formattedLeads = filteredLeads.map(lead => ({
+      ...lead,
+      phone: lead.phone ? `\u200B${lead.phone}` : '', // Zero-width space preserves formatting/text in Excel
+      created_at: lead.created_at ? format(new Date(lead.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+    const csvContent = generateCSV(headers, formattedLeads);
+    downloadCSV(csvContent, 'real_estate_leads.csv');
+    toast.success('Leads exported successfully');
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -277,16 +360,25 @@ export function LeadsView() {
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
+      
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImport}
+        sampleHeaders={['Name', 'Phone', 'Email', 'Budget', 'Location', 'Property Type', 'Source', 'Stage']}
+        title="Import Real Estate Leads"
+        templateFileName="real_estate_leads_template.csv"
+      />
 
       {/* Content */}
       {viewMode === 'pipeline' ? (

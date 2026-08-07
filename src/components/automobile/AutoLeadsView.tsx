@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { AutoLeadPipeline } from './AutoLeadPipeline';
-import { useAutoLeads, useUpdateAutoLead, useDeleteAutoLead, type AutoLead } from '@/hooks/useAutoLeads';
+import { useAutoLeads, useCreateAutoLead, useUpdateAutoLead, useDeleteAutoLead, type AutoLead } from '@/hooks/useAutoLeads';
 import { LayoutGrid, List, Filter, Download, Upload, MessageCircle, Phone, History, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,22 @@ import { EditAutoLeadDialog } from './EditAutoLeadDialog';
 import { format } from 'date-fns';
 import { useSectionSearch } from '@/hooks/useSectionSearch';
 import { filterBySearch } from '@/lib/sectionSearch';
+import { ImportCSVDialog } from '@/components/leads/ImportCSVDialog';
+import type { FieldDef } from '@/components/leads/ImportCSVDialog';
+import { generateCSV, downloadCSV, normalizePhone } from '@/lib/csvUtils';
+
+const AUTO_LEAD_FIELD_DEFS: FieldDef[] = [
+  { key: 'Name', label: 'Name', required: true, aliases: ['name', 'fullname', 'leadname', 'customername', 'clientname', 'contactname', 'firstname'] },
+  { key: 'Phone', label: 'Phone / Mobile', required: true, aliases: ['phone', 'phoneno', 'phonenumber', 'mobile', 'mobileno', 'mobilenumber', 'contact', 'contactno', 'cell', 'whatsapp', 'ph', 'number'] },
+  { key: 'Email', label: 'Email', required: false, aliases: ['email', 'emailaddress', 'emailid', 'mail'] },
+  { key: 'Vehicle Type', label: 'Vehicle Type (car/bike)', required: false, aliases: ['vehicletype', 'type', 'preferredvehicletype', 'vehiclecategory'] },
+  { key: 'Brand', label: 'Preferred Brand', required: false, aliases: ['brand', 'preferredbrand', 'make', 'carbrand', 'vehiclebrand'] },
+  { key: 'Model', label: 'Preferred Model', required: false, aliases: ['model', 'preferredmodel', 'carmodel', 'vehiclemodel'] },
+  { key: 'Budget Min', label: 'Budget Min', required: false, aliases: ['budgetmin', 'minbudget', 'budgetfrom', 'budgetlow'] },
+  { key: 'Budget Max', label: 'Budget Max', required: false, aliases: ['budgetmax', 'maxbudget', 'budgetto', 'budget'] },
+  { key: 'Source', label: 'Source', required: false, aliases: ['source', 'leadsource', 'referral', 'channel'] },
+  { key: 'Status', label: 'Status / Stage', required: false, aliases: ['status', 'state', 'stage', 'leadstatus', 'leadstage'] },
+];
 
 // Cast supabase to any to bypass type checking for automobile tables
 const supabaseAny = supabase as any;
@@ -91,6 +107,7 @@ export function AutoLeadsView() {
   const [viewMode, setViewMode] = useState<'pipeline' | 'list'>('pipeline');
   const { data: leads, isLoading } = useAutoLeads();
   const deleteLead = useDeleteAutoLead();
+  const createLead = useCreateAutoLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
   const [editLeadOpen, setEditLeadOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<AutoLead | null>(null);
@@ -98,6 +115,7 @@ export function AutoLeadsView() {
   const [selectedHistoryLeadId, setSelectedHistoryLeadId] = useState<string | null>(null);
   const [selectedHistoryLeadName, setSelectedHistoryLeadName] = useState('');
   const { search } = useSectionSearch();
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const filteredLeads = useMemo(
     () =>
@@ -212,6 +230,100 @@ export function AutoLeadsView() {
     }
   };
 
+  const handleImport = async (data: Record<string, string>[]) => {
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const row of data) {
+      // Rows are pre-keyed by the column-mapping dialog (canonical keys)
+      const name = row['Name'];
+      const phone = row['Phone'];
+      const email = row['Email'];
+      const vehicle_type = row['Vehicle Type'];
+      const brand = row['Brand'];
+      const model = row['Model'];
+      const budget_min = row['Budget Min'];
+      const budget_max = row['Budget Max'];
+      const source = row['Source'];
+      const status = row['Status'];
+
+      if (!name || !phone) {
+        errors.push(`Row missing required fields (Name and Phone)`);
+        continue;
+      }
+
+      // Normalise vehicle type
+      const normalizedType = vehicle_type && ['car', 'bike'].includes(vehicle_type.toLowerCase())
+        ? (vehicle_type.toLowerCase() as 'car' | 'bike')
+        : null;
+
+      const validStatuses = ['new_lead', 'contacted', 'test_drive_scheduled', 'quotation_shared', 'negotiation_final_discussion', 'booking_done', 'delivered_sold'];
+      const normalizedStatus = status && validStatuses.includes(status.toLowerCase().replace(/[\s-]+/g, '_'))
+        ? status.toLowerCase().replace(/[\s-]+/g, '_')
+        : 'new_lead';
+
+      try {
+        await createLead.mutateAsync({
+          name: name.trim(),
+          phone: normalizePhone(phone),
+          email: email?.trim() || null,
+          preferred_vehicle_type: normalizedType,
+          preferred_brand: brand?.trim() || null,
+          preferred_model: model?.trim() || null,
+          budget_min: budget_min ? Number(budget_min) : null,
+          budget_max: budget_max ? Number(budget_max) : null,
+          financing_needed: false,
+          insurance_needed: false,
+          test_drive_requested: false,
+          source: source?.trim() || 'CSV Import',
+          status: normalizedStatus,
+          notes: [],
+          tags: []
+        });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import ${name}: ${err.message || 'Unknown error'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      console.error(errors);
+      if (successCount === 0) {
+        throw new Error(`All imports failed. e.g. ${errors[0]}`);
+      } else {
+        toast.warning(`Imported ${successCount} leads, but ${errors.length} failed.`);
+      }
+    }
+  };
+
+  const handleExport = () => {
+    if (!filteredLeads || filteredLeads.length === 0) {
+      toast.error('No leads available to export');
+      return;
+    }
+    const headers = [
+      { key: 'name', label: 'Name' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'email', label: 'Email' },
+      { key: 'preferred_vehicle_type', label: 'Preferred Vehicle Type' },
+      { key: 'preferred_brand', label: 'Preferred Brand' },
+      { key: 'preferred_model', label: 'Preferred Model' },
+      { key: 'budget_min', label: 'Budget Min' },
+      { key: 'budget_max', label: 'Budget Max' },
+      { key: 'source', label: 'Source' },
+      { key: 'status', label: 'Status' },
+      { key: 'created_at', label: 'Created At' },
+    ];
+    const formattedLeads = filteredLeads.map(lead => ({
+      ...lead,
+      phone: lead.phone ? `\u200B${lead.phone}` : '',
+      created_at: lead.created_at ? format(new Date(lead.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+    const csvContent = generateCSV(headers, formattedLeads);
+    downloadCSV(csvContent, 'automobile_leads.csv');
+    toast.success('Leads exported successfully');
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -240,16 +352,26 @@ export function AutoLeadsView() {
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
+
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImport}
+        sampleHeaders={['Name', 'Phone', 'Email', 'Preferred Vehicle Type', 'Preferred Brand', 'Preferred Model', 'Budget Min', 'Budget Max', 'Source', 'Status']}
+        fieldDefs={AUTO_LEAD_FIELD_DEFS}
+        title="Import Automobile Leads"
+        templateFileName="automobile_leads_template.csv"
+      />
 
       {/* Content */}
       {viewMode === 'pipeline' ? (

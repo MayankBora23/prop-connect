@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 
 import { useProfiles } from '@/hooks/useProfiles';
-import { useUpdateStudent, useDeleteStudent } from '@/hooks/useStudents';
+import { useCreateStudent, useUpdateStudent, useDeleteStudent } from '@/hooks/useStudents';
 import { useCreateWhatsAppConversation } from '@/hooks/useWhatsApp';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
@@ -19,6 +19,21 @@ import { toast } from 'sonner';
 import type { Student } from '@/hooks/useStudents';
 import { useSectionSearch } from '@/hooks/useSectionSearch';
 import { filterBySearch } from '@/lib/sectionSearch';
+import { ImportCSVDialog } from '@/components/leads/ImportCSVDialog';
+import type { FieldDef } from '@/components/leads/ImportCSVDialog';
+import { generateCSV, downloadCSV, normalizePhone } from '@/lib/csvUtils';
+
+const STUDENT_FIELD_DEFS: FieldDef[] = [
+  { key: 'Name', label: 'Name', required: true, aliases: ['name', 'fullname', 'studentname', 'studentfullname', 'clientname', 'contactname', 'firstname'] },
+  { key: 'Phone', label: 'Phone / Mobile', required: true, aliases: ['phone', 'phoneno', 'phonenumber', 'mobile', 'mobileno', 'mobilenumber', 'contact', 'contactno', 'cell', 'whatsapp', 'ph', 'number'] },
+  { key: 'Email', label: 'Email', required: false, aliases: ['email', 'emailaddress', 'emailid', 'mail'] },
+  { key: 'Date of Birth', label: 'Date of Birth', required: false, aliases: ['dateofbirth', 'dob', 'birthdate', 'birthday', 'bod'] },
+  { key: 'Address', label: 'Address', required: false, aliases: ['address', 'location', 'city', 'area'] },
+  { key: 'Parent Name', label: 'Parent Name', required: false, aliases: ['parentname', 'fathername', 'mothername', 'guardianname', 'parent', 'guardian'] },
+  { key: 'Parent Phone', label: 'Parent Phone', required: false, aliases: ['parentphone', 'parentphoneno', 'parentmobile', 'fatherphone', 'motherphone', 'guardianphone', 'parentcontact'] },
+  { key: 'Parent Email', label: 'Parent Email', required: false, aliases: ['parentemail', 'fatheremail', 'motheremail', 'guardianemail'] },
+  { key: 'Stage', label: 'Stage / Status', required: false, aliases: ['stage', 'status', 'leadstage'] },
+];
 
 function AssignStudentSelect({ studentId, assignedTo }: { studentId: string, assignedTo?: string }) {
   const { data: profiles, isLoading } = useProfiles();
@@ -84,8 +99,10 @@ export function StudentsView() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const { data: students, isLoading } = useStudents();
   const deleteStudent = useDeleteStudent();
+  const createStudent = useCreateStudent();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
   const { search } = useSectionSearch();
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const filteredStudents = useMemo(
     () =>
@@ -212,6 +229,92 @@ export function StudentsView() {
     }
   };
 
+  const handleImport = async (data: Record<string, string>[]) => {
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const row of data) {
+      // Rows are pre-keyed by the column-mapping dialog (canonical keys)
+      const name = row['Name'];
+      const phone = row['Phone'];
+      const email = row['Email'];
+      const date_of_birth = row['Date of Birth'];
+      const address = row['Address'];
+      const parent_name = row['Parent Name'];
+      const parent_phone = row['Parent Phone'];
+      const parent_email = row['Parent Email'];
+      const stage = row['Stage'];
+
+      if (!name || !phone) {
+        errors.push(`Row missing required fields (Name and Phone)`);
+        continue;
+      }
+
+      const validStages = ['new_students', 'contacted', 'demo_scheduled', 'demo_attended', 'interested', 'fees_discussed', 'enrolled', 'lost'];
+      const normalizedStage = stage && validStages.includes(stage.toLowerCase())
+        ? (stage.toLowerCase() as any)
+        : 'new_students';
+
+      try {
+        await createStudent.mutateAsync({
+          name: name.trim(),
+          phone: normalizePhone(phone),
+          email: email?.trim() || null,
+          date_of_birth: date_of_birth?.trim() || null,
+          address: address?.trim() || null,
+          parent_name: parent_name?.trim() || null,
+          parent_phone: parent_phone ? normalizePhone(parent_phone) : null,
+          parent_email: parent_email?.trim() || null,
+          stage: normalizedStage,
+          created_by: null,
+          notes: [],
+          tags: [],
+        });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import ${name}: ${err.message || 'Unknown error'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      console.error(errors);
+      if (successCount === 0) {
+        throw new Error(`All imports failed. e.g. ${errors[0]}`);
+      } else {
+        toast.warning(`Imported ${successCount} students, but ${errors.length} failed.`);
+      }
+    }
+  };
+
+  const handleExport = () => {
+    if (!filteredStudents || filteredStudents.length === 0) {
+      toast.error('No students available to export');
+      return;
+    }
+    const headers = [
+      { key: 'name', label: 'Name' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'email', label: 'Email' },
+      { key: 'date_of_birth', label: 'Date of Birth' },
+      { key: 'address', label: 'Address' },
+      { key: 'parent_name', label: 'Parent Name' },
+      { key: 'parent_phone', label: 'Parent Phone' },
+      { key: 'parent_email', label: 'Parent Email' },
+      { key: 'stage', label: 'Stage' },
+      { key: 'created_at', label: 'Created At' },
+    ];
+    const formattedStudents = filteredStudents.map(student => ({
+      ...student,
+      phone: student.phone ? `\u200B${student.phone}` : '',
+      parent_phone: student.parent_phone ? `\u200B${student.parent_phone}` : '',
+      date_of_birth: student.date_of_birth ? format(new Date(student.date_of_birth), 'yyyy-MM-dd') : '',
+      created_at: student.created_at ? format(new Date(student.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+    const csvContent = generateCSV(headers, formattedStudents);
+    downloadCSV(csvContent, 'students.csv');
+    toast.success('Students exported successfully');
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -240,16 +343,26 @@ export function StudentsView() {
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
+
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImport}
+        sampleHeaders={['Name', 'Phone', 'Email', 'Date of Birth', 'Address', 'Parent Name', 'Parent Phone', 'Parent Email', 'Stage']}
+        fieldDefs={STUDENT_FIELD_DEFS}
+        title="Import Students"
+        templateFileName="students_template.csv"
+      />
 
       {/* Content */}
       {viewMode === 'pipeline' ? (

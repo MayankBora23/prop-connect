@@ -3,7 +3,7 @@ import { InternalLeadPipeline } from './InternalLeadPipeline';
 import { AddInternalLeadDialog } from './AddInternalLeadDialog';
 import { EditInternalLeadDialog } from './EditInternalLeadDialog';
 import { ScheduleDemoDialog } from '../ScheduleDemoDialog';
-import { useInternalLeads, type InternalLead, useDeleteInternalLead, useUpdateInternalLead } from '@/hooks/useInternalLeads';
+import { useInternalLeads, type InternalLead, useDeleteInternalLead, useUpdateInternalLead, useCreateInternalLead } from '@/hooks/useInternalLeads';
 import { cn } from '@/lib/utils';
 import {
   LayoutGrid,
@@ -40,6 +40,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { LeadHistorySheet } from '@/components/history/LeadHistorySheet';
+import { ImportCSVDialog } from '@/components/leads/ImportCSVDialog';
+import type { FieldDef } from '@/components/leads/ImportCSVDialog';
+import { generateCSV, downloadCSV, normalizePhone } from '@/lib/csvUtils';
+
+const INTERNAL_LEAD_FIELD_DEFS: FieldDef[] = [
+  { key: 'Lead Name', label: 'Lead Name (Contact)', required: true, aliases: ['leadname', 'name', 'fullname', 'contactname', 'contactperson', 'person', 'firstname'] },
+  { key: 'Phone', label: 'Phone / Mobile', required: true, aliases: ['phone', 'phoneno', 'phonenumber', 'mobile', 'mobileno', 'contact', 'contactno', 'cell', 'whatsapp', 'ph', 'number'] },
+  { key: 'Company Name', label: 'Company Name', required: false, aliases: ['companyname', 'company', 'organization', 'businessname', 'firm'] },
+  { key: 'Industry', label: 'Industry', required: false, aliases: ['industry', 'industrytype', 'sector', 'businesstype'] },
+  { key: 'Email', label: 'Email', required: false, aliases: ['email', 'emailaddress', 'emailid', 'mail'] },
+  { key: 'Address', label: 'Address', required: false, aliases: ['address', 'location', 'city', 'area'] },
+  { key: 'User Limit', label: 'User Limit', required: false, aliases: ['userlimit', 'limit', 'seats', 'users', 'maxusers'] },
+  { key: 'Stage', label: 'Stage / Status', required: false, aliases: ['stage', 'status', 'leadstage', 'leadstatus'] },
+];
 
 const internalStageOptions = [
   { value: 'new', label: 'New' },
@@ -89,8 +103,10 @@ export function InternalLeadsView() {
   const { data: leads, isLoading } = useInternalLeads();
   const deleteLead = useDeleteInternalLead();
   const updateLead = useUpdateInternalLead();
+  const createLead = useCreateInternalLead();
   const createWhatsAppConversation = useCreateWhatsAppConversation();
   const { data: company } = useCurrentCompany();
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const filteredLeads = useMemo(() => {
     return (leads || []).filter((lead) => {
@@ -176,6 +192,89 @@ export function InternalLeadsView() {
     }
   };
 
+  const handleImport = async (data: Record<string, string>[]) => {
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const row of data) {
+      // Rows are pre-keyed by the column-mapping dialog (canonical keys)
+      const company_name = row['Company Name'];
+      const lead_name = row['Lead Name'];
+      const phone_no = row['Phone'];
+      const email = row['Email'];
+      const address = row['Address'];
+      const industry = row['Industry'];
+      const user_limit = row['User Limit'];
+      const stage = row['Stage'];
+
+      if (!lead_name || !phone_no) {
+        errors.push(`Row missing required fields (Lead Name and Phone)`);
+        continue;
+      }
+
+      const defaultCompany = company_name ? company_name.trim() : `${lead_name.trim()}'s Co`;
+      const validIndustries = ['real_estate', 'education', 'automobile_dealers', 'internal_crm'];
+      const rawIndustry = industry ? industry.toLowerCase().replace(/[\s_]+/g, '_') : 'internal_crm';
+      const formattedIndustry = validIndustries.includes(rawIndustry) ? rawIndustry : 'internal_crm';
+
+      const validStages = ['new', 'contacted', 'demo_scheduled', 'trial_started', 'closed_won', 'closed-lost'];
+      const normalizedStage = stage && validStages.includes(stage.toLowerCase())
+        ? (stage.toLowerCase() as any)
+        : 'new';
+
+      try {
+        await createLead.mutateAsync({
+          company_name: defaultCompany,
+          lead_name: lead_name.trim(),
+          phone_no: normalizePhone(phone_no),
+          email: email?.trim() || null,
+          address: address?.trim() || null,
+          industry: formattedIndustry as any,
+          user_limit: user_limit ? Number(user_limit) : null,
+          stage: normalizedStage,
+        });
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Failed to import ${lead_name}: ${err.message || 'Unknown error'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      console.error(errors);
+      if (successCount === 0) {
+        throw new Error(`All imports failed. e.g. ${errors[0]}`);
+      } else {
+        toast.warning(`Imported ${successCount} leads, but ${errors.length} failed.`);
+      }
+    }
+  };
+
+  const handleExport = () => {
+    if (!filteredLeads || filteredLeads.length === 0) {
+      toast.error('No leads available to export');
+      return;
+    }
+    const headers = [
+      { key: 'company_name', label: 'Company Name' },
+      { key: 'lead_name', label: 'Lead Name' },
+      { key: 'phone_no', label: 'Phone' },
+      { key: 'email', label: 'Email' },
+      { key: 'address', label: 'Address' },
+      { key: 'industry', label: 'Industry' },
+      { key: 'user_limit', label: 'User Limit' },
+      { key: 'stage', label: 'Stage' },
+      { key: 'created_at', label: 'Created At' },
+    ];
+    const formattedLeads = filteredLeads.map(lead => ({
+      ...lead,
+      phone_no: lead.phone_no ? `\u200B${lead.phone_no}` : '',
+      created_at: lead.created_at ? format(new Date(lead.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+    const csvContent = generateCSV(headers, formattedLeads);
+    downloadCSV(csvContent, 'internal_leads.csv');
+    toast.success('Leads exported successfully');
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -213,16 +312,26 @@ export function InternalLeadsView() {
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
+
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImport}
+        sampleHeaders={['Company Name', 'Lead Name', 'Phone', 'Email', 'Address', 'Industry', 'User Limit', 'Stage']}
+        fieldDefs={INTERNAL_LEAD_FIELD_DEFS}
+        title="Import Platform Leads"
+        templateFileName="internal_leads_template.csv"
+      />
 
       {/* Content */}
       {viewMode === 'pipeline' ? (
