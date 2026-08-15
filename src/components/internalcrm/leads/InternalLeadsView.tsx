@@ -278,12 +278,13 @@ export function InternalLeadsView() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant={viewMode === 'pipeline' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('pipeline')}
+            className="flex-1 sm:flex-none"
           >
             <LayoutGrid className="w-4 h-4 mr-2" />
             Pipeline
@@ -292,31 +293,32 @@ export function InternalLeadsView() {
             variant={viewMode === 'list' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('list')}
+            className="flex-1 sm:flex-none"
           >
             <List className="w-4 h-4 mr-2" />
             List
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="pl-9 h-9 w-64 bg-background"
+              className="pl-9 h-9 w-full bg-background"
               placeholder="Search leads..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-none">
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

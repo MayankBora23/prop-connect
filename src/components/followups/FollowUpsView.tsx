@@ -136,7 +136,9 @@ export function FollowUpsView() {
 
         {/* Table skeleton */}
         <div className="card-elevated overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+<table className="w-full">
+
             <thead className="bg-secondary">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
@@ -159,7 +161,9 @@ export function FollowUpsView() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          
+</table>
+</div>
         </div>
       </div>
     );
@@ -215,7 +219,9 @@ export function FollowUpsView() {
             Leads in Follow-up Stage
           </h3>
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
@@ -273,7 +279,9 @@ export function FollowUpsView() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         </div>
       )}
@@ -286,7 +294,9 @@ export function FollowUpsView() {
         </h3>
         {pendingFollowUps.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
@@ -373,7 +383,9 @@ export function FollowUpsView() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No pending follow-ups</p>
@@ -388,7 +400,9 @@ export function FollowUpsView() {
         </h3>
         {completedFollowUps.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
@@ -448,7 +462,9 @@ export function FollowUpsView() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No completed follow-ups</p>
@@ -463,7 +479,9 @@ export function FollowUpsView() {
         </h3>
         {missedFollowUps.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
@@ -523,7 +541,9 @@ export function FollowUpsView() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No missed follow-ups</p>

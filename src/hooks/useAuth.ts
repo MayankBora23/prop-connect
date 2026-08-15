@@ -171,8 +171,43 @@ export function useAuth() {
     clearCompanyIdCache();
     queryClient.clear();
 
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn('Server sign-out returned error:', error);
+      }
+    } catch (err) {
+      console.warn('Sign-out exception:', err);
+    }
+
+    // Forcefully clean up local storage and session storage of any Supabase auth tokens
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      const sessionKeysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+    } catch (e) {
+      console.error('Failed to manually clear storage keys:', e);
+    }
+
+    // Explicitly update React states
+    setSession(null);
+    setUser(null);
+
+    return { error: null };
   };
 
   return {

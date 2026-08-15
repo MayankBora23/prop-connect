@@ -218,7 +218,9 @@ export function EnrollmentsView() {
 
       {/* Enrollments Table */}
       <div className="card-elevated overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+<table className="w-full">
+
           <thead className="bg-secondary">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Student</th>
@@ -268,7 +270,9 @@ export function EnrollmentsView() {
               ))
             )}
           </tbody>
-        </table>
+        
+</table>
+</div>
       </div>
     </div>
   );

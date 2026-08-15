@@ -69,7 +69,9 @@ export function TaskManagement() {
         <div>
           <Skeleton className="h-6 w-32 mb-4" />
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
@@ -90,13 +92,17 @@ export function TaskManagement() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         </div>
         <div>
           <Skeleton className="h-6 w-28 mb-4" />
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
@@ -117,7 +123,9 @@ export function TaskManagement() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         </div>
       </div>
@@ -136,7 +144,9 @@ export function TaskManagement() {
         </h3>
         {assigned.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task</th>
@@ -216,7 +226,9 @@ export function TaskManagement() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No assigned tasks</p>
@@ -231,7 +243,9 @@ export function TaskManagement() {
         </h3>
         {pending.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task</th>
@@ -311,7 +325,9 @@ export function TaskManagement() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No pending tasks</p>
@@ -326,7 +342,9 @@ export function TaskManagement() {
         </h3>
         {completed.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task</th>
@@ -392,7 +410,9 @@ export function TaskManagement() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No completed tasks yet</p>

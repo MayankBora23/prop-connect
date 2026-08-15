@@ -129,16 +129,16 @@ export function TransactionHistory() {
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end">
         <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">From</span>
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[160px]" />
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full sm:w-[160px]" />
         </div>
         <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">To</span>
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[160px]" />
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full sm:w-[160px]" />
         </div>
         <div className="grid gap-1">
           <span className="text-xs text-muted-foreground">Type</span>
           <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as 'all' | 'credit' | 'debit' | 'telephony')}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
@@ -155,7 +155,7 @@ export function TransactionHistory() {
             value={providerFilter}
             onValueChange={(v) => setProviderFilter(v as 'all' | 'twilio' | 'meta' | 'callerdesk')}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Provider" />
             </SelectTrigger>
             <SelectContent>
@@ -172,7 +172,7 @@ export function TransactionHistory() {
             value={serviceFilter}
             onValueChange={(v) => setServiceFilter(v as 'all' | 'whatsapp' | 'call')}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Service" />
             </SelectTrigger>
             <SelectContent>
@@ -182,12 +182,12 @@ export function TransactionHistory() {
             </SelectContent>
           </Select>
         </div>
-        <Button type="button" variant="outline" onClick={exportCsv}>
+        <Button type="button" variant="outline" onClick={exportCsv} className="w-full sm:w-auto">
           Export CSV
         </Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

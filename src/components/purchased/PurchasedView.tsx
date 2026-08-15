@@ -168,7 +168,7 @@ function DealPriceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Set Deal Price</DialogTitle>
           <DialogDescription>
@@ -255,7 +255,7 @@ function CommissionPctDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Set {field === 'buyer_commission_pct' ? 'Buyer' : 'Seller'} Commission</DialogTitle>
           <DialogDescription>
@@ -457,7 +457,7 @@ function AddPaymentDialog({ lead, open, onOpenChange }: { lead: Lead; open: bool
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Payment</DialogTitle>
           <DialogDescription>

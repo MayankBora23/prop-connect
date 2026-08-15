@@ -535,28 +535,30 @@ export function CompanySettingsView() {
   return (
     <div className="max-w-3xl mx-auto">
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className={cn('grid w-full', gridColsClass)}>
-          <TabsTrigger value="company" className="flex items-center gap-2">
+      <div className="overflow-x-auto w-full bg-muted p-1 rounded-lg">
+        <TabsList className={cn('flex flex-nowrap w-max sm:grid sm:w-full bg-transparent p-0', gridColsClass)}>
+          <TabsTrigger value="company" className="flex items-center gap-2 shrink-0">
             <Building2 className="w-4 h-4" />
             <span>Company & WhatsApp</span>
           </TabsTrigger>
-          <TabsTrigger value="meta" className="flex items-center gap-2">
+          <TabsTrigger value="meta" className="flex items-center gap-2 shrink-0">
             <Facebook className="w-4 h-4" />
             <span>Meta Lead Ads & WhatsApp</span>
           </TabsTrigger>
           {showThirdPartyTab && (
-            <TabsTrigger value="integrations" className="flex items-center gap-2">
+            <TabsTrigger value="integrations" className="flex items-center gap-2 shrink-0">
               <Plug className="w-4 h-4" />
               <span>3rd Party Integration</span>
             </TabsTrigger>
           )}
           {showAiBotTab && (
-            <TabsTrigger value="ai-bot" className="flex items-center gap-2">
+            <TabsTrigger value="ai-bot" className="flex items-center gap-2 shrink-0">
               <Bot className="w-4 h-4" />
               <span>AI Bot</span>
             </TabsTrigger>
           )}
         </TabsList>
+      </div>
 
         <TabsContent value="company" className="space-y-6">
           <Card>
@@ -655,7 +657,7 @@ export function CompanySettingsView() {
                     onValueChange={(v) => handleWhatsappProviderChange(v as 'twilio' | 'meta')}
                     disabled={updateCompany.isPending}
                   >
-                    <SelectTrigger className="w-[220px]">
+                    <SelectTrigger className="w-full sm:w-[220px]">
                       <SelectValue placeholder="Select provider" />
                     </SelectTrigger>
                     <SelectContent>
@@ -907,7 +909,7 @@ export function CompanySettingsView() {
                           disabled={isSavingTelephonyProvider || updateWhatsAppSettings.isPending || createWhatsAppSettings.isPending}
                         >
                           <FormControl>
-                            <SelectTrigger className="w-[260px]">
+                            <SelectTrigger className="w-full sm:w-[260px]">
                               <SelectValue placeholder="Select provider" />
                             </SelectTrigger>
                           </FormControl>

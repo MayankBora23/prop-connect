@@ -85,23 +85,25 @@ export function EmployeesView() {
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
+            <Filter className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Filters</span>
           </Button>
           <Button variant="outline" size="sm">
-            <Upload className="w-4 h-4 mr-2" />
-            Import CSV
+            <Upload className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Import CSV</span>
           </Button>
           <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+            <Download className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export</span>
           </Button>
         </div>
       </div>
 
       {/* Content */}
       <div className="card-elevated overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+<table className="w-full">
+
           <thead className="bg-secondary">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee ID</th>
@@ -226,7 +228,9 @@ export function EmployeesView() {
               ))
             )}
           </tbody>
-        </table>
+        
+</table>
+</div>
       </div>
 
       <EditEmployeeDialog

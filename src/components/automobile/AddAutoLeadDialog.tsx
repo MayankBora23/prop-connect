@@ -108,7 +108,7 @@ export function AddAutoLeadDialog({ open, onOpenChange }: AddAutoLeadDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Auto Lead</DialogTitle>
           <DialogDescription>

@@ -50,11 +50,11 @@ import { CompanyBillingHistoryDialog } from './CompanyBillingHistoryDialog';
 import { Wallet } from 'lucide-react';
 import { CompanyWalletHistoryDialog } from './CompanyWalletHistoryDialog';
 import {
-  useExtendTrial,
-  useAllCompanySubscriptions,
-  computeExtendedTrialEnd,
-  computeSubscriptionFields,
-  type AllCompanySubscriptionRow,
+    useExtendTrial,
+    useAllCompanySubscriptions,
+    computeExtendedTrialEnd,
+    computeSubscriptionFields,
+    type AllCompanySubscriptionRow,
 } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 import { useSectionSearch } from '@/hooks/useSectionSearch';
@@ -347,32 +347,34 @@ export const CompaniesView = () => {
     if (isLoading) {
         return (
             <div className="card-elevated overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-secondary">
-                        <tr>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan & Billing</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registered On</th>
-                            {isInternalCRM && <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <tr key={i}>
-                                <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
-                                <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
-                                <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
-                                <td className="px-4 py-3"><Skeleton className="h-12 w-36" /></td>
-                                <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
-                                <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
-                                {isInternalCRM && <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>}
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-secondary">
+                            <tr>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan & Billing</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registered On</th>
+                                {isInternalCRM && <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i}>
+                                    <td className="px-4 py-3"><Skeleton className="h-10 w-40" /></td>
+                                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                                    <td className="px-4 py-3"><Skeleton className="h-12 w-36" /></td>
+                                    <td className="px-4 py-3"><Skeleton className="h-8 w-32" /></td>
+                                    <td className="px-4 py-3"><Skeleton className="h-8 w-24" /></td>
+                                    {isInternalCRM && <td className="px-4 py-3"><Skeleton className="h-8 w-16" /></td>}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     }
@@ -380,149 +382,151 @@ export const CompaniesView = () => {
     return (
         <>
             <div className="card-elevated overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-secondary">
-                        <tr>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan & Billing</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registered On</th>
-                            {isInternalCRM && <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                        {filteredCompanies && filteredCompanies.length === 0 ? (
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-secondary">
                             <tr>
-                                <td colSpan={isInternalCRM ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
-                                    No companies found.
-                                </td>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Plan & Billing</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Registered On</th>
+                                {isInternalCRM && <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>}
                             </tr>
-                        ) : (
-                            filteredCompanies?.map((company) => (
-                                <tr key={company.id} className="hover:bg-secondary/50 transition-colors">
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center text-white shrink-0">
-                                                <Building2 className="w-5 h-5" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-foreground font-semibold uppercase tracking-tight">
-                                                    {company.name}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                                    ID: {company.id.slice(0, 8)}...
-                                                </span>
-                                            </div>
-                                        </div>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {filteredCompanies && filteredCompanies.length === 0 ? (
+                                <tr>
+                                    <td colSpan={isInternalCRM ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
+                                        No companies found.
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                <Mail className="w-3.5 h-3.5" />
-                                                {company.email || 'No email provided'}
-                                            </div>
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                <Phone className="w-3.5 h-3.5" />
-                                                {company.phone || 'No phone'}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {getIndustryBadge(company.industry)}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {company.industry !== 'internal_crm' ? (
-                                            <CompanyPlanBillingCell sub={subscriptionByCompany.get(company.id)} />
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                            <MapPin className="w-3.5 h-3.5" />
-                                            {company.address || 'N/A'}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                                        {format(new Date(company.created_at), 'MMM dd, yyyy')}
-                                    </td>
-                                    {isInternalCRM && (
+                                </tr>
+                            ) : (
+                                filteredCompanies?.map((company) => (
+                                    <tr key={company.id} className="hover:bg-secondary/50 transition-colors">
                                         <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleEditClick(company)}
-                                                    className="h-8 w-8 p-0"
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSettingsClick(company)}
-                                                    className="h-8 w-8 p-0"
-                                                    title="Settings"
-                                                >
-                                                    <SettingsIcon className="h-4 w-4" />
-                                                </Button>
-                                                {company.industry !== 'internal_crm' && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="text-orange-600 border-orange-200 hover:bg-orange-50 h-8 w-8 p-0"
-                                                        onClick={() => openExtendTrialDialog(company)}
-                                                        title="Extend trial period"
-                                                    >
-                                                        <Timer className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-                                                {company.industry !== 'internal_crm' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                                        onClick={() => handleBillingHistoryClick(company)}
-                                                        title="Billing History"
-                                                    >
-                                                        <History className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                                {company.industry !== 'internal_crm' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                                        onClick={() => handleWalletHistoryClick(company)}
-                                                        title="Wallet Top-up History"
-                                                    >
-                                                        <Wallet className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteClick(company)}
-                                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center text-white shrink-0">
+                                                    <Building2 className="w-5 h-5" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-foreground font-semibold uppercase tracking-tight">
+                                                        {company.name}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                                        ID: {company.id.slice(0, 8)}...
+                                                    </span>
+                                                </div>
                                             </div>
                                         </td>
-                                    )}
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Mail className="w-3.5 h-3.5" />
+                                                    {company.email || 'No email provided'}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Phone className="w-3.5 h-3.5" />
+                                                    {company.phone || 'No phone'}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {getIndustryBadge(company.industry)}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {company.industry !== 'internal_crm' ? (
+                                                <CompanyPlanBillingCell sub={subscriptionByCompany.get(company.id)} />
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <MapPin className="w-3.5 h-3.5" />
+                                                {company.address || 'N/A'}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                                            {format(new Date(company.created_at), 'MMM dd, yyyy')}
+                                        </td>
+                                        {isInternalCRM && (
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleEditClick(company)}
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleSettingsClick(company)}
+                                                        className="h-8 w-8 p-0"
+                                                        title="Settings"
+                                                    >
+                                                        <SettingsIcon className="h-4 w-4" />
+                                                    </Button>
+                                                    {company.industry !== 'internal_crm' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-orange-600 border-orange-200 hover:bg-orange-50 h-8 w-8 p-0"
+                                                            onClick={() => openExtendTrialDialog(company)}
+                                                            title="Extend trial period"
+                                                        >
+                                                            <Timer className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
+                                                    {company.industry !== 'internal_crm' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                                            onClick={() => handleBillingHistoryClick(company)}
+                                                            title="Billing History"
+                                                        >
+                                                            <History className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    {company.industry !== 'internal_crm' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                                            onClick={() => handleWalletHistoryClick(company)}
+                                                            title="Wallet Top-up History"
+                                                        >
+                                                            <Wallet className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteClick(company)}
+                                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Edit Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Company</DialogTitle>
                         <DialogDescription>
@@ -671,20 +675,20 @@ export const CompaniesView = () => {
             )}
 
             <Dialog open={extendTrialOpen} onOpenChange={setExtendTrialOpen}>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Extend Trial — {subscriptionCompany?.name}</DialogTitle>
                         <DialogDescription>
                             Current trial end:{' '}
                             {subscriptionCompany &&
-                            subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at
+                                subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at
                                 ? format(
-                                      new Date(
-                                          subscriptionByCompany.get(subscriptionCompany.id)!
-                                              .trial_ends_at
-                                      ),
-                                      'dd MMM yyyy'
-                                  )
+                                    new Date(
+                                        subscriptionByCompany.get(subscriptionCompany.id)!
+                                            .trial_ends_at
+                                    ),
+                                    'dd MMM yyyy'
+                                )
                                 : '—'}
                         </DialogDescription>
                     </DialogHeader>
@@ -701,18 +705,18 @@ export const CompaniesView = () => {
                             <p className="text-xs text-muted-foreground">
                                 New trial end will be:{' '}
                                 {subscriptionCompany &&
-                                subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at
+                                    subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at
                                     ? format(
-                                          computeExtendedTrialEnd(
-                                              subscriptionByCompany.get(subscriptionCompany.id)!
-                                                  .trial_ends_at,
-                                              extendDays
-                                          ),
-                                          'dd MMM yyyy'
-                                      )
+                                        computeExtendedTrialEnd(
+                                            subscriptionByCompany.get(subscriptionCompany.id)!
+                                                .trial_ends_at,
+                                            extendDays
+                                        ),
+                                        'dd MMM yyyy'
+                                    )
                                     : subscriptionCompany
-                                      ? format(addDays(new Date(), extendDays), 'dd MMM yyyy')
-                                      : '—'}
+                                        ? format(addDays(new Date(), extendDays), 'dd MMM yyyy')
+                                        : '—'}
                             </p>
                             {subscriptionCompany &&
                                 subscriptionByCompany.get(subscriptionCompany.id)?.trial_ends_at &&
@@ -854,7 +858,7 @@ const CompanySettingsDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center justify-between pr-6">
                         <span>Manage Company: {company.name}</span>

@@ -127,7 +127,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Vehicle Booking</DialogTitle>
           <DialogDescription>

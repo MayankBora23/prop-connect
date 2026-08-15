@@ -130,7 +130,9 @@ export function SiteVisitsView() {
         <div>
           <Skeleton className="h-6 w-48 mb-4" />
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-16" /></th>
@@ -153,13 +155,17 @@ export function SiteVisitsView() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         </div>
         <div>
           <Skeleton className="h-6 w-40 mb-4" />
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"><Skeleton className="h-4 w-12" /></th>
@@ -182,7 +188,9 @@ export function SiteVisitsView() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         </div>
       </div>
@@ -199,7 +207,9 @@ export function SiteVisitsView() {
         </h3>
         {siteVisitLeads.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
@@ -262,7 +272,9 @@ export function SiteVisitsView() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No leads in site visit stage</p>
@@ -277,7 +289,9 @@ export function SiteVisitsView() {
         </h3>
         {scheduledVisits.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
@@ -364,7 +378,9 @@ export function SiteVisitsView() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No scheduled visits</p>
@@ -379,7 +395,9 @@ export function SiteVisitsView() {
         </h3>
         {completedVisits.length > 0 ? (
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
@@ -436,7 +454,9 @@ export function SiteVisitsView() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">No completed visits</p>
@@ -451,7 +471,9 @@ export function SiteVisitsView() {
             Cancelled ({cancelledVisits.length})
           </h3>
           <div className="card-elevated overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+<table className="w-full">
+
               <thead className="bg-secondary">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lead</th>
@@ -508,7 +530,9 @@ export function SiteVisitsView() {
                   );
                 })}
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
         </div>
       )}

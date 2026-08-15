@@ -329,8 +329,8 @@ export function TemplatesView() {
       {/* Main List Table Card */}
       <Card className="bg-card shadow-sm">
         <Tabs defaultValue="all" value={statusFilter} onValueChange={setStatusFilter}>
-          <div className="px-6 pt-4 border-b border-border flex justify-between items-center">
-            <TabsList className="bg-transparent space-x-1 p-0 h-auto">
+          <div className="px-6 pt-4 border-b border-border flex justify-between items-center overflow-x-auto w-full">
+            <TabsList className="bg-transparent space-x-1 p-0 h-auto flex flex-nowrap shrink-0">
               <TabsTrigger value="all" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-3 px-4 text-xs font-semibold">
                 All
               </TabsTrigger>
@@ -355,91 +355,93 @@ export function TemplatesView() {
                 <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
               </div>
             ) : filteredTemplates.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[30%]">Template Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                    <TableHead className="w-[10%] text-right pr-6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTemplates.map((template) => (
-                    <TableRow key={template.id} className="hover:bg-muted/30">
-                      <TableCell className="font-semibold text-foreground">
-                        <div className="space-y-1">
-                          <span className="block truncate max-w-[250px]">{template.template_name}</span>
-                          {template.rejection_reason && (
-                            <span className="text-[10px] text-destructive block bg-red-50/50 p-1.5 rounded border border-red-100 max-w-md">
-                              Rejection: {template.rejection_reason}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {template.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(template.status)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {format(new Date(template.updated_at), 'MMM dd, yyyy h:mm a')}
-                      </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {/* Action configurations per status */}
-                            {template.status === 'draft' && (
-                              <>
-                                <DropdownMenuItem onClick={() => { setSelectedTemplate(template); setActiveView('create'); }}>
-                                  <Edit2 className="w-4 h-4 mr-2" /> Edit Draft
-                                </DropdownMenuItem>
-                                {isAdminOrManager && (
-                                  <DropdownMenuItem onClick={() => handleSubmit(template.id)}>
-                                    <Send className="w-4 h-4 mr-2" /> Submit to Meta
-                                  </DropdownMenuItem>
-                                )}
-                              </>
-                            )}
-
-                            {template.status === 'rejected' && (
-                              <DropdownMenuItem onClick={() => { setSelectedTemplate(template); setActiveView('create'); }}>
-                                <Edit2 className="w-4 h-4 mr-2" /> Edit & Resubmit
-                              </DropdownMenuItem>
-                            )}
-
-                            {['pending', 'approved', 'rejected'].includes(template.status) && (
-                              <DropdownMenuItem onClick={() => setPreviewTemplate(template)}>
-                                <Eye className="w-4 h-4 mr-2" /> View Details
-                              </DropdownMenuItem>
-                            )}
-
-                            {template.status === 'approved' && (
-                              <DropdownMenuItem onClick={() => handleClone(template)}>
-                                <Copy className="w-4 h-4 mr-2" /> Clone Template
-                              </DropdownMenuItem>
-                            )}
-
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(template.id, template.template_name)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[30%]">Template Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Updated</TableHead>
+                      <TableHead className="w-[10%] text-right pr-6">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTemplates.map((template) => (
+                      <TableRow key={template.id} className="hover:bg-muted/30">
+                        <TableCell className="font-semibold text-foreground">
+                          <div className="space-y-1">
+                            <span className="block truncate max-w-[250px]">{template.template_name}</span>
+                            {template.rejection_reason && (
+                              <span className="text-[10px] text-destructive block bg-red-50/50 p-1.5 rounded border border-red-100 max-w-md">
+                                Rejection: {template.rejection_reason}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {template.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(template.status)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(template.updated_at), 'MMM dd, yyyy h:mm a')}
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {/* Action configurations per status */}
+                              {template.status === 'draft' && (
+                                <>
+                                  <DropdownMenuItem onClick={() => { setSelectedTemplate(template); setActiveView('create'); }}>
+                                    <Edit2 className="w-4 h-4 mr-2" /> Edit Draft
+                                  </DropdownMenuItem>
+                                  {isAdminOrManager && (
+                                    <DropdownMenuItem onClick={() => handleSubmit(template.id)}>
+                                      <Send className="w-4 h-4 mr-2" /> Submit to Meta
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
+                              )}
+
+                              {template.status === 'rejected' && (
+                                <DropdownMenuItem onClick={() => { setSelectedTemplate(template); setActiveView('create'); }}>
+                                  <Edit2 className="w-4 h-4 mr-2" /> Edit & Resubmit
+                                </DropdownMenuItem>
+                              )}
+
+                              {['pending', 'approved', 'rejected'].includes(template.status) && (
+                                <DropdownMenuItem onClick={() => setPreviewTemplate(template)}>
+                                  <Eye className="w-4 h-4 mr-2" /> View Details
+                                </DropdownMenuItem>
+                              )}
+
+                              {template.status === 'approved' && (
+                                <DropdownMenuItem onClick={() => handleClone(template)}>
+                                  <Copy className="w-4 h-4 mr-2" /> Clone Template
+                                </DropdownMenuItem>
+                              )}
+
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(template.id, template.template_name)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <div className="text-center py-20 text-muted-foreground bg-card flex flex-col items-center justify-center gap-2">
                 <AlertCircle className="w-8 h-8 opacity-20" />
@@ -452,7 +454,7 @@ export function TemplatesView() {
 
       {/* Details View Dialog */}
       <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="truncate font-bold">{previewTemplate?.template_name.replace(/_/g, ' ')}</DialogTitle>
             <DialogDescription className="font-mono text-xs text-muted-foreground">{previewTemplate?.template_name}</DialogDescription>

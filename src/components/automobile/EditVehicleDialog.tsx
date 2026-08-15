@@ -189,7 +189,7 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Vehicle</DialogTitle>
           <DialogDescription>

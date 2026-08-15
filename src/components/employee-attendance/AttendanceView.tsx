@@ -112,12 +112,13 @@ export function AttendanceView() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Button
             variant={viewMode === 'daily' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('daily')}
+            className="flex-1 sm:flex-none"
           >
             <Calendar className="w-4 h-4 mr-2" />
             Daily View
@@ -126,6 +127,7 @@ export function AttendanceView() {
             variant={viewMode === 'monthly' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('monthly')}
+            className="flex-1 sm:flex-none"
           >
             <LayoutGrid className="w-4 h-4 mr-2" />
             Monthly View
@@ -134,18 +136,19 @@ export function AttendanceView() {
             variant={viewMode === 'employee' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('employee')}
+            className="flex-1 sm:flex-none"
           >
             <Users className="w-4 h-4 mr-2" />
             Employee View
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
             <Upload className="w-4 h-4 mr-2" />
             Import
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -153,50 +156,53 @@ export function AttendanceView() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap w-full">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
           <Input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-40"
+            className="w-full sm:w-40"
           />
         </div>
 
-        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Departments" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            {departments.map(dept => (
-              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger className="w-full sm:w-40 flex-1 sm:flex-none">
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="present">Present</SelectItem>
-            <SelectItem value="absent">Absent</SelectItem>
-            <SelectItem value="half_day">Half Day</SelectItem>
-            <SelectItem value="leave">Leave</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40 flex-1 sm:flex-none">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="present">Present</SelectItem>
+              <SelectItem value="absent">Absent</SelectItem>
+              <SelectItem value="half_day">Half Day</SelectItem>
+              <SelectItem value="leave">Leave</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleBulkMarkAbsent}
-          disabled={bulkMarkAttendance.isPending}
-        >
-          Mark All Absent
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBulkMarkAbsent}
+            disabled={bulkMarkAttendance.isPending}
+            className="w-full sm:w-auto"
+          >
+            Mark All Absent
+          </Button>
+        </div>
       </div>
 
       {/* Content */}

@@ -14,12 +14,13 @@ import { useAllCompanies, useCurrentCompany } from '@/hooks/useCompany';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useInternalLeads } from '@/hooks/useInternalLeads';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Building2, SendHorizontal, User, Home, RefreshCw, LayoutTemplate, Bell } from 'lucide-react';
+import { ChevronLeft, Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Building2, SendHorizontal, User, Home, RefreshCw, LayoutTemplate, Bell, ArrowLeft } from 'lucide-react';
 import { TemplateSelectorDialog } from '../whatsapp-templates/TemplateSelectorDialog';
 import { useApprovedTemplates, useSendTemplate } from '@/hooks/useWhatsAppTemplates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -44,6 +45,7 @@ import { AgentAvailabilitySelector } from '../inbox/AgentAvailabilitySelector';
 
 export function InternalCRMWhatsAppInbox() {
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+    const isMobile = useIsMobile();
     const [newMessage, setNewMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteContactDialogOpen, setDeleteContactDialogOpen] = useState(false);
@@ -500,8 +502,12 @@ export function InternalCRMWhatsAppInbox() {
 
     if (conversationsLoading) {
         return (
-            <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
-                <div className="w-80 border-r border-border flex flex-col">
+            <div className="flex h-[calc(100vh-120px)] md:h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
+                <div className={cn(
+                    'border-r border-border flex flex-col',
+                    'w-full md:w-80 shrink-0',
+                    isMobile && selectedConversationId ? 'hidden' : 'flex'
+                )}>
                     <div className="p-4 border-b border-border">
                         <Skeleton className="h-10 w-full" />
                     </div>
@@ -517,9 +523,13 @@ export function InternalCRMWhatsAppInbox() {
     }
 
     return (
-        <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in bg-background">
+        <div className="flex h-[calc(100vh-120px)] md:h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in bg-background">
             {/* Conversations List */}
-            <div className="w-80 border-r border-border flex flex-col bg-card">
+            <div className={cn(
+                'border-r border-border flex flex-col bg-card',
+                'w-full md:w-80 shrink-0',
+                isMobile && selectedConversationId ? 'hidden' : 'flex'
+            )}>
                 <div className="p-4 border-b border-border space-y-3">
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-semibold text-foreground flex-1">Conversations</h2>
@@ -597,10 +607,22 @@ export function InternalCRMWhatsAppInbox() {
 
             {/* Chat Area */}
             {activeConversation ? (
-                <div className="flex-1 flex flex-col bg-secondary/10">
+                <div className={cn(
+                    'flex-1 flex flex-col overflow-hidden bg-secondary/10',
+                    isMobile && !selectedConversationId ? 'hidden' : 'flex'
+                )}>
                     {/* Chat Header */}
-                    <div className="h-16 px-6 flex items-center justify-between border-b border-border bg-card shadow-sm z-10">
+                    <div className="min-h-16 py-2 px-6 flex flex-col sm:flex-row sm:items-center justify-between border-b border-border bg-card shadow-sm z-10 gap-2">
                         <div className="flex items-center gap-4">
+                            {isMobile && selectedConversationId && (
+                                <button
+                                    onClick={() => setSelectedConversationId(null)}
+                                    className="md:hidden p-2 -ml-1 rounded-md hover:bg-accent shrink-0"
+                                    aria-label="Back to conversations"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                            )}
                             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
                                 {getContactName(activeConversation.contact_phone, activeConversation.contact_name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                             </div>
@@ -613,62 +635,63 @@ export function InternalCRMWhatsAppInbox() {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
                             {activeConversation && currentProfile?.company_id && (
                                 <ChatHeaderControls
                                     conversation={activeConversation}
                                     companyId={currentProfile.company_id}
                                     currentUserRole={currentUserRole}
                                     currentProfileId={currentProfileId}
-                                />
+                                >
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-full">
+                                                <MoreVertical className="h-5 w-5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem onClick={() => setSaveInternalLeadDialogOpen(true)}>
+                                                <Edit className="mr-2 h-4 w-4" />
+                                                Save Lead
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => {
+                                                    if (confirm('Are you sure you want to clear all messages in this chat?')) {
+                                                        clearChat.mutate(activeConversation.id);
+                                                    }
+                                                }}
+                                            >
+                                                <MessageSquareOff className="mr-2 h-4 w-4" />
+                                                Clear Chat
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => setReminderDialogOpen(true)}
+                                                disabled={!activeConversation}
+                                            >
+                                                <Bell className="mr-2 h-4 w-4" />
+                                                Set Reminder
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onClick={() => setDeleteContactDialogOpen(true)}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Delete Contact
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </ChatHeaderControls>
                             )}
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setSaveInternalLeadDialogOpen(true)}
-                                className="flex items-center gap-2 hover:bg-secondary transition-colors"
+                                className="hidden sm:flex items-center gap-2 hover:bg-secondary transition-colors"
                             >
                                 <User className="w-4 h-4" />
                                 Save Lead
                             </Button>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-full">
-                                        <MoreVertical className="h-5 w-5" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                    <DropdownMenuItem onClick={() => setSaveInternalLeadDialogOpen(true)}>
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        Save Lead
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => {
-                                            if (confirm('Are you sure you want to clear all messages in this chat?')) {
-                                                clearChat.mutate(activeConversation.id);
-                                            }
-                                        }}
-                                    >
-                                        <MessageSquareOff className="mr-2 h-4 w-4" />
-                                        Clear Chat
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => setReminderDialogOpen(true)}
-                                        disabled={!activeConversation}
-                                    >
-                                        <Bell className="mr-2 h-4 w-4" />
-                                        Set Reminder
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onClick={() => setDeleteContactDialogOpen(true)}
-                                        className="text-destructive focus:text-destructive"
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete Contact
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
                         </div>
                     </div>
 
@@ -828,8 +851,8 @@ export function InternalCRMWhatsAppInbox() {
                             </div>
                         )}
 
-                        <div className="flex items-end gap-3 max-w-5xl mx-auto">
-                            <div className="flex items-center gap-1 pb-1">
+                        <div className="flex flex-col gap-2 max-w-5xl mx-auto">
+                            <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => handleAttachmentClick('image')}
                                     className="p-2.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
@@ -860,29 +883,31 @@ export function InternalCRMWhatsAppInbox() {
                                 )}
                             </div>
 
-                            <div className="flex-1 relative">
-                                <textarea
-                                    placeholder={!canSendFreeForm ? "24h window closed — use Send Template above" : "Type your message here..."}
-                                    className="w-full bg-secondary/50 text-foreground text-sm rounded-2xl px-5 py-3 min-h-[48px] max-h-40 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none border border-border/50 placeholder:text-muted-foreground/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    disabled={!canSendFreeForm}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey && canSendFreeForm) {
-                                            e.preventDefault();
-                                            handleSendMessage();
-                                        }
-                                    }}
-                                />
-                            </div>
+                            <div className="flex items-end gap-3 w-full">
+                                <div className="flex-1 relative">
+                                    <textarea
+                                        placeholder={!canSendFreeForm ? "24h window closed — use Send Template above" : "Type your message here..."}
+                                        className="w-full bg-secondary/50 text-foreground text-sm rounded-2xl px-5 py-3 min-h-[48px] max-h-40 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none border border-border/50 placeholder:text-muted-foreground/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        disabled={!canSendFreeForm}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey && canSendFreeForm) {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
+                                        }}
+                                    />
+                                </div>
 
-                            <Button
-                                onClick={handleSendMessage}
-                                disabled={(!newMessage.trim() && selectedFiles.length === 0) || createMessage.isPending || !canSendFreeForm}
-                                className="rounded-full h-12 w-12 gradient-primary shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all p-0 flex items-center justify-center shrink-0"
-                            >
-                                <Send className="h-5 w-5" />
-                            </Button>
+                                <Button
+                                    onClick={handleSendMessage}
+                                    disabled={(!newMessage.trim() && selectedFiles.length === 0) || createMessage.isPending || !canSendFreeForm}
+                                    className="rounded-full h-12 w-12 gradient-primary shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all p-0 flex items-center justify-center shrink-0"
+                                >
+                                    <Send className="h-5 w-5" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -993,7 +1018,7 @@ function BulkSendDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogContent className="w-[95vw] max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-6 pb-2 border-b">
                     <DialogTitle className="flex items-center gap-2 text-xl font-bold">
                         <SendHorizontal className="w-6 h-6 text-primary" />

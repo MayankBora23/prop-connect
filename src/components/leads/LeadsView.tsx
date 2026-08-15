@@ -335,12 +335,13 @@ export function LeadsView() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Toolbar */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant={viewMode === 'pipeline' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('pipeline')}
+            className="flex-1 sm:flex-none"
           >
             <LayoutGrid className="w-4 h-4 mr-2" />
             Pipeline
@@ -349,22 +350,23 @@ export function LeadsView() {
             variant={viewMode === 'list' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('list')}
+            className="flex-1 sm:flex-none"
           >
             <List className="w-4 h-4 mr-2" />
             List
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-none">
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -391,6 +393,7 @@ export function LeadsView() {
         />
       ) : (
         <div className="card-elevated overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-secondary">
               <tr>
@@ -556,6 +559,7 @@ export function LeadsView() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

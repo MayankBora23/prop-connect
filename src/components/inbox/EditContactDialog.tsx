@@ -42,7 +42,7 @@ export function EditContactDialog({ open, onOpenChange, conversation }: SaveCont
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Contact</DialogTitle>
         </DialogHeader>

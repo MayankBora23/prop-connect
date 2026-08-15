@@ -102,7 +102,7 @@ export function TicketListView({ defaultFilters, showCompany, onOpenNewTicket }:
               value={statusSelectValue}
               onValueChange={(v) => setStatusFilter(v === 'all' ? 'all' : v)}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -117,7 +117,7 @@ export function TicketListView({ defaultFilters, showCompany, onOpenNewTicket }:
               value={priorityFilter || 'all'}
               onValueChange={(v) => setPriorityFilter(v === 'all' ? '' : v)}
             >
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-full sm:w-[130px]">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -132,7 +132,7 @@ export function TicketListView({ defaultFilters, showCompany, onOpenNewTicket }:
               value={categoryFilter || 'all'}
               onValueChange={(v) => setCategoryFilter(v === 'all' ? '' : v)}
             >
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -147,7 +147,7 @@ export function TicketListView({ defaultFilters, showCompany, onOpenNewTicket }:
             </Select>
             {showCompany && (
               <Input
-                className="w-[160px]"
+                className="w-full sm:w-[160px]"
                 placeholder="Company name..."
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}

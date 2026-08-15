@@ -3,13 +3,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTeamChatMessages, useSendChatMessage, useTeamChatRealtime, useDeleteTeamChatMessage, TeamChatMessage } from '@/hooks/useTeamChat';
 import { useProfiles, useCurrentProfile } from '@/hooks/useProfiles';
 import { cn } from '@/lib/utils';
-import { Send, Users, UserCheck, UserX, RefreshCw, AlertCircle, Reply, Trash2, MoreVertical, X } from 'lucide-react';
+import { Send, Users, UserCheck, UserX, RefreshCw, AlertCircle, Reply, Trash2, MoreVertical, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,8 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 export function TeamChat() {
+  const isMobile = useIsMobile();
+  const [showMembers, setShowMembers] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [replyToMessage, setReplyToMessage] = useState<TeamChatMessage | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -224,11 +227,24 @@ export function TeamChat() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-200px)] card-elevated animate-fade-in">
+    <div className="flex h-[calc(100vh-120px)] md:h-[calc(100vh-200px)] card-elevated animate-fade-in">
       {/* Team Members Sidebar */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className={cn(
+        "border-r border-border flex flex-col shrink-0",
+        isMobile ? (showMembers ? "fixed inset-0 z-50 bg-background w-full h-[100dvh]" : "hidden") : "w-80"
+      )}>
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMembers(false)}
+                className="p-1 -ml-1 rounded-md shrink-0"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            )}
             <Users className="w-5 h-5" />
             <h3 className="font-semibold">Team Members</h3>
             <Badge variant="secondary" className="ml-auto">
@@ -303,13 +319,27 @@ export function TeamChat() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={cn(
+        "flex-1 flex flex-col",
+        isMobile && showMembers ? "hidden" : "flex"
+      )}>
         {/* Chat Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             <h2 className="font-semibold">Team Chat</h2>
             <div className="ml-auto flex items-center gap-2">
+              {isMobile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowMembers(true)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground mr-1"
+                >
+                  <Users className="w-4 h-4" />
+                  Members
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -319,7 +349,7 @@ export function TeamChat() {
               >
                 <RefreshCw className={cn("w-4 h-4", messagesLoading && "animate-spin")} />
               </Button>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground hidden sm:block">
                 {messages?.length || 0} messages
               </div>
             </div>

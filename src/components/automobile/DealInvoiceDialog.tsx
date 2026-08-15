@@ -287,7 +287,7 @@ export function DealInvoiceDialog({ deal, open, onOpenChange }: DealInvoiceDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -392,7 +392,9 @@ export function DealInvoiceDialog({ deal, open, onOpenChange }: DealInvoiceDialo
 
               {/* Pricing Breakdown */}
               <h3 className="section-title">Price Breakdown</h3>
-              <table className="pricing-table">
+              <div className="overflow-x-auto">
+<table className="pricing-table">
+
                 <thead>
                   <tr>
                     <th>Description</th>
@@ -439,7 +441,9 @@ export function DealInvoiceDialog({ deal, open, onOpenChange }: DealInvoiceDialo
                     <td style={{ textAlign: 'right' }}><strong>₹{deal.total_on_road_price.toLocaleString()}</strong></td>
                   </tr>
                 </tbody>
-              </table>
+              
+</table>
+</div>
 
               {/* GST Breakdown */}
               {(deal.cgst_amount > 0 || deal.sgst_amount > 0 || deal.igst_amount > 0) && (
@@ -477,7 +481,9 @@ export function DealInvoiceDialog({ deal, open, onOpenChange }: DealInvoiceDialo
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-semibold mb-2">Payment Made</h4>
-                  <table className="pricing-table">
+                  <div className="overflow-x-auto">
+<table className="pricing-table">
+
                     <tbody>
                       {deal.token_amount > 0 && (
                         <tr>
@@ -496,7 +502,9 @@ export function DealInvoiceDialog({ deal, open, onOpenChange }: DealInvoiceDialo
                         <td style={{ textAlign: 'right' }}><strong>₹{deal.total_paid.toLocaleString()}</strong></td>
                       </tr>
                     </tbody>
-                  </table>
+                  
+</table>
+</div>
                 </div>
                 <div>
                   <h4 className="font-semibold mb-2">Payment Due</h4>

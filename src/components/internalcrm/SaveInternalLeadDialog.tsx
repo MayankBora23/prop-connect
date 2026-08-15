@@ -89,7 +89,7 @@ export function SaveInternalLeadDialog({ open, onOpenChange, conversation }: Sav
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Save as Internal Lead</DialogTitle>
                 </DialogHeader>

@@ -16,13 +16,14 @@ import { ChatHeaderControls } from '../inbox/ChatHeaderControls';
 import { HumanTakeoverBanner } from '../inbox/HumanTakeoverBanner';
 import { AgentAvailabilitySelector } from '../inbox/AgentAvailabilitySelector';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Car, SendHorizontal, User, RefreshCw, LayoutTemplate, Bell } from 'lucide-react';
+import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, MessageSquare, MoreVertical, Edit, Trash2, MessageSquareOff, X, Download, Reply, Car, SendHorizontal, User, RefreshCw, LayoutTemplate, Bell, ArrowLeft } from 'lucide-react';
 import { useCurrentCompany } from '@/hooks/useCompany';
 import { TemplateSelectorDialog } from '../whatsapp-templates/TemplateSelectorDialog';
 import { useApprovedTemplates, useSendTemplate } from '@/hooks/useWhatsAppTemplates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,7 @@ import { WhatsAppMessage } from '@/hooks/useWhatsApp';
 import type { Vehicle } from '@/hooks/useVehicles';
 
 export function AutomobileWhatsAppInbox() {
+  const isMobile = useIsMobile();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -648,46 +650,37 @@ export function AutomobileWhatsAppInbox() {
 
   if (conversationsLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Car className="w-5 h-5" />
-            WhatsApp Inbox - Auto Leads
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex h-[calc(100vh-200px)] card-elevated overflow-hidden animate-fade-in">
-            <div className="w-80 border-r border-border flex flex-col">
-              <div className="p-4 border-b border-border">
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="flex-1 p-2 space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
-                ))}
-              </div>
-            </div>
-            <div className="flex-1 flex items-center justify-center">
-              <Skeleton className="h-20 w-60" />
-            </div>
+      <div className="flex h-[calc(100vh-120px)] md:h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
+        <div className={cn(
+          'border-r border-border flex flex-col',
+          'w-full md:w-80 shrink-0',
+          isMobile && selectedConversationId ? 'hidden' : 'flex'
+        )}>
+          <div className="p-4 border-b border-border">
+            <Skeleton className="h-10 w-full" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1 p-2 space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Skeleton className="h-20 w-60" />
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Car className="w-5 h-5" />
-          WhatsApp Inbox - Auto Leads
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex h-[calc(100vh-200px)] card-elevated overflow-hidden animate-fade-in">
+    <>
+      <div className="flex h-[calc(100vh-120px)] md:h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
           {/* Conversations List */}
-          <div className="w-80 border-r border-border flex flex-col">
+          <div className={cn(
+            'border-r border-border flex flex-col',
+            'w-full md:w-80 shrink-0',
+            isMobile && selectedConversationId ? 'hidden' : 'flex'
+          )}>
             <div className="p-4 border-b border-border space-y-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-foreground flex-1">Conversations</h2>
@@ -780,10 +773,22 @@ export function AutomobileWhatsAppInbox() {
 
           {/* Chat Area */}
           {activeConversation && activeMessages ? (
-            <div className="flex-1 flex flex-col">
+            <div className={cn(
+              'flex-1 flex flex-col overflow-hidden',
+              isMobile && !selectedConversationId ? 'hidden' : 'flex'
+            )}>
               {/* Chat Header */}
-              <div className="h-16 px-4 flex items-center justify-between border-b border-border bg-card">
+              <div className="min-h-16 py-2 px-4 flex flex-col sm:flex-row sm:items-center justify-between border-b border-border bg-card gap-2">
                 <div className="flex items-center gap-3">
+                  {isMobile && selectedConversationId && (
+                    <button
+                      onClick={() => setSelectedConversationId(null)}
+                      className="md:hidden p-2 -ml-1 rounded-md hover:bg-accent shrink-0"
+                      aria-label="Back to conversations"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                  )}
                   <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
                     {(activeLead?.name || activeConversation.contact_name || activeConversation.contact_phone).split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
@@ -811,62 +816,63 @@ export function AutomobileWhatsAppInbox() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
                   {activeConversation && currentProfile?.company_id && (
                     <ChatHeaderControls
                       conversation={activeConversation}
                       companyId={currentProfile.company_id}
                       currentUserRole={currentUserRole}
                       currentProfileId={currentProfileId}
-                    />
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setSaveAutoLeadDialogOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Save Lead
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              if (activeConversation && confirm('Are you sure you want to clear all messages in this chat? This action cannot be undone.')) {
+                                clearChat.mutate(activeConversation.id);
+                              }
+                            }}
+                          >
+                            <MessageSquareOff className="mr-2 h-4 w-4" />
+                            Clear Chat
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setReminderDialogOpen(true)}
+                            disabled={!activeConversation}
+                          >
+                            <Bell className="mr-2 h-4 w-4" />
+                            Set Reminder
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteContactDialogOpen(true)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Contact
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </ChatHeaderControls>
                   )}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setSaveAutoLeadDialogOpen(true)}
-                    className="flex items-center gap-2"
+                    className="hidden sm:flex items-center gap-2"
                   >
                     <User className="w-4 h-4" />
                     Save Lead
                   </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setSaveAutoLeadDialogOpen(true)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Save Lead
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          if (activeConversation && confirm('Are you sure you want to clear all messages in this chat? This action cannot be undone.')) {
-                            clearChat.mutate(activeConversation.id);
-                          }
-                        }}
-                      >
-                        <MessageSquareOff className="mr-2 h-4 w-4" />
-                        Clear Chat
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setReminderDialogOpen(true)}
-                        disabled={!activeConversation}
-                      >
-                        <Bell className="mr-2 h-4 w-4" />
-                        Set Reminder
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setDeleteContactDialogOpen(true)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Contact
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
 
@@ -1060,67 +1066,71 @@ export function AutomobileWhatsAppInbox() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setVehicleSuggestionsOpen(true)}
-                    className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                    title="Send vehicle suggestion"
-                    disabled={!selectedConversationId || !canSendFreeForm}
-                  >
-                    <Car className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleAttachmentClick('file')}
-                    className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                    title="Attach file"
-                    disabled={!canSendFreeForm}
-                  >
-                    <Paperclip className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleAttachmentClick('image')}
-                    className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                    title="Attach image"
-                    disabled={!canSendFreeForm}
-                  >
-                    <Image className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleAttachmentClick('document')}
-                    className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
-                    title="Attach document"
-                    disabled={!canSendFreeForm}
-                  >
-                    <FileText className="w-5 h-5" />
-                  </button>
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={selectedFiles.length > 0 ? `Sending ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}...` : "Type a message..."}
-                    className="flex-1"
-                    disabled={!canSendFreeForm}
-                    onKeyDown={(e) => e.key === 'Enter' && canSendFreeForm && handleSendMessage()}
-                  />
-                  {isMetaProvider && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setVehicleSuggestionsOpen(true)}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Send vehicle suggestion"
+                      disabled={!selectedConversationId || !canSendFreeForm}
+                    >
+                      <Car className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleAttachmentClick('file')}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Attach file"
+                      disabled={!canSendFreeForm}
+                    >
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleAttachmentClick('image')}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Attach image"
+                      disabled={!canSendFreeForm}
+                    >
+                      <Image className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleAttachmentClick('document')}
+                      className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                      title="Attach document"
+                      disabled={!canSendFreeForm}
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
+                    {isMetaProvider && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="rounded-full hover:bg-secondary text-muted-foreground shrink-0"
+                        onClick={() => setTemplateSelectorOpen(true)}
+                        title="Send Template"
+                        type="button"
+                      >
+                        <LayoutTemplate className="w-5 h-5" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder={selectedFiles.length > 0 ? `Sending ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}...` : "Type a message..."}
+                      className="flex-1"
+                      disabled={!canSendFreeForm}
+                      onKeyDown={(e) => e.key === 'Enter' && canSendFreeForm && handleSendMessage()}
+                    />
                     <Button
                       size="icon"
-                      variant="ghost"
-                      className="rounded-full hover:bg-secondary text-muted-foreground shrink-0"
-                      onClick={() => setTemplateSelectorOpen(true)}
-                      title="Send Template"
-                      type="button"
+                      className="gradient-primary border-0 rounded-full shrink-0"
+                      onClick={handleSendMessage}
+                      disabled={createMessage.isPending || (!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendFreeForm}
                     >
-                      <LayoutTemplate className="w-5 h-5" />
+                      <Send className="w-4 h-4" />
                     </Button>
-                  )}
-                  <Button
-                    size="icon"
-                    className="gradient-primary border-0 rounded-full"
-                    onClick={handleSendMessage}
-                    disabled={createMessage.isPending || (!newMessage.trim() && selectedFiles.length === 0) || !selectedConversationId || !canSendFreeForm}
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                  </div>
                 </div>
 
                 {/* Reply Context */}
@@ -1242,7 +1252,6 @@ export function AutomobileWhatsAppInbox() {
             </div>
           )}
         </div>
-      </CardContent>
 
       {/* Vehicle Suggestions Dialog */}
       <VehicleSuggestions
@@ -1259,7 +1268,7 @@ export function AutomobileWhatsAppInbox() {
           clearAllFilters();
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SendHorizontal className="w-5 h-5" />
@@ -1670,6 +1679,6 @@ export function AutomobileWhatsAppInbox() {
           onSent={() => refetchMessages()}
         />
       )}
-    </Card>
+    </>
   );
 }

@@ -96,7 +96,7 @@ export function SaveAutoLeadDialog({ open, onOpenChange, conversation }: SaveAut
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="w-[95vw] max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Save as Auto Lead</DialogTitle>
         </DialogHeader>

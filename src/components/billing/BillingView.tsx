@@ -216,33 +216,35 @@ export function BillingView() {
           ) : payments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No completed payments yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Cycle</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map((row, idx) => (
-                  <TableRow key={`${row.paid_at}-${idx}`}>
-                    <TableCell>
-                      {row.paid_at ? format(new Date(row.paid_at), 'dd MMM yyyy') : '—'}
-                    </TableCell>
-                    <TableCell>{titleCase(row.plan_slug)}</TableCell>
-                    <TableCell>{titleCase(row.billing_cycle)}</TableCell>
-                    <TableCell>{formatInr(Number(row.amount_inr))}</TableCell>
-                    <TableCell className="flex items-center gap-1 text-green-700">
-                      <Check className="h-4 w-4" />
-                      Completed
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Cycle</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {payments.map((row, idx) => (
+                    <TableRow key={`${row.paid_at}-${idx}`}>
+                      <TableCell>
+                        {row.paid_at ? format(new Date(row.paid_at), 'dd MMM yyyy') : '—'}
+                      </TableCell>
+                      <TableCell>{titleCase(row.plan_slug)}</TableCell>
+                      <TableCell>{titleCase(row.billing_cycle)}</TableCell>
+                      <TableCell>{formatInr(Number(row.amount_inr))}</TableCell>
+                      <TableCell className="flex items-center gap-1 text-green-700">
+                        <Check className="h-4 w-4" />
+                        Completed
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

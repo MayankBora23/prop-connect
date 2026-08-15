@@ -34,23 +34,24 @@ export function PropertiesView() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {(['all', 'available', 'upcoming', 'sold'] as const).map((status) => (
-          <Button
-            key={status}
-            variant={filter === status ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter(status)}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Button>
-        ))}
-        <div className="ml-auto">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            More Filters
-          </Button>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap w-full">
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+          {(['all', 'available', 'upcoming', 'sold'] as const).map((status) => (
+            <Button
+              key={status}
+              variant={filter === status ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter(status)}
+              className="flex-1 sm:flex-none"
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </Button>
+          ))}
         </div>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto">
+          <Filter className="w-4 h-4 mr-2" />
+          More Filters
+        </Button>
       </div>
 
       {/* Property Grid */}

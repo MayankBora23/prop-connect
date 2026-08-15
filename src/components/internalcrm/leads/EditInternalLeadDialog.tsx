@@ -127,7 +127,7 @@ export function EditInternalLeadDialog({ lead, open, onOpenChange }: EditInterna
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Edit Internal CRM Lead</DialogTitle>
                     <DialogDescription>

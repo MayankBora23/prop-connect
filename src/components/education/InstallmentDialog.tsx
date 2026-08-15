@@ -106,7 +106,7 @@ export function InstallmentDialog({ open, onOpenChange, enrollment, studentName 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Fee Management - {studentName}</DialogTitle>
           <DialogDescription>

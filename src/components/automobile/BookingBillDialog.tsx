@@ -82,7 +82,7 @@ export function BookingBillDialog({ booking, open, onOpenChange }: BookingBillDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>Booking Invoice</DialogTitle>
           <div className="flex gap-2">
@@ -190,7 +190,9 @@ export function BookingBillDialog({ booking, open, onOpenChange }: BookingBillDi
           {/* Pricing Breakdown */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Pricing Breakdown</h3>
-            <table className="pricing-table">
+            <div className="overflow-x-auto">
+<table className="pricing-table">
+
               <thead>
                 <tr>
                   <th>Description</th>
@@ -245,7 +247,9 @@ export function BookingBillDialog({ booking, open, onOpenChange }: BookingBillDi
                   <td className="text-right font-bold text-lg">₹{remainingBalance.toLocaleString()}</td>
                 </tr>
               </tbody>
-            </table>
+            
+</table>
+</div>
           </div>
 
           {/* Special Requests */}

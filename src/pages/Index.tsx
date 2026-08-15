@@ -632,7 +632,7 @@ function IndexLayout({
       <main
         className={cn(
           'transition-all duration-300',
-          sidebarCollapsed ? 'ml-16' : 'ml-64',
+          sidebarCollapsed ? 'md:ml-16' : 'md:ml-64',
           activeTab === 'reports' && 'print:ml-0 print:w-full'
         )}
       >
@@ -650,7 +650,7 @@ function IndexLayout({
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className={cn('p-6 flex-1 flex flex-col overflow-hidden', activeTab === 'reports' && 'print:p-0')}>
+          <div className={cn('p-3 md:p-6 flex-1 flex flex-col overflow-hidden', activeTab === 'reports' && 'print:p-0')}>
             {!isInternalCRM && (
               <div className={cn(activeTab === 'reports' && 'print:hidden')}>
                 <LowBalanceAlert />

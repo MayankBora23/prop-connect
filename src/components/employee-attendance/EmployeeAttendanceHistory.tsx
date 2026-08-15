@@ -277,38 +277,81 @@ export function EmployeeAttendanceHistory() {
                   <p className="text-muted-foreground">No attendance records found</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b">
-                      <tr className="text-left">
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Date</th>
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Status</th>
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Check In</th>
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Check Out</th>
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Duration</th>
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Leave Type</th>
-                        <th className="pb-3 text-sm font-medium text-muted-foreground">Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {filteredHistory.map((record) => (
-                        <tr key={record.id} className="hover:bg-muted/50">
-                          <td className="py-3 text-sm">
+                <>
+                  {/* Mobile card list — hidden on sm+ */}
+                  <div className="flex flex-col divide-y sm:hidden">
+                    {filteredHistory.map((record) => (
+                      <div key={record.id} className="py-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
                             {format(new Date(record.attendance_date), 'MMM d, yyyy')}
-                          </td>
-                          <td className="py-3">
-                            <AttendanceStatusBadge status={record.status} />
-                          </td>
-                          <td className="py-3 text-sm">{record.check_in_time || '-'}</td>
-                          <td className="py-3 text-sm">{record.check_out_time || '-'}</td>
-                          <td className="py-3 text-sm">{formatDuration(record.work_duration)}</td>
-                          <td className="py-3 text-sm capitalize">{record.leave_type || '-'}</td>
-                          <td className="py-3 text-sm">{record.remarks || '-'}</td>
+                          </span>
+                          <AttendanceStatusBadge status={record.status} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <div>
+                            <span className="font-medium text-foreground">In: </span>
+                            {record.check_in_time || '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium text-foreground">Out: </span>
+                            {record.check_out_time || '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium text-foreground">Duration: </span>
+                            {formatDuration(record.work_duration)}
+                          </div>
+                          {record.leave_type && (
+                            <div className="capitalize">
+                              <span className="font-medium text-foreground">Leave: </span>
+                              {record.leave_type}
+                            </div>
+                          )}
+                          {record.remarks && (
+                            <div className="col-span-2">
+                              <span className="font-medium text-foreground">Remarks: </span>
+                              {record.remarks}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop table — hidden on mobile */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="border-b">
+                        <tr className="text-left">
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Date</th>
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Status</th>
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Check In</th>
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Check Out</th>
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Duration</th>
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Leave Type</th>
+                          <th className="pb-3 text-sm font-medium text-muted-foreground">Remarks</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y">
+                        {filteredHistory.map((record) => (
+                          <tr key={record.id} className="hover:bg-muted/50">
+                            <td className="py-3 text-sm">
+                              {format(new Date(record.attendance_date), 'MMM d, yyyy')}
+                            </td>
+                            <td className="py-3">
+                              <AttendanceStatusBadge status={record.status} />
+                            </td>
+                            <td className="py-3 text-sm">{record.check_in_time || '-'}</td>
+                            <td className="py-3 text-sm">{record.check_out_time || '-'}</td>
+                            <td className="py-3 text-sm">{formatDuration(record.work_duration)}</td>
+                            <td className="py-3 text-sm capitalize">{record.leave_type || '-'}</td>
+                            <td className="py-3 text-sm">{record.remarks || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

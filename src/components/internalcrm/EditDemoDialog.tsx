@@ -81,7 +81,7 @@ export function EditDemoDialog({ demo, open, onOpenChange }: EditDemoDialogProps
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Edit Demo Details</DialogTitle>
                 </DialogHeader>

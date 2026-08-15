@@ -233,7 +233,9 @@ export function TeamReportView() {
       <div className="hidden print:block p-6">
         <h1 className="text-xl font-bold mb-2">Team Performance Report</h1>
         <p className="text-sm text-muted-foreground mb-4">{rangeSubtitle}</p>
-        <table className="w-full text-sm border-collapse border border-foreground/20">
+        <div className="overflow-x-auto">
+<table className="w-full text-sm border-collapse border border-foreground/20">
+
           <thead>
             <tr>
               <th className="border border-foreground/20 p-2 text-left">Rank</th>
@@ -270,7 +272,9 @@ export function TeamReportView() {
               </tr>
             ))}
           </tbody>
-        </table>
+        
+</table>
+</div>
       </div>
     </>
   );

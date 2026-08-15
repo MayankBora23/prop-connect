@@ -159,7 +159,9 @@ export function TelephonyView() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="card-elevated overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+<table className="w-full">
+
             <thead className="bg-secondary">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
@@ -178,7 +180,9 @@ export function TelephonyView() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          
+</table>
+</div>
         </div>
       </div>
     );
@@ -265,7 +269,9 @@ export function TelephonyView() {
       </div>
 
       <div className="card-elevated overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+<table className="w-full">
+
           <thead className="bg-secondary">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -359,7 +365,9 @@ export function TelephonyView() {
               ))
             )}
           </tbody>
-        </table>
+        
+</table>
+</div>
       </div>
 
       {/* Dialer Overlay */}
