@@ -93,7 +93,7 @@ export function WhatsAppInbox() {
   return (
     <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
       {/* Conversations List */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className={cn('flex w-full flex-col border-r border-border md:w-80', activeConversation && 'hidden md:flex')}>
         <div className="p-4 border-b border-border">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
