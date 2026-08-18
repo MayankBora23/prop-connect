@@ -148,22 +148,61 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-background surface-mesh lg:grid lg:grid-cols-2">
+      {/* Brand panel */}
+      <aside className="relative hidden overflow-hidden bg-sidebar p-12 lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute -left-24 top-1/3 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
+        <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/25 blur-3xl" />
+
+        <div className="relative flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl gradient-primary">
+            <Building2 className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <span className="font-display text-xl font-bold text-sidebar-accent-foreground">RealCRM</span>
+        </div>
+
+        <div className="relative max-w-md">
+          <h2 className="font-display text-4xl font-bold leading-tight text-sidebar-accent-foreground">
+            Every lead, site visit and deal — in one calm workspace.
+          </h2>
+          <p className="mt-5 text-sidebar-foreground">
+            Built for property teams who move fast: WhatsApp conversations, pipeline stages, follow-ups and
+            automations that actually run themselves.
+          </p>
+          <div className="mt-8 grid grid-cols-3 gap-4">
+            {[
+              { k: '12k+', v: 'Leads tracked' },
+              { k: '38%', v: 'Faster follow-up' },
+              { k: '24/7', v: 'Automations' },
+            ].map((s) => (
+              <div key={s.k} className="rounded-2xl border border-sidebar-border bg-sidebar-accent/50 p-4">
+                <p className="font-display text-xl font-bold text-sidebar-accent-foreground">{s.k}</p>
+                <p className="mt-1 text-xs text-sidebar-foreground/80">{s.v}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="relative text-xs text-sidebar-foreground/60">© RealCRM — Property sales, organised.</p>
+      </aside>
+
+      {/* Form panel */}
+      <div className="flex min-h-screen items-center justify-center p-4 sm:p-8 lg:min-h-0">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-            <Building2 className="w-7 h-7 text-primary-foreground" />
+        <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl gradient-primary btn-glow">
+            <Building2 className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">PropCRM</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">RealCRM</h1>
             <p className="text-xs text-muted-foreground">Real Estate CRM</p>
           </div>
         </div>
 
-        <Card className="card-elevated border-0">
+        <Card className="glass-panel border-border/60 shadow-lift">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">
+            <CardTitle className="font-display text-2xl">
               {isLogin ? 'Welcome back' : 'Register your company'}
             </CardTitle>
             <CardDescription>
@@ -279,7 +318,7 @@ export default function Auth() {
             <CardFooter className="flex flex-col gap-4">
               <Button 
                 type="submit" 
-                className="w-full gradient-primary border-0"
+                className="w-full rounded-full border-0 gradient-primary btn-glow"
                 disabled={loading}
               >
                 {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Register Company')}
@@ -301,6 +340,7 @@ export default function Auth() {
             </CardFooter>
           </form>
         </Card>
+      </div>
       </div>
     </div>
   );
