@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 
-const COLORS = ['hsl(230, 80%, 55%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(280, 65%, 60%)', 'hsl(340, 75%, 55%)'];
+const COLORS = ['hsl(244, 75%, 58%)', 'hsl(272, 83%, 64%)', 'hsl(158, 68%, 42%)', 'hsl(32, 96%, 52%)', 'hsl(199, 89%, 52%)', 'hsl(340, 78%, 58%)'];
 
 export function Dashboard() {
   const { data: leads, isLoading: leadsLoading } = useLeads();
@@ -51,30 +51,31 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="space-y-4 animate-fade-in sm:space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-lg" />
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-80 w-full rounded-lg" />
-          <Skeleton className="h-80 w-full rounded-lg" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="space-y-4 animate-fade-in sm:space-y-6">
+      {/* Bento stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Leads"
           value={totalLeads}
-          change="From database"
+          change="All-time pipeline volume"
           changeType="neutral"
           icon={Users}
+          className="sm:col-span-2 xl:col-span-2"
         />
         <StatCard
           title="New Today"
@@ -105,17 +106,18 @@ export function Dashboard() {
         <StatCard
           title="Today's Tasks"
           value={pendingFollowUps + scheduledVisits}
-          change={`${pendingFollowUps} follow-ups, ${scheduledVisits} visits`}
+          change={`${pendingFollowUps} follow-ups · ${scheduledVisits} visits`}
           icon={Calendar}
           iconBg="gradient-info"
+          className="sm:col-span-2 xl:col-span-2"
         />
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Leads by Source */}
-        <div className="card-elevated p-6">
-          <h3 className="font-semibold text-foreground mb-4">Leads by Source</h3>
+        <div className="bento-tile lg:col-span-3">
+          <h3 className="mb-4 font-display text-base font-semibold text-foreground">Leads by Source</h3>
           <div className="h-64">
             {leadsBySourceData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -127,7 +129,7 @@ export function Dashboard() {
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
+                      borderRadius: '14px', boxShadow: 'var(--shadow-lift)',
                     }}
                   />
                   <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
@@ -142,8 +144,8 @@ export function Dashboard() {
         </div>
 
         {/* Leads by Stage */}
-        <div className="card-elevated p-6">
-          <h3 className="font-semibold text-foreground mb-4">Pipeline Distribution</h3>
+        <div className="bento-tile lg:col-span-2">
+          <h3 className="mb-4 font-display text-base font-semibold text-foreground">Pipeline Distribution</h3>
           <div className="h-64">
             {leadsByStageData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -166,7 +168,7 @@ export function Dashboard() {
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
+                      borderRadius: '14px', boxShadow: 'var(--shadow-lift)',
                     }}
                   />
                 </PieChart>
@@ -191,12 +193,12 @@ export function Dashboard() {
       </div>
 
       {/* Recent Leads */}
-      <div className="card-elevated p-6">
-        <h3 className="font-semibold text-foreground mb-4">Recent Leads</h3>
+      <div className="bento-tile">
+        <h3 className="mb-4 font-display text-base font-semibold text-foreground">Recent Leads</h3>
         {leads && leads.length > 0 ? (
           <div className="space-y-3">
             {leads.slice(0, 5).map((lead) => (
-              <div key={lead.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-secondary transition-colors">
+              <div key={lead.id} className="flex items-center gap-4 rounded-xl border border-transparent p-3 transition-colors hover:border-border/70 hover:bg-secondary/60">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-foreground font-semibold text-sm">
                   {lead.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </div>
