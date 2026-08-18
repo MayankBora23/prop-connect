@@ -33,11 +33,13 @@ const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: s
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
   const [addVisitOpen, setAddVisitOpen] = useState(false);
   const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
   const [addWorkflowOpen, setAddWorkflowOpen] = useState(false);
+
 
   const handleAddNew = () => {
     switch (activeTab) {
