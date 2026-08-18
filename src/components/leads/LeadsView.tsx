@@ -54,8 +54,8 @@ export function LeadsView() {
       {viewMode === 'pipeline' ? (
         <LeadPipeline />
       ) : (
-        <div className="card-elevated overflow-hidden">
-          <table className="w-full">
+        <div className="card-elevated overflow-x-auto">
+          <table className="w-full min-w-[720px]">
             <thead className="bg-secondary">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>

@@ -151,7 +151,7 @@ export function WhatsAppInbox() {
 
       {/* Chat Area */}
       {activeConversation ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-1 flex-col">
           {/* Chat Header */}
           <div className="h-16 px-4 flex items-center gap-3 border-b border-border bg-card">
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
@@ -238,7 +238,7 @@ export function WhatsAppInbox() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        <div className="hidden flex-1 items-center justify-center text-muted-foreground md:flex">
           Select a conversation to start messaging
         </div>
       )}
