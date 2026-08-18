@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMessages, MessageWithLead, useCreateMessage } from '@/hooks/useMessages';
 import { useLeads } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search } from 'lucide-react';
+import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
