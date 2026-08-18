@@ -153,7 +153,14 @@ export function WhatsAppInbox() {
       {activeConversation ? (
         <div className="flex flex-1 flex-col">
           {/* Chat Header */}
-          <div className="h-16 px-4 flex items-center gap-3 border-b border-border bg-card">
+          <div className="flex h-16 items-center gap-3 border-b border-border bg-card px-4">
+            <button
+              onClick={() => setSelectedLeadId(null)}
+              className="-ml-1 rounded-lg p-1.5 text-muted-foreground hover:bg-secondary md:hidden"
+              aria-label="Back to conversations"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
               {activeConversation.leadName.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
