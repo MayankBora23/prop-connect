@@ -14,12 +14,15 @@ import {
   ChevronRight,
   Home,
   Settings,
+  X,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const menuItems = [
@@ -35,92 +38,139 @@ const menuItems = [
   { id: 'company-settings', label: 'Company Settings', icon: Settings, superAdminOnly: true },
 ];
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, mobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { data: profile } = useCurrentProfile();
   const isSuperAdmin = profile?.role === 'super_admin';
 
-  const visibleMenuItems = menuItems.filter(item => 
-    !item.superAdminOnly || isSuperAdmin
-  );
+  const visibleMenuItems = menuItems.filter((item) => !item.superAdminOnly || isSuperAdmin);
+
+  const initials =
+    profile?.name
+      ?.split(' ')
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U';
 
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 flex flex-col',
-        collapsed ? 'w-16' : 'w-64'
-      )}
-    >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <Home className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg text-sidebar-foreground">RealCRM</span>
-          </div>
+    <>
+      {/* Mobile scrim */}
+      <div
+        onClick={onMobileClose}
+        className={cn(
+          'fixed inset-0 z-40 bg-foreground/40 backdrop-blur-sm transition-opacity lg:hidden',
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-        </button>
-      </div>
+      />
 
-      {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-        {visibleMenuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
-                isActive
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              )}
-            >
-              <Icon className={cn('w-5 h-5 flex-shrink-0', isActive && 'text-sidebar-primary-foreground')} />
-              {!collapsed && (
-                <>
-                  <span className="font-medium text-sm">{item.label}</span>
-                  {item.badge && (
-                    <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-0.5 rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </>
-              )}
-              {collapsed && item.badge && (
-                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* User Profile */}
-      <div className="p-3 border-t border-sidebar-border">
-        <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
-          <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-sidebar-primary-foreground font-semibold text-sm">
-            PS
-          </div>
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 flex h-[100dvh] flex-col bg-sidebar transition-all duration-300 lg:z-40',
+          collapsed ? 'lg:w-[76px]' : 'lg:w-64',
+          'w-[17rem]',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">Priya Sharma</p>
-              <p className="text-xs text-muted-foreground truncate">Manager</p>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-primary btn-glow">
+                <Home className="h-[18px] w-[18px] text-sidebar-primary-foreground" />
+              </div>
+              <div className="leading-none">
+                <span className="font-display text-lg font-bold text-sidebar-accent-foreground">RealCRM</span>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">
+                  Property Suite
+                </p>
+              </div>
             </div>
           )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden rounded-lg p-1.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent lg:block"
+            aria-label="Toggle sidebar"
+          >
+            {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </button>
+          <button
+            onClick={onMobileClose}
+            className="rounded-lg p-1.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent lg:hidden"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      </div>
-    </aside>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4">
+          {visibleMenuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onTabChange(item.id);
+                  onMobileClose?.();
+                }}
+                className={cn(
+                  'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200',
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                )}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full gradient-primary" />
+                )}
+                <Icon
+                  className={cn(
+                    'h-[18px] w-[18px] flex-shrink-0 transition-transform group-hover:scale-110',
+                    isActive && 'text-primary-glow'
+                  )}
+                />
+                {!collapsed && (
+                  <>
+                    <span className="text-sm font-medium">{item.label}</span>
+                    {item.badge && (
+                      <span className="ml-auto rounded-full bg-destructive px-2 py-0.5 text-[10px] font-semibold text-destructive-foreground">
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+                {collapsed && item.badge && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* User Profile */}
+        <div className="border-t border-sidebar-border p-3">
+          <div className={cn('flex items-center gap-3 rounded-xl bg-sidebar-accent/50 p-2.5', collapsed && 'justify-center bg-transparent p-0')}>
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full gradient-primary text-sm font-semibold text-sidebar-primary-foreground">
+              {initials}
+            </div>
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-sidebar-accent-foreground">
+                  {profile?.name || 'Your account'}
+                </p>
+                <p className="truncate text-xs capitalize text-sidebar-foreground/70">
+                  {profile?.role?.replace('_', ' ') || 'Member'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

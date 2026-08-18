@@ -33,11 +33,13 @@ const tabConfig: Record<string, { title: string; subtitle?: string; addLabel?: s
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addPropertyOpen, setAddPropertyOpen] = useState(false);
   const [addVisitOpen, setAddVisitOpen] = useState(false);
   const [addFollowUpOpen, setAddFollowUpOpen] = useState(false);
   const [addWorkflowOpen, setAddWorkflowOpen] = useState(false);
+
 
   const handleAddNew = () => {
     switch (activeTab) {
@@ -89,21 +91,28 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      
-      <main className="ml-64 transition-all duration-300">
+    <div className="min-h-screen bg-background surface-mesh">
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
+      />
+
+      <main className="transition-all duration-300 lg:ml-64">
         <Header
           title={config.title}
           subtitle={config.subtitle}
           onAddNew={config.addLabel ? handleAddNew : undefined}
           addNewLabel={config.addLabel}
+          onMenuClick={() => setMobileNavOpen(true)}
         />
-        
-        <div className="p-6">
+
+        <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
           {renderContent()}
         </div>
       </main>
+
 
       <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
       <AddPropertyDialog open={addPropertyOpen} onOpenChange={setAddPropertyOpen} />

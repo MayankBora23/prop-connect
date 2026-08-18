@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMessages, MessageWithLead, useCreateMessage } from '@/hooks/useMessages';
 import { useLeads } from '@/hooks/useLeads';
 import { cn } from '@/lib/utils';
-import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search } from 'lucide-react';
+import { Send, Paperclip, Image, FileText, Check, CheckCheck, Search, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -93,7 +93,7 @@ export function WhatsAppInbox() {
   return (
     <div className="flex h-[calc(100vh-140px)] card-elevated overflow-hidden animate-fade-in">
       {/* Conversations List */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className={cn('flex w-full flex-col border-r border-border md:w-80', activeConversation && 'hidden md:flex')}>
         <div className="p-4 border-b border-border">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -151,9 +151,16 @@ export function WhatsAppInbox() {
 
       {/* Chat Area */}
       {activeConversation ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-1 flex-col">
           {/* Chat Header */}
-          <div className="h-16 px-4 flex items-center gap-3 border-b border-border bg-card">
+          <div className="flex h-16 items-center gap-3 border-b border-border bg-card px-4">
+            <button
+              onClick={() => setSelectedLeadId(null)}
+              className="-ml-1 rounded-lg p-1.5 text-muted-foreground hover:bg-secondary md:hidden"
+              aria-label="Back to conversations"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
               {activeConversation.leadName.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
@@ -238,7 +245,7 @@ export function WhatsAppInbox() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        <div className="hidden flex-1 items-center justify-center text-muted-foreground md:flex">
           Select a conversation to start messaging
         </div>
       )}

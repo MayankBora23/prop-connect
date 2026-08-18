@@ -14,8 +14,19 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
       },
+      backgroundImage: {
+        "gradient-primary": "var(--gradient-primary)",
+        "gradient-mesh": "var(--gradient-mesh)",
+      },
+      boxShadow: {
+        soft: "var(--shadow-soft)",
+        lift: "var(--shadow-lift)",
+        glow: "var(--shadow-glow)",
+      },
+
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -25,7 +36,9 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
+
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -75,9 +88,10 @@ export default {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 6px)",
+        sm: "calc(var(--radius) - 10px)",
       },
+
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

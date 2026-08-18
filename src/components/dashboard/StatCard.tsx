@@ -8,19 +8,28 @@ interface StatCardProps {
   changeType?: 'positive' | 'negative' | 'neutral';
   icon: LucideIcon;
   iconBg?: string;
+  className?: string;
 }
 
-export function StatCard({ title, value, change, changeType = 'neutral', icon: Icon, iconBg = 'gradient-primary' }: StatCardProps) {
+export function StatCard({
+  title,
+  value,
+  change,
+  changeType = 'neutral',
+  icon: Icon,
+  iconBg = 'gradient-primary',
+  className,
+}: StatCardProps) {
   return (
-    <div className="stat-card animate-fade-in">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+    <div className={cn('bento-tile animate-rise', className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
+          <p className="mt-2 font-display text-3xl font-bold leading-none text-foreground">{value}</p>
           {change && (
             <p
               className={cn(
-                'text-xs font-medium mt-2',
+                'mt-3 text-xs font-medium',
                 changeType === 'positive' && 'text-success',
                 changeType === 'negative' && 'text-destructive',
                 changeType === 'neutral' && 'text-muted-foreground'
@@ -30,8 +39,13 @@ export function StatCard({ title, value, change, changeType = 'neutral', icon: I
             </p>
           )}
         </div>
-        <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}>
-          <Icon className="w-6 h-6 text-primary-foreground" />
+        <div
+          className={cn(
+            'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-primary-foreground shadow-soft',
+            iconBg
+          )}
+        >
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </div>
