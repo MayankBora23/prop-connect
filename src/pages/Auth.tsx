@@ -184,7 +184,7 @@ export default function Auth() {
           </div>
         </div>
 
-        <p className="relative text-xs text-sidebar-foreground/60">© RealCRM — Property sales, organised.</p>
+        <p className="relative text-xs text-sidebar-foreground/60">© AiLeadX — Smart CRM. Smarter Growth.</p>
       </aside>
 
       {/* Form panel */}
@@ -192,14 +192,15 @@ export default function Auth() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl gradient-primary btn-glow">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src={brandIcon.url} alt="AiLeadX logo" className="h-12 w-12 rounded-2xl" />
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">RealCRM</h1>
-            <p className="text-xs text-muted-foreground">Real Estate CRM</p>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              AiLead<span className="text-gradient">X</span>
+            </h1>
+            <p className="text-xs text-muted-foreground">Smart CRM. Smarter Growth.</p>
           </div>
         </div>
+
 
         <Card className="glass-panel border-border/60 shadow-lift">
           <CardHeader className="text-center">
