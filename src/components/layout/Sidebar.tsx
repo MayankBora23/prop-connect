@@ -12,11 +12,12 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  Home,
   Settings,
   X,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
+import brandIcon from '@/assets/aileadx-icon.png.asset.json';
+
 
 interface SidebarProps {
   activeTab: string;
@@ -74,19 +75,22 @@ export function Sidebar({ activeTab, onTabChange, mobileOpen = false, onMobileCl
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-          {!collapsed && (
+          {!collapsed ? (
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-primary btn-glow">
-                <Home className="h-[18px] w-[18px] text-sidebar-primary-foreground" />
-              </div>
+              <img src={brandIcon.url} alt="AiLeadX logo" className="h-9 w-9 rounded-xl" />
               <div className="leading-none">
-                <span className="font-display text-lg font-bold text-sidebar-accent-foreground">RealCRM</span>
+                <span className="font-display text-lg font-bold text-sidebar-accent-foreground">
+                  AiLead<span className="text-primary-glow">X</span>
+                </span>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">
-                  Property Suite
+                  Smart CRM
                 </p>
               </div>
             </div>
+          ) : (
+            <img src={brandIcon.url} alt="AiLeadX logo" className="h-9 w-9 rounded-xl" />
           )}
+
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="hidden rounded-lg p-1.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent lg:block"

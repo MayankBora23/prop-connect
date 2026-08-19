@@ -155,11 +155,9 @@ export default function Auth() {
         <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/25 blur-3xl" />
 
         <div className="relative flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl gradient-primary">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="font-display text-xl font-bold text-sidebar-accent-foreground">RealCRM</span>
+          <img src={brandLogo.url} alt="AiLeadX — Smart CRM. Smarter Growth." className="h-14 w-auto" />
         </div>
+
 
         <div className="relative max-w-md">
           <h2 className="font-display text-4xl font-bold leading-tight text-sidebar-accent-foreground">
