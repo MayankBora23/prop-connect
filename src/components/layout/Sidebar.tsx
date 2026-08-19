@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCurrentProfile } from '@/hooks/useProfiles';
-import brandIcon from '@/assets/aileadx-icon.png.asset.json';
+import brandIcon from '@/assets/aileadx-icon.png';
 
 
 interface SidebarProps {
@@ -77,7 +77,7 @@ export function Sidebar({ activeTab, onTabChange, mobileOpen = false, onMobileCl
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           {!collapsed ? (
             <div className="flex items-center gap-2.5">
-              <img src={brandIcon.url} alt="AiLeadX logo" className="h-9 w-9 rounded-xl" />
+              <img src={brandIcon} alt="AiLeadX logo" className="h-9 w-9 rounded-xl" />
               <div className="leading-none">
                 <span className="font-display text-lg font-bold text-sidebar-accent-foreground">
                   AiLead<span className="text-primary-glow">X</span>
@@ -88,7 +88,7 @@ export function Sidebar({ activeTab, onTabChange, mobileOpen = false, onMobileCl
               </div>
             </div>
           ) : (
-            <img src={brandIcon.url} alt="AiLeadX logo" className="h-9 w-9 rounded-xl" />
+            <img src={brandIcon} alt="AiLeadX logo" className="h-9 w-9 rounded-xl" />
           )}
 
           <button

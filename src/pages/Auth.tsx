@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Lock, User, Briefcase } from 'lucide-react';
 import { z } from 'zod';
-import brandLogo from '@/assets/aileadx-logo.png.asset.json';
-import brandIcon from '@/assets/aileadx-icon.png.asset.json';
+import brandLogo from '@/assets/aileadx-logo.png';
+import brandIcon from '@/assets/aileadx-icon.png';
 
 
 const emailSchema = z.string().email('Please enter a valid email address');
@@ -158,7 +158,7 @@ export default function Auth() {
         <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/25 blur-3xl" />
 
         <div className="relative flex items-center gap-3">
-          <img src={brandLogo.url} alt="AiLeadX — Smart CRM. Smarter Growth." className="h-14 w-auto" />
+          <img src={brandLogo} alt="AiLeadX — Smart CRM. Smarter Growth." className="h-14 w-auto" />
         </div>
 
 
@@ -192,7 +192,7 @@ export default function Auth() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-          <img src={brandIcon.url} alt="AiLeadX logo" className="h-12 w-12 rounded-2xl" />
+          <img src={brandIcon} alt="AiLeadX logo" className="h-12 w-12 rounded-2xl" />
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">
               AiLead<span className="text-gradient">X</span>
