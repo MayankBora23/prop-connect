@@ -157,9 +157,10 @@ export default function Auth() {
         <div className="absolute -left-24 top-1/3 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
         <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/25 blur-3xl" />
 
-        <div className="relative flex items-center gap-3">
-          <img src={brandLogo} alt="AiLeadX — Smart CRM. Smarter Growth." className="h-14 w-auto" />
+        <div className="relative flex items-center">
+          <img src={brandLogo} alt="AiLeadX — Smart CRM. Smarter Growth." className="h-20 w-auto" />
         </div>
+
 
 
         <div className="relative max-w-md">
