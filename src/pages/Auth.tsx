@@ -7,8 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Mail, Lock, User, Briefcase } from 'lucide-react';
+import { Mail, Lock, User, Briefcase } from 'lucide-react';
 import { z } from 'zod';
+import brandLogo from '@/assets/aileadx-logo.png';
+import brandIcon from '@/assets/aileadx-icon.png';
+
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -154,12 +157,11 @@ export default function Auth() {
         <div className="absolute -left-24 top-1/3 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
         <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-primary-glow/25 blur-3xl" />
 
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl gradient-primary">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="font-display text-xl font-bold text-sidebar-accent-foreground">RealCRM</span>
+        <div className="relative flex items-center">
+          <img src={brandLogo} alt="AiLeadX — Smart CRM. Smarter Growth." className="h-20 w-auto" />
         </div>
+
+
 
         <div className="relative max-w-md">
           <h2 className="font-display text-4xl font-bold leading-tight text-sidebar-accent-foreground">
@@ -183,7 +185,7 @@ export default function Auth() {
           </div>
         </div>
 
-        <p className="relative text-xs text-sidebar-foreground/60">© RealCRM — Property sales, organised.</p>
+        <p className="relative text-xs text-sidebar-foreground/60">© AiLeadX — Smart CRM. Smarter Growth.</p>
       </aside>
 
       {/* Form panel */}
@@ -191,14 +193,15 @@ export default function Auth() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl gradient-primary btn-glow">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src={brandIcon} alt="AiLeadX logo" className="h-12 w-12 rounded-2xl" />
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">RealCRM</h1>
-            <p className="text-xs text-muted-foreground">Real Estate CRM</p>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              AiLead<span className="text-gradient">X</span>
+            </h1>
+            <p className="text-xs text-muted-foreground">Smart CRM. Smarter Growth.</p>
           </div>
         </div>
+
 
         <Card className="glass-panel border-border/60 shadow-lift">
           <CardHeader className="text-center">
