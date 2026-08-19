@@ -7,8 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Mail, Lock, User, Briefcase } from 'lucide-react';
+import { Mail, Lock, User, Briefcase } from 'lucide-react';
 import { z } from 'zod';
+import brandLogo from '@/assets/aileadx-logo.png.asset.json';
+import brandIcon from '@/assets/aileadx-icon.png.asset.json';
+
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
