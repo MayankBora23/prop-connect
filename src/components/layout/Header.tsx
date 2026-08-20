@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProfile } from '@/hooks/useProfiles';
 import { useNavigate } from 'react-router-dom';
+import { ThemeToggle } from './ThemeToggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +56,8 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New', onM
               className="w-56 rounded-full border-border/70 bg-secondary/60 pl-9 xl:w-72"
             />
           </div>
+
+          <ThemeToggle />
 
           <button
             className="relative rounded-xl p-2 text-muted-foreground transition-colors hover:bg-secondary"
