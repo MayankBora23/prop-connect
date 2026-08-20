@@ -241,45 +241,7 @@
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/70 px-2.5 py-1 text-xs font-medium text-secondary-foreground;
   }
-
-  /* 3D flip card */
-  .flip-scene {
-    perspective: 1800px;
-  }
-
-  .flip-card {
-    @apply relative grid transition-transform;
-    transform-style: preserve-3d;
-    transition-duration: 0.75s;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .flip-card.is-flipped {
-    transform: rotateY(180deg);
-  }
-
-  .flip-face {
-    grid-area: 1 / 1;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-  }
-
-  .flip-face-back {
-    transform: rotateY(180deg);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .flip-card,
-    .flip-card.is-flipped {
-      transform: none;
-      transition: opacity 0.3s ease;
-    }
-    .flip-face-back {
-      transform: none;
-    }
-  }
 }
-
 
 @layer utilities {
   .animate-slide-in {
