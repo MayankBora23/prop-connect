@@ -71,9 +71,7 @@ export default function Auth() {
     if (!forgotEmail.trim()) return;
     setForgotLoading(true);
     try {
-      await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/auth`,
-      });
+      await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase());
       setForgotSent(true);
     } catch {
       // Always show success — never reveal if email exists

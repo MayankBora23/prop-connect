@@ -78,7 +78,7 @@ export const InternalCRMDashboard = () => {
                             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
                                 Welcome back, {profile?.name || 'User'}!
                             </h1>
-                            <p className="text-sm text-muted-foreground mt-1">Internal CRM</p>
+                            <p className="text-sm text-muted-foreground mt-1">{company?.name || 'Your Company'}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{currentDate}</p>
                         </div>
                     </div>

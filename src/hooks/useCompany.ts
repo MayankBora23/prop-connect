@@ -122,12 +122,10 @@ export function useCreateCompanyWithUser() {
     }) => {
       // Sign up the user with company info in metadata
       // The handle_new_user trigger will create the company
-      const redirectUrl = `${window.location.origin}/dashboard`;
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: userEmail,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             name: userName,
             company_name: companyName,

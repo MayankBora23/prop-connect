@@ -15,7 +15,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const APP_URL = 'https://aileadx.in'
+const APP_URL = 'https://aileadxcrm.vercel.app'
 const AUTH_URL = `${APP_URL}/auth`
 const FROM_EMAIL = 'AILeadX Support <support@aileadx.in>'
 
@@ -153,7 +153,7 @@ async function sendResendInviteEmail(
   return null
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
